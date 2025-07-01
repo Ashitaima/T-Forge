@@ -3,6 +3,7 @@ using Computational_Practice.Services.Interfaces;
 using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Computational_Practice.Controllers
 {
@@ -61,6 +62,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<TournamentDto>> CreateTournament([FromBody] CreateTournamentDto createDto)
         {
             var tournament = await _tournamentService.CreateAsync(createDto);
@@ -68,6 +70,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<TournamentDto>> UpdateTournament(int id, [FromBody] UpdateTournamentDto updateDto)
         {
             var tournament = await _tournamentService.UpdateAsync(id, updateDto);
@@ -75,6 +78,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteTournament(int id)
         {
             await _tournamentService.DeleteAsync(id);
