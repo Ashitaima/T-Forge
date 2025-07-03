@@ -1,5 +1,6 @@
 using Computational_Practice.DTOs;
 using Computational_Practice.Services.Interfaces;
+using Computational_Practice.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -40,15 +41,10 @@ namespace Computational_Practice.Controllers
             var userIdClaim = User.FindFirst("UserId")?.Value;
             if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized("Некоректний токен");
+                throw new BusinessLogicException("Некоректний токен");
             }
 
             var user = await _authService.GetCurrentUserAsync(userId);
-            if (user == null)
-            {
-                return NotFound("Користувача не знайдено");
-            }
-
             return Ok(user);
         }
 
@@ -59,7 +55,7 @@ namespace Computational_Practice.Controllers
             var userIdClaim = User.FindFirst("UserId")?.Value;
             if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
             {
-                return Unauthorized("Некоректний токен");
+                throw new BusinessLogicException("Некоректний токен");
             }
 
             await _authService.ChangePasswordAsync(userId, changePasswordDto.CurrentPassword, changePasswordDto.NewPassword);

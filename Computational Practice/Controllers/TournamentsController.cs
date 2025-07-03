@@ -2,6 +2,7 @@ using Computational_Practice.DTOs;
 using Computational_Practice.Services.Interfaces;
 using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
+using Computational_Practice.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 
@@ -38,12 +39,6 @@ namespace Computational_Practice.Controllers
         public async Task<ActionResult<TournamentDto>> GetTournament(int id)
         {
             var tournament = await _tournamentService.GetWithMatchesAsync(id);
-
-            if (tournament == null)
-            {
-                return NotFound($"Турнір з ID {id} не знайдено");
-            }
-
             return Ok(tournament);
         }
 
