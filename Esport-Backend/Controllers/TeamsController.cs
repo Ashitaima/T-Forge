@@ -4,6 +4,7 @@ using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
 using Computational_Practice.Exceptions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Computational_Practice.Controllers
 {
@@ -49,15 +50,41 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult<TeamDto>> UpdateTeam(int id, [FromBody] UpdateTeamDto updateDto)
         {
-            var team = await _teamService.UpdateAsync(id, updateDto);
-            return Ok(team);
+            var userId = GetUserIdOrThrow();
+            var existingTeam = await _teamService.GetWithPlayersAsync(id);
+            if (existingTeam == null)
+            {
+                throw new EntityNotFoundException("Team", id);
+            }
+
+            if (existingTeam.Captain?.Id != userId)
+            {
+                return Forbid();
+            }
+
+            var updatedTeam = await _teamService.UpdateAsync(id, updateDto);
+            return Ok(updatedTeam);
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> DeleteTeam(int id)
         {
+            var userId = GetUserIdOrThrow();
+            var team = await _teamService.GetWithPlayersAsync(id);
+            if (team == null)
+            {
+                throw new EntityNotFoundException("Team", id);
+            }
+
+            if (team.Captain?.Id != userId)
+            {
+                return Forbid();
+            }
+
             var result = await _teamService.DeleteAsync(id);
             if (!result)
             {
@@ -68,8 +95,21 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{teamId}/players/{playerId}")]
+        [Authorize]
         public async Task<ActionResult> AddPlayerToTeam(int teamId, int playerId)
         {
+            var userId = GetUserIdOrThrow();
+            var team = await _teamService.GetWithPlayersAsync(teamId);
+            if (team == null)
+            {
+                throw new EntityNotFoundException("Team", teamId);
+            }
+
+            if (team.Captain?.Id != userId)
+            {
+                return Forbid();
+            }
+
             var result = await _teamService.AddPlayerToTeamAsync(teamId, playerId);
             if (!result)
             {
@@ -80,8 +120,21 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpDelete("{teamId}/players/{playerId}")]
+        [Authorize]
         public async Task<ActionResult> RemovePlayerFromTeam(int teamId, int playerId)
         {
+            var userId = GetUserIdOrThrow();
+            var team = await _teamService.GetWithPlayersAsync(teamId);
+            if (team == null)
+            {
+                throw new EntityNotFoundException("Team", teamId);
+            }
+
+            if (team.Captain?.Id != userId)
+            {
+                return Forbid();
+            }
+
             var result = await _teamService.RemovePlayerFromTeamAsync(teamId, playerId);
             if (!result)
             {
@@ -89,6 +142,17 @@ namespace Computational_Practice.Controllers
             }
 
             return Ok("Гравця успішно видалено з команди");
+        }
+
+        private int GetUserIdOrThrow()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+            {
+                throw new BusinessLogicException("Некоректний токен");
+            }
+
+            return userId;
         }
     }
 }

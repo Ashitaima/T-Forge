@@ -57,7 +57,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult<TournamentDto>> CreateTournament([FromBody] CreateTournamentDto createDto)
         {
             var tournament = await _tournamentService.CreateAsync(createDto);
@@ -65,7 +65,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult<TournamentDto>> UpdateTournament(int id, [FromBody] UpdateTournamentDto updateDto)
         {
             var tournament = await _tournamentService.UpdateAsync(id, updateDto);

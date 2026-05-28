@@ -6,6 +6,7 @@ using Computational_Practice.Services.Interfaces;
 using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
 using Computational_Practice.Extensions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Computational_Practice.Services
 {
@@ -28,7 +29,9 @@ namespace Computational_Practice.Services
 
         public async Task<PagedResponse<PlayerDto>> GetPagedAsync(PagedRequest request, PlayerFilter? filter = null)
         {
-            var query = _unitOfWork.Players.GetQueryable();
+            IQueryable<Player> query = _unitOfWork.Players.GetQueryable()
+                .Include(p => p.Team)
+                .Include(p => p.User);
 
             if (filter != null)
             {

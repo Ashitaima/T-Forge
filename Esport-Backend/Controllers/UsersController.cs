@@ -4,6 +4,7 @@ using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
 using Computational_Practice.Exceptions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Computational_Practice.Controllers
 {
@@ -21,6 +22,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpGet("paged")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PagedResponse<UserDto>>> GetPagedUsers([FromQuery] UserFilter filter)
         {
             var users = await _userService.GetPagedAsync(filter, filter);
@@ -28,6 +30,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDto>> GetUser(int id)
         {
             var user = await _userService.GetByIdAsync(id);
@@ -35,6 +38,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDto>> CreateUser([FromBody] CreateUserDto createDto)
         {
             var user = await _userService.CreateAsync(createDto);
@@ -42,6 +46,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDto>> UpdateUser(int id, [FromBody] UpdateUserDto updateDto)
         {
             var user = await _userService.UpdateAsync(id, updateDto);
@@ -49,6 +54,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteUser(int id)
         {
             var result = await _userService.DeleteAsync(id);
@@ -61,6 +67,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{id}/activate")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> ActivateUser(int id)
         {
             var result = await _userService.ActivateAsync(id);
@@ -73,6 +80,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{id}/deactivate")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeactivateUser(int id)
         {
             var result = await _userService.DeactivateAsync(id);

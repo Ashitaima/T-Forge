@@ -4,6 +4,7 @@ using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
 using Computational_Practice.Exceptions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Computational_Practice.Controllers
 {
@@ -63,6 +64,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult<MatchDto>> CreateMatch([FromBody] CreateMatchDto createDto)
         {
             var match = await _matchService.CreateAsync(createDto);
@@ -70,6 +72,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult<MatchDto>> UpdateMatch(int id, [FromBody] UpdateMatchDto updateDto)
         {
             var match = await _matchService.UpdateAsync(id, updateDto);
@@ -77,6 +80,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult> DeleteMatch(int id)
         {
             var result = await _matchService.DeleteAsync(id);
@@ -89,6 +93,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{id}/start")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult> StartMatch(int id)
         {
             var result = await _matchService.StartMatchAsync(id);
@@ -101,6 +106,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{id}/complete")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult> CompleteMatch(int id, [FromBody] CompleteMatchRequest request)
         {
             var result = await _matchService.CompleteMatchAsync(id, request.WinnerTeamId, request.Result);
@@ -113,6 +119,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{id}/cancel")]
+        [Authorize(Roles = "Organizer")]
         public async Task<ActionResult> CancelMatch(int id, [FromBody] CancelMatchRequest request)
         {
             var result = await _matchService.CancelMatchAsync(id, request.Reason);

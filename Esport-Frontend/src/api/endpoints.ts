@@ -1,0 +1,21 @@
+export const endpoints = {
+  authLogin: "/api/auth/login",
+  authRegister: "/api/auth/register",
+  authProfile: "/api/auth/profile",
+  authChangePassword: "/api/auth/change-password",
+  authLogout: "/api/auth/logout",
+  tournaments: "/api/tournaments",
+  tournamentsPaged: "/api/tournaments/paged",
+  tournamentsStats: "/api/tournaments/stats",
+  teams: "/api/teams",
+  teamsPaged: "/api/teams/paged",
+  players: "/api/players",
+  playersPaged: "/api/players/paged",
+  matches: "/api/matches",
+  matchesPaged: "/api/matches/paged",
+  matchesScheduled: "/api/matches/scheduled",
+  matchesLive: "/api/matches/live",
+  matchesCompleted: "/api/matches/completed",
+  users: "/api/users",
+  usersPaged: "/api/users/paged"
+};
