@@ -26,7 +26,7 @@ export const AppShell = () => {
       <aside className="border-r border-white/5 bg-night-800/60 px-5 py-6">
         <div className="flex items-center gap-3 text-lg font-semibold text-neon-cyan">
           <Gamepad2 className="h-5 w-5" />
-          ETM Control
+          T-Forge
         </div>
         <nav className="mt-10 space-y-2">
           {visibleItems.map(({ to, label, icon: Icon }) => (
