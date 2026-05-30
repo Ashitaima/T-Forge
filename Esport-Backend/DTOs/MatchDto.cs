@@ -13,9 +13,9 @@ namespace Computational_Practice.DTOs
         public string Format { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
-        public TeamDto? HomeTeam { get; set; }
-        public TeamDto? AwayTeam { get; set; }
-        public TeamDto? WinnerTeam { get; set; }
+        public TeamSummaryDto? HomeTeam { get; set; }
+        public TeamSummaryDto? AwayTeam { get; set; }
+        public TeamSummaryDto? WinnerTeam { get; set; }
         public TournamentDto? Tournament { get; set; }
         public List<MatchPlayerDto> MatchPlayers { get; set; } = new();
     }
@@ -51,6 +51,6 @@ namespace Computational_Practice.DTOs
         public int Assists { get; set; }
         public string Champion { get; set; } = string.Empty;
         public bool IsStarter { get; set; }
-        public PlayerDto? Player { get; set; }
+        public PlayerSummaryDto? Player { get; set; }
     }
 }

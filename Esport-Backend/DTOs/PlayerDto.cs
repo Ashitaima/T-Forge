@@ -15,7 +15,16 @@ namespace Computational_Practice.DTOs
         public bool IsActive { get; set; }
         public DateTime JoinedAt { get; set; }
         public UserDto? User { get; set; }
-        public TeamDto? Team { get; set; }
+        public TeamSummaryDto? Team { get; set; }
+    }
+
+    public class PlayerSummaryDto
+    {
+        public int Id { get; set; }
+        public string Nickname { get; set; } = string.Empty;
+        public string Position { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
     }
 
     public class CreatePlayerDto

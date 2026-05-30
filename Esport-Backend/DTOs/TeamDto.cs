@@ -10,7 +10,17 @@ namespace Computational_Practice.DTOs
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public UserDto? Captain { get; set; }
-        public List<PlayerDto> Players { get; set; } = new();
+        public List<PlayerSummaryDto> Players { get; set; } = new();
+    }
+
+    public class TeamSummaryDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Tag { get; set; } = string.Empty;
+        public string Region { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public UserDto? Captain { get; set; }
     }
 
     public class CreateTeamDto

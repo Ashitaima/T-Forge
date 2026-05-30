@@ -6,12 +6,13 @@ import type { UserDto } from "../../types";
 const UsersList = () => {
   const [users, setUsers] = useState<UserDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await usersApi.getPaged({ page: 1, pageSize: 20 });
+        const response = await usersApi.getPaged({ page: 1, pageSize: 20, search });
         if (isActive) {
           setUsers(response.data);
         }
@@ -27,7 +28,7 @@ const UsersList = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [search]);
 
   const handleDelete = async (id: number) => {
     const approved = window.confirm("Видалити користувача?");
@@ -52,6 +53,14 @@ const UsersList = () => {
           Додати користувача
         </Link>
       </header>
+      <div className="max-w-md">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Пошук за нікнеймом або email"
+          className="w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm text-slate-200"
+        />
+      </div>
       <div className="glass-panel rounded-2xl p-6">
         {loading && <div className="text-sm text-slate-400">Завантаження користувачів...</div>}
         <table className="w-full text-left text-sm">

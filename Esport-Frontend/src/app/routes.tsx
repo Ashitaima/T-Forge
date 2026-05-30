@@ -54,14 +54,19 @@ export const router = createBrowserRouter([
         ]
       },
       {
-        element: <ProtectedRoute />,
+        element: <ProtectedRoute roles={["Admin", "Organizer"]} />,
         children: [
           {
             path: "teams/new",
             lazy: async () => ({
               Component: (await import("../features/teams/TeamForm")).default
             })
-          },
+          }
+        ]
+      },
+      {
+        element: <ProtectedRoute />,
+        children: [
           {
             path: "teams/:id/edit",
             lazy: async () => ({

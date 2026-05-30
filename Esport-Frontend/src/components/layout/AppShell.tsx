@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { CalendarClock, Gamepad2, LayoutGrid, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
@@ -14,12 +14,20 @@ const navItems = [
 
 export const AppShell = () => {
   const { isAuthenticated, user, logout, hydrate } = useAuthStore();
+  const [previewRole, setPreviewRole] = useState<string>("");
+
+  const effectiveRole = useMemo(() => {
+    if (previewRole) {
+      return previewRole;
+    }
+    return user?.role ?? "Guest";
+  }, [previewRole, user?.role]);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  const visibleItems = navItems.filter((item) => !item.adminOnly || user?.role === "Admin");
+  const visibleItems = navItems.filter((item) => !item.adminOnly || effectiveRole === "Admin");
 
   return (
     <div className="min-h-screen grid grid-cols-[240px_1fr] bg-night-900 text-slate-100">
@@ -28,7 +36,22 @@ export const AppShell = () => {
           <Gamepad2 className="h-5 w-5" />
           T-Forge
         </div>
-        <nav className="mt-10 space-y-2">
+        <div className="mt-8 rounded-xl border border-white/10 bg-night-700/40 p-3 text-xs">
+          <div className="text-slate-400">Превʼю ролі</div>
+          <select
+            value={previewRole}
+            onChange={(event) => setPreviewRole(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-white/10 bg-night-800/60 px-2 py-1 text-xs text-slate-200"
+          >
+            <option value="">Поточна роль</option>
+            <option value="Guest">Гість</option>
+            <option value="User">Користувач</option>
+            <option value="Player">Гравець</option>
+            <option value="Organizer">Організатор</option>
+            <option value="Admin">Адміністратор</option>
+          </select>
+        </div>
+        <nav className="mt-6 space-y-2">
           {visibleItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -49,6 +72,7 @@ export const AppShell = () => {
             <Shield className="h-4 w-4" />
             {isAuthenticated ? "Підключено" : "Гість"}
           </div>
+          <div className="mt-2 text-slate-400">Роль: {effectiveRole}</div>
           {user && (
             <div className="mt-2 text-slate-200">
               {user.firstName} {user.lastName}

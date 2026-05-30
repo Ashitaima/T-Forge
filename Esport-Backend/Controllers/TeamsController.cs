@@ -43,6 +43,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<TeamDto>> CreateTeam([FromBody] CreateTeamDto createDto)
         {
             var team = await _teamService.CreateAsync(createDto);

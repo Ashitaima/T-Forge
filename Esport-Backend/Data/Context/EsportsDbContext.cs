@@ -49,7 +49,6 @@ namespace Computational_Practice.Data.Context
 
                 // Унікальні індекси
                 entity.HasIndex(e => e.Username).IsUnique();
-                entity.HasIndex(e => e.Email).IsUnique();
             });
         }
 

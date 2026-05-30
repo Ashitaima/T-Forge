@@ -14,6 +14,7 @@ namespace Computational_Practice.Data
             // Проверяем, есть ли уже данные
             if (await context.Users.AnyAsync())
             {
+                await EnsureScheduledMatchesAsync(context);
                 return; // База данных уже засеяна
             }
 
@@ -278,6 +279,8 @@ namespace Computational_Practice.Data
             await context.Matches.AddRangeAsync(matches);
             await context.SaveChangesAsync();
 
+            await EnsureScheduledMatchesAsync(context);
+
             // Создаем статистику игроков для матча
             var matchPlayers = new List<MatchPlayer>
             {
@@ -327,6 +330,68 @@ namespace Computational_Practice.Data
             await context.SaveChangesAsync();
 
             Console.WriteLine("База данных успешно заполнена тестовыми данными!");
+        }
+
+        private static async Task EnsureScheduledMatchesAsync(EsportsDbContext context)
+        {
+            if (await context.Matches.AnyAsync(match => match.Status == "Scheduled"))
+            {
+                return;
+            }
+
+            var teams = await context.Teams.OrderBy(team => team.Id).ToListAsync();
+            var tournaments = await context.Tournaments.OrderBy(tournament => tournament.Id).ToListAsync();
+
+            if (teams.Count < 2 || tournaments.Count == 0)
+            {
+                return;
+            }
+
+            var firstTournamentId = tournaments[0].Id;
+            var secondTournamentId = tournaments.Count > 1 ? tournaments[1].Id : tournaments[0].Id;
+
+            var scheduledMatches = new List<Match>
+            {
+                new Match
+                {
+                    TournamentId = firstTournamentId,
+                    HomeTeamId = teams[0].Id,
+                    AwayTeamId = teams[1].Id,
+                    ScheduledAt = DateTime.UtcNow.AddDays(2).AddHours(3),
+                    Status = "Scheduled",
+                    MatchType = "GroupStage",
+                    Format = "BO3",
+                    Notes = "Upcoming group stage opener",
+                    CreatedAt = DateTime.UtcNow
+                },
+                new Match
+                {
+                    TournamentId = firstTournamentId,
+                    HomeTeamId = teams[1].Id,
+                    AwayTeamId = teams[0].Id,
+                    ScheduledAt = DateTime.UtcNow.AddDays(3).AddHours(1),
+                    Status = "Scheduled",
+                    MatchType = "GroupStage",
+                    Format = "BO1",
+                    Notes = "Second round test match",
+                    CreatedAt = DateTime.UtcNow
+                },
+                new Match
+                {
+                    TournamentId = secondTournamentId,
+                    HomeTeamId = teams[0].Id,
+                    AwayTeamId = teams[1].Id,
+                    ScheduledAt = DateTime.UtcNow.AddDays(5).AddHours(2),
+                    Status = "Scheduled",
+                    MatchType = "QuarterFinal",
+                    Format = "BO3",
+                    Notes = "Quarter-final preview",
+                    CreatedAt = DateTime.UtcNow
+                }
+            };
+
+            await context.Matches.AddRangeAsync(scheduledMatches);
+            await context.SaveChangesAsync();
         }
     }
 }

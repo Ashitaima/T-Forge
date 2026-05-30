@@ -7,13 +7,15 @@ import { useAuthStore } from "../../store/authStore";
 const TeamsList = () => {
   const [teams, setTeams] = useState<TeamDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const { user, isAuthenticated } = useAuthStore();
+  const canCreateTeam = user?.role === "Admin" || user?.role === "Organizer";
 
   useEffect(() => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await teamsApi.getPaged({ page: 1, pageSize: 20 });
+        const response = await teamsApi.getPaged({ page: 1, pageSize: 20, search });
         if (isActive) {
           setTeams(response.data);
         }
@@ -29,7 +31,7 @@ const TeamsList = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [search]);
 
   const handleDelete = async (id: number) => {
     const approved = window.confirm("Видалити команду?");
@@ -47,7 +49,7 @@ const TeamsList = () => {
           <h1 className="text-3xl font-semibold">Команди</h1>
           <p className="mt-2 text-sm text-slate-400">Огляд складів та командного рейтингу.</p>
         </div>
-        {isAuthenticated && (
+        {isAuthenticated && canCreateTeam && (
           <Link
             to="/teams/new"
             className="rounded-xl border border-neon-cyan/40 px-4 py-2 text-sm text-neon-cyan hover:bg-neon-cyan/10"
@@ -56,6 +58,14 @@ const TeamsList = () => {
           </Link>
         )}
       </header>
+      <div className="max-w-md">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Пошук за назвою"
+          className="w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm text-slate-200"
+        />
+      </div>
       <div className="glass-panel rounded-2xl p-6">
         {loading && <div className="text-sm text-slate-400">Завантаження команд...</div>}
         <table className="w-full text-left text-sm">

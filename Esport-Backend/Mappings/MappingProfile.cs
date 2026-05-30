@@ -47,6 +47,7 @@ namespace Computational_Practice.Mappings
                 .ForMember(dest => dest.Matches, opt => opt.Ignore());
 
             CreateMap<Team, TeamDto>();
+            CreateMap<Team, TeamSummaryDto>();
             CreateMap<CreateTeamDto, Team>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
@@ -62,6 +63,7 @@ namespace Computational_Practice.Mappings
                 .ForMember(dest => dest.Players, opt => opt.Ignore());
 
             CreateMap<Player, PlayerDto>();
+            CreateMap<Player, PlayerSummaryDto>();
             CreateMap<CreatePlayerDto, Player>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.TotalMatches, opt => opt.MapFrom(src => 0))

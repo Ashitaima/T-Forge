@@ -66,7 +66,16 @@ export type TeamDto = {
   isActive: boolean;
   createdAt: string;
   captain?: UserDto | null;
-  players: PlayerDto[];
+  players: PlayerSummaryDto[];
+};
+
+export type TeamSummaryDto = {
+  id: number;
+  name: string;
+  tag: string;
+  region: string;
+  isActive: boolean;
+  captain?: UserDto | null;
 };
 
 export type CreateTeamDto = {
@@ -98,7 +107,15 @@ export type PlayerDto = {
   isActive: boolean;
   joinedAt: string;
   user?: UserDto | null;
-  team?: TeamDto | null;
+  team?: TeamSummaryDto | null;
+};
+
+export type PlayerSummaryDto = {
+  id: number;
+  nickname: string;
+  position: string;
+  country: string;
+  isActive: boolean;
 };
 
 export type CreatePlayerDto = {
@@ -124,7 +141,7 @@ export type MatchPlayerDto = {
   assists: number;
   champion: string;
   isStarter: boolean;
-  player?: PlayerDto | null;
+  player?: PlayerSummaryDto | null;
 };
 
 export type MatchDto = {
@@ -139,9 +156,9 @@ export type MatchDto = {
   format: string;
   notes: string;
   createdAt: string;
-  homeTeam?: TeamDto | null;
-  awayTeam?: TeamDto | null;
-  winnerTeam?: TeamDto | null;
+  homeTeam?: TeamSummaryDto | null;
+  awayTeam?: TeamSummaryDto | null;
+  winnerTeam?: TeamSummaryDto | null;
   tournament?: TournamentDto | null;
   matchPlayers: MatchPlayerDto[];
 };

@@ -61,12 +61,6 @@ namespace Computational_Practice.Services
                 throw new BusinessLogicException("Користувач з таким іменем вже існує");
             }
 
-            var existingEmail = await _unitOfWork.Users.GetByEmailAsync(registerDto.Email);
-            if (existingEmail != null)
-            {
-                throw new BusinessLogicException("Користувач з таким email вже існує");
-            }
-
             var user = new User
             {
                 Username = registerDto.Username,

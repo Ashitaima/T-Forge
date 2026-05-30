@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { playersApi } from "../../api/playersApi";
+import { useAuthStore } from "../../store/authStore";
 import type { PlayerDto } from "../../types";
 
 const PlayersList = () => {
   const [players, setPlayers] = useState<PlayerDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await playersApi.getPaged({ page: 1, pageSize: 20 });
+        const response = await playersApi.getPaged({ page: 1, pageSize: 20, search });
         if (isActive) {
           setPlayers(response.data);
         }
@@ -27,7 +30,7 @@ const PlayersList = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [search]);
 
   const handleDelete = async (id: number) => {
     const approved = window.confirm("Видалити гравця?");
@@ -45,13 +48,23 @@ const PlayersList = () => {
           <h1 className="text-3xl font-semibold">Гравці</h1>
           <p className="mt-2 text-sm text-slate-400">Каталог гравців та статистика результатів.</p>
         </div>
-        <Link
-          to="/players/new"
-          className="rounded-xl border border-neon-cyan/40 px-4 py-2 text-sm text-neon-cyan hover:bg-neon-cyan/10"
-        >
-          Додати гравця
-        </Link>
+        {isAuthenticated && (
+          <Link
+            to="/players/new"
+            className="rounded-xl border border-neon-cyan/40 px-4 py-2 text-sm text-neon-cyan hover:bg-neon-cyan/10"
+          >
+            Додати гравця
+          </Link>
+        )}
       </header>
+      <div className="max-w-md">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Пошук за нікнеймом"
+          className="w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm text-slate-200"
+        />
+      </div>
       <div className="glass-panel rounded-2xl p-6">
         {loading && <div className="text-sm text-slate-400">Завантаження гравців...</div>}
         <table className="w-full text-left text-sm">

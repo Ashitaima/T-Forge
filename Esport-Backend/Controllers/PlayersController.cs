@@ -4,6 +4,7 @@ using Computational_Practice.Common;
 using Computational_Practice.Common.Filters;
 using Computational_Practice.Exceptions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Computational_Practice.Controllers
 {
@@ -49,6 +50,7 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<PlayerDto>> CreatePlayer([FromBody] CreatePlayerDto createDto)
         {
             var player = await _playerService.CreateAsync(createDto);
