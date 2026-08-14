@@ -1,6 +1,6 @@
-using Computational_Practice.Models;
+using TForge.Models;
 
-namespace Computational_Practice.Data.Interfaces
+namespace TForge.Data.Interfaces
 {
     public interface IMatchRepository : IGenericRepository<Match>
     {
@@ -8,6 +8,8 @@ namespace Computational_Practice.Data.Interfaces
         Task<IEnumerable<Match>> GetByTeamAsync(int teamId);
         Task<IEnumerable<Match>> GetByStatusAsync(string status);
         Task<Match?> GetWithPlayersAsync(int id);
+        Task<Match?> GetWithDetailsAsync(int id);
+        IQueryable<Match> GetQueryableWithDetails();
         Task<IEnumerable<Match>> GetCompletedAsync();
         Task<IEnumerable<Match>> GetUpcomingAsync();
     }

@@ -1,15 +1,21 @@
-using Computational_Practice.Data.Context;
-using Computational_Practice.Models;
+using TForge.Data.Context;
+using TForge.Models;
+using TForge.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace Computational_Practice.Data
+namespace TForge.Data
 {
     public static class DbSeeder
     {
-        public static async Task SeedAsync(EsportsDbContext context)
+        /// <summary>
+        /// Пароль для всіх демо-акаунтів (admin, organizer1, player1..player4).
+        /// Лише для локальної розробки.
+        /// </summary>
+        public const string DevPassword = "DevPassw0rd";
+
+        public static async Task SeedAsync(EsportsDbContext context, IPasswordHasher passwordHasher)
         {
-            // Убедимся, что база данных создана
-            await context.Database.EnsureCreatedAsync();
+            // Схема створюється міграціями в DatabaseInitializer, а не EnsureCreated
 
             // Проверяем, есть ли уже данные
             if (await context.Users.AnyAsync())
@@ -25,7 +31,7 @@ namespace Computational_Practice.Data
                 {
                     Username = "admin",
                     Email = "admin@esports.com",
-                    PasswordHash = "hashed_password_admin", // В реальности будет хешированный пароль
+                    PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Admin",
                     LastName = "User",
                     Role = "Admin",
@@ -37,7 +43,7 @@ namespace Computational_Practice.Data
                 {
                     Username = "organizer1",
                     Email = "organizer1@esports.com",
-                    PasswordHash = "hashed_password_organizer1",
+                    PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "John",
                     LastName = "Organizer",
                     Role = "Organizer",
@@ -49,7 +55,7 @@ namespace Computational_Practice.Data
                 {
                     Username = "player1",
                     Email = "player1@esports.com",
-                    PasswordHash = "hashed_password_player1",
+                    PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Alex",
                     LastName = "Gamer",
                     Role = "Player",
@@ -61,7 +67,7 @@ namespace Computational_Practice.Data
                 {
                     Username = "player2",
                     Email = "player2@esports.com",
-                    PasswordHash = "hashed_password_player2",
+                    PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Sarah",
                     LastName = "Pro",
                     Role = "Player",
@@ -73,7 +79,7 @@ namespace Computational_Practice.Data
                 {
                     Username = "player3",
                     Email = "player3@esports.com",
-                    PasswordHash = "hashed_password_player3",
+                    PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Mike",
                     LastName = "Elite",
                     Role = "Player",
@@ -85,7 +91,7 @@ namespace Computational_Practice.Data
                 {
                     Username = "player4",
                     Email = "player4@esports.com",
-                    PasswordHash = "hashed_password_player4",
+                    PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Emma",
                     LastName = "Champion",
                     Role = "Player",

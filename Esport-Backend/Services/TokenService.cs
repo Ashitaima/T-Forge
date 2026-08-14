@@ -2,9 +2,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using Computational_Practice.DTOs;
+using TForge.DTOs;
 
-namespace Computational_Practice.Services
+namespace TForge.Services
 {
     public interface ITokenService
     {

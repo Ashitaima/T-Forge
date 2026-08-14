@@ -1,8 +1,8 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
+using TForge.DTOs;
+using TForge.Common;
+using TForge.Common.Filters;
 
-namespace Computational_Practice.Services.Interfaces
+namespace TForge.Services.Interfaces
 {
     public interface IMatchService
     {

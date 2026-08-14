@@ -4,6 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "../../store/authStore";
 import { Link, useNavigate } from "react-router-dom";
+import { AuthLayout } from "./AuthLayout";
 
 const schema = z.object({
   username: z
@@ -56,85 +57,66 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-night-900 px-4">
-      <div className="glass-panel w-full max-w-md rounded-2xl p-8">
-        <h1 className="text-2xl font-semibold">Реєстрація акаунта</h1>
-        <p className="mt-2 text-sm text-slate-400">Створіть профіль менеджера</p>
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-          <label className="block text-sm">
-            Нікнейм
-            <input
-              type="text"
-              {...register("username")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            />
-            {errors.username && <p className="mt-1 text-xs text-neon-magenta">{errors.username.message}</p>}
+    <AuthLayout
+      title="Створення акаунта"
+      subtitle="Кілька полів — і можна збирати команду."
+      footer={
+        <>
+          Вже є акаунт?{" "}
+          <Link to="/login" className="text-ember hover:underline">
+            Увійти
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4">
+        <label className="field">
+          Нікнейм
+          <input type="text" autoComplete="username" {...register("username")} className="input" />
+          {errors.username && <p className="field-error">{errors.username.message}</p>}
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="field">
+            Ім&#39;я
+            <input type="text" autoComplete="given-name" {...register("firstName")} className="input" />
+            {errors.firstName && <p className="field-error">{errors.firstName.message}</p>}
           </label>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block text-sm">
-              Ім'я
-              <input
-                type="text"
-                {...register("firstName")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-              />
-              {errors.firstName && <p className="mt-1 text-xs text-neon-magenta">{errors.firstName.message}</p>}
-            </label>
-            <label className="block text-sm">
-              Прізвище
-              <input
-                type="text"
-                {...register("lastName")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-              />
-              {errors.lastName && <p className="mt-1 text-xs text-neon-magenta">{errors.lastName.message}</p>}
-            </label>
-          </div>
-          <label className="block text-sm">
-            Електронна пошта
-            <input
-              type="email"
-              {...register("email")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            />
-            {errors.email && <p className="mt-1 text-xs text-neon-magenta">{errors.email.message}</p>}
+          <label className="field">
+            Прізвище
+            <input type="text" autoComplete="family-name" {...register("lastName")} className="input" />
+            {errors.lastName && <p className="field-error">{errors.lastName.message}</p>}
           </label>
-          <label className="block text-sm">
-            Пароль
-            <input
-              type="password"
-              {...register("password")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            />
-            {errors.password && <p className="mt-1 text-xs text-neon-magenta">{errors.password.message}</p>}
-          </label>
-          <label className="block text-sm">
-            Роль
-            <select
-              {...register("role")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            >
-              <option value="User">Користувач</option>
-              <option value="Player">Гравець</option>
-              <option value="Organizer">Організатор</option>
-              <option value="Admin">Адміністратор</option>
-            </select>
-            {errors.role && <p className="mt-1 text-xs text-neon-magenta">{errors.role.message}</p>}
-          </label>
-          {submitError && <p className="text-sm text-neon-magenta">{submitError}</p>}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-neon-green/90 px-4 py-2 text-sm font-semibold text-night-900 hover:bg-neon-green"
-          >
-            {isSubmitting ? "Реєстрація..." : "Створити акаунт"}
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-slate-400">
-          Вже є акаунт? <Link to="/login" className="text-neon-cyan">Увійти</Link>
-        </p>
-      </div>
-    </div>
+        </div>
+        <label className="field">
+          Електронна пошта
+          <input type="email" autoComplete="email" {...register("email")} className="input" />
+          {errors.email && <p className="field-error">{errors.email.message}</p>}
+        </label>
+        <label className="field">
+          Пароль
+          <input type="password" autoComplete="new-password" {...register("password")} className="input" />
+          {errors.password ? (
+            <p className="field-error">{errors.password.message}</p>
+          ) : (
+            <p className="field-hint">Мінімум 8 символів, велика й мала літери та цифра.</p>
+          )}
+        </label>
+        <label className="field">
+          Роль
+          <select {...register("role")} className="input">
+            <option value="User">Користувач</option>
+            <option value="Player">Гравець</option>
+            <option value="Organizer">Організатор</option>
+            <option value="Admin">Адміністратор</option>
+          </select>
+          {errors.role && <p className="field-error">{errors.role.message}</p>}
+        </label>
+        {submitError && <div className="notice notice-error">{submitError}</div>}
+        <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full">
+          {isSubmitting ? "Створення..." : "Створити акаунт"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 };
 

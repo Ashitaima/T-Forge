@@ -1,14 +1,14 @@
 using AutoMapper;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.DTOs;
-using Computational_Practice.Models;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Extensions;
+using TForge.Data.Interfaces;
+using TForge.DTOs;
+using TForge.Models;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace Computational_Practice.Services
+namespace TForge.Services
 {
     public class TeamService : ITeamService
     {
@@ -86,9 +86,10 @@ namespace Computational_Practice.Services
             return _mapper.Map<IEnumerable<TeamDto>>(tournamentTeams);
         }
 
-        public async Task<TeamDto> CreateAsync(CreateTeamDto createDto)
+        public async Task<TeamDto> CreateAsync(CreateTeamDto createDto, int captainId)
         {
             var team = _mapper.Map<Team>(createDto);
+            team.CaptainId = captainId;
             team.CreatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Teams.AddAsync(team);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "../../store/authStore";
 import { Link, useNavigate } from "react-router-dom";
+import { AuthLayout } from "./AuthLayout";
 
 const schema = z.object({
   username: z.string().min(3, "Вкажіть нікнейм"),
@@ -28,42 +29,34 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-night-900 px-4">
-      <div className="glass-panel w-full max-w-md rounded-2xl p-8">
-        <h1 className="text-2xl font-semibold">Вхід до системи</h1>
-        <p className="mt-2 text-sm text-slate-400">Поверніться до менеджера турнірів</p>
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-          <label className="block text-sm">
-            Нікнейм
-            <input
-              type="text"
-              {...register("username")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            />
-            {errors.username && <p className="mt-1 text-xs text-neon-magenta">{errors.username.message}</p>}
-          </label>
-          <label className="block text-sm">
-            Пароль
-            <input
-              type="password"
-              {...register("password")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            />
-            {errors.password && <p className="mt-1 text-xs text-neon-magenta">{errors.password.message}</p>}
-          </label>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-neon-cyan/90 px-4 py-2 text-sm font-semibold text-night-900 hover:bg-neon-cyan"
-          >
-            {isSubmitting ? "Вхід..." : "Увійти"}
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-slate-400">
-          Немає акаунта? <Link to="/register" className="text-neon-cyan">Створити</Link>
-        </p>
-      </div>
-    </div>
+    <AuthLayout
+      title="Вхід"
+      subtitle="Продовжуйте керувати своїми турнірами."
+      footer={
+        <>
+          Немає акаунта?{" "}
+          <Link to="/register" className="text-ember hover:underline">
+            Створити
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4">
+        <label className="field">
+          Нікнейм
+          <input type="text" autoComplete="username" {...register("username")} className="input" />
+          {errors.username && <p className="field-error">{errors.username.message}</p>}
+        </label>
+        <label className="field">
+          Пароль
+          <input type="password" autoComplete="current-password" {...register("password")} className="input" />
+          {errors.password && <p className="field-error">{errors.password.message}</p>}
+        </label>
+        <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full">
+          {isSubmitting ? "Вхід..." : "Увійти"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 };
 

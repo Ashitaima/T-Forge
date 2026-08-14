@@ -1,7 +1,7 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class CreatePlayerValidator : AbstractValidator<CreatePlayerDto>
     {
@@ -25,8 +25,10 @@ namespace Computational_Practice.Validators
                 .LessThanOrEqualTo(50).WithMessage("Вік не може перевищувати 50 років")
                 .When(x => x.Age > 0);
 
+            // Зазвичай користувача визначає сервер за токеном
             RuleFor(x => x.UserId)
-                .GreaterThan(0).WithMessage("ID користувача повинен бути більше 0");
+                .GreaterThan(0).WithMessage("ID користувача повинен бути більше 0")
+                .When(x => x.UserId.HasValue);
 
             RuleFor(x => x.TeamId)
                 .GreaterThan(0).WithMessage("ID команди повинен бути більше 0")

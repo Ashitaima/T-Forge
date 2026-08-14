@@ -1,7 +1,8 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.Common;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class UpdateTournamentValidator : AbstractValidator<UpdateTournamentDto>
     {
@@ -33,10 +34,6 @@ namespace Computational_Practice.Validators
                 .Must(BeValidStatus).WithMessage("Некоректний статус турніру");
         }
 
-        private bool BeValidStatus(string status)
-        {
-            var validStatuses = new[] { "Registration", "Active", "Completed", "Cancelled" };
-            return validStatuses.Contains(status);
-        }
+        private bool BeValidStatus(string status) => TournamentStatus.IsValid(status);
     }
 }

@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore.Storage;
-using Computational_Practice.Data.Context;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.Data.Repositories;
+using TForge.Data.Context;
+using TForge.Data.Interfaces;
+using TForge.Data.Repositories;
 
-namespace Computational_Practice.Data
+namespace TForge.Data
 {
     public class UnitOfWork : IUnitOfWork
     {

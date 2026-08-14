@@ -1,16 +1,16 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Exceptions;
+using TForge.DTOs;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 
-namespace Computational_Practice.Controllers
+namespace TForge.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class PlayersController : ControllerBase
+    public class PlayersController : ApiControllerBase
     {
         private readonly IPlayerService _playerService;
         private readonly ILogger<PlayersController> _logger;
@@ -53,20 +53,32 @@ namespace Computational_Practice.Controllers
         [Authorize]
         public async Task<ActionResult<PlayerDto>> CreatePlayer([FromBody] CreatePlayerDto createDto)
         {
-            var player = await _playerService.CreateAsync(createDto);
+            var player = await _playerService.CreateAsync(createDto, ResolveOwnerId(createDto.UserId));
             return CreatedAtAction(nameof(GetPlayer), new { id = player.Id }, player);
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult<PlayerDto>> UpdatePlayer(int id, [FromBody] UpdatePlayerDto updateDto)
         {
+            if (!await IsOwnerOrAdminAsync(id))
+            {
+                return Forbid();
+            }
+
             var player = await _playerService.UpdateAsync(id, updateDto);
             return Ok(player);
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> DeletePlayer(int id)
         {
+            if (!await IsOwnerOrAdminAsync(id))
+            {
+                return Forbid();
+            }
+
             var result = await _playerService.DeleteAsync(id);
             if (!result)
             {
@@ -77,8 +89,14 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{playerId}/join-team/{teamId}")]
+        [Authorize]
         public async Task<ActionResult> JoinTeam(int playerId, int teamId)
         {
+            if (!await IsOwnerOrAdminAsync(playerId))
+            {
+                return Forbid();
+            }
+
             var result = await _playerService.JoinTeamAsync(playerId, teamId);
             if (!result)
             {
@@ -89,8 +107,14 @@ namespace Computational_Practice.Controllers
         }
 
         [HttpPost("{playerId}/leave-team")]
+        [Authorize]
         public async Task<ActionResult> LeaveTeam(int playerId)
         {
+            if (!await IsOwnerOrAdminAsync(playerId))
+            {
+                return Forbid();
+            }
+
             var result = await _playerService.LeaveTeamAsync(playerId);
             if (!result)
             {
@@ -99,5 +123,25 @@ namespace Computational_Practice.Controllers
 
             return Ok("Гравець успішно покинув команду");
         }
+
+        /// <summary>
+        /// Профіль гравця може змінювати лише його власник або адміністратор.
+        /// </summary>
+        private async Task<bool> IsOwnerOrAdminAsync(int playerId)
+        {
+            if (IsAdmin)
+            {
+                return true;
+            }
+
+            var player = await _playerService.GetByIdAsync(playerId);
+            if (player == null)
+            {
+                throw new EntityNotFoundException("Player", playerId);
+            }
+
+            return player.UserId == GetUserIdOrThrow();
+        }
+
     }
 }

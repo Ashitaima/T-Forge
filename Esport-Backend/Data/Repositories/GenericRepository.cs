@@ -1,9 +1,9 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using Computational_Practice.Data.Context;
-using Computational_Practice.Data.Interfaces;
+using TForge.Data.Context;
+using TForge.Data.Interfaces;
 
-namespace Computational_Practice.Data.Repositories
+namespace TForge.Data.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {

@@ -1,23 +1,28 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Exceptions;
+using TForge.DTOs;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 
-namespace Computational_Practice.Controllers
+namespace TForge.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class TournamentsController : ControllerBase
+    public class TournamentsController : ApiControllerBase
     {
         private readonly ITournamentService _tournamentService;
+        private readonly IBracketService _bracketService;
         private readonly ILogger<TournamentsController> _logger;
 
-        public TournamentsController(ITournamentService tournamentService, ILogger<TournamentsController> logger)
+        public TournamentsController(
+            ITournamentService tournamentService,
+            IBracketService bracketService,
+            ILogger<TournamentsController> logger)
         {
             _tournamentService = tournamentService;
+            _bracketService = bracketService;
             _logger = logger;
         }
 
@@ -60,7 +65,7 @@ namespace Computational_Practice.Controllers
         [Authorize(Roles = "Organizer")]
         public async Task<ActionResult<TournamentDto>> CreateTournament([FromBody] CreateTournamentDto createDto)
         {
-            var tournament = await _tournamentService.CreateAsync(createDto);
+            var tournament = await _tournamentService.CreateAsync(createDto, ResolveOwnerId(createDto.OrganizerId));
             return CreatedAtAction(nameof(GetTournament), new { id = tournament.Id }, tournament);
         }
 
@@ -70,6 +75,41 @@ namespace Computational_Practice.Controllers
         {
             var tournament = await _tournamentService.UpdateAsync(id, updateDto);
             return Ok(tournament);
+        }
+
+        // ---- Реєстрація команд ----
+
+        [HttpGet("{id}/teams")]
+        public async Task<ActionResult<IEnumerable<TeamSummaryDto>>> GetRegisteredTeams(int id)
+        {
+            var teams = await _tournamentService.GetRegisteredTeamsAsync(id);
+            return Ok(teams);
+        }
+
+        [HttpPost("{id}/teams/{teamId}")]
+        [Authorize]
+        public async Task<ActionResult> RegisterTeam(int id, int teamId)
+        {
+            await _tournamentService.RegisterTeamAsync(id, teamId, GetUserIdOrThrow(), IsAdmin);
+            return Ok(new { message = "Команду зареєстровано на турнір" });
+        }
+
+        [HttpDelete("{id}/teams/{teamId}")]
+        [Authorize]
+        public async Task<ActionResult> WithdrawTeam(int id, int teamId)
+        {
+            await _tournamentService.WithdrawTeamAsync(id, teamId, GetUserIdOrThrow(), IsAdmin);
+            return Ok(new { message = "Команду знято з турніру" });
+        }
+
+        // ---- Турнірна сітка ----
+
+        [HttpPost("{id}/bracket/generate")]
+        [Authorize(Roles = "Admin,Organizer")]
+        public async Task<ActionResult> GenerateBracket(int id)
+        {
+            var created = await _bracketService.GenerateAsync(id);
+            return Ok(new { message = $"Сітку створено: {created} матчів у першому раунді", matches = created });
         }
 
         [HttpDelete("{id}")]

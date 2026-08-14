@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Computational_Practice.Models
+namespace TForge.Models
 {
     public class MatchPlayer
     {

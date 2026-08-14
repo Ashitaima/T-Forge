@@ -1,16 +1,16 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Exceptions;
+using TForge.DTOs;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 
-namespace Computational_Practice.Controllers
+namespace TForge.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class TeamsController : ControllerBase
+    public class TeamsController : ApiControllerBase
     {
         private readonly ITeamService _teamService;
         private readonly ILogger<TeamsController> _logger;
@@ -46,7 +46,7 @@ namespace Computational_Practice.Controllers
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<TeamDto>> CreateTeam([FromBody] CreateTeamDto createDto)
         {
-            var team = await _teamService.CreateAsync(createDto);
+            var team = await _teamService.CreateAsync(createDto, ResolveOwnerId(createDto.CaptainId));
             return CreatedAtAction(nameof(GetTeam), new { id = team.Id }, team);
         }
 
@@ -145,15 +145,5 @@ namespace Computational_Practice.Controllers
             return Ok("Гравця успішно видалено з команди");
         }
 
-        private int GetUserIdOrThrow()
-        {
-            var userIdClaim = User.FindFirst("UserId")?.Value;
-            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
-            {
-                throw new BusinessLogicException("Некоректний токен");
-            }
-
-            return userId;
-        }
     }
 }

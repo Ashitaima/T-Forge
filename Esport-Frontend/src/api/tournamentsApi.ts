@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 import { endpoints } from "./endpoints";
-import type { CreateTournamentDto, PagedResponse, TournamentDto, TournamentStatsDto, UpdateTournamentDto } from "../types";
+import type { CreateTournamentDto, PagedResponse, TeamSummaryDto, TournamentDto, TournamentStatsDto, UpdateTournamentDto } from "../types";
 
 export const tournamentsApi = {
   getAllActive: async () => {
@@ -29,5 +29,19 @@ export const tournamentsApi = {
   },
   remove: async (id: number) => {
     await apiClient.delete(`${endpoints.tournaments}/${id}`);
+  },
+  getRegisteredTeams: async (id: number) => {
+    const response = await apiClient.get<TeamSummaryDto[]>(endpoints.tournamentTeams(id));
+    return response.data;
+  },
+  registerTeam: async (id: number, teamId: number) => {
+    await apiClient.post(endpoints.tournamentTeam(id, teamId));
+  },
+  withdrawTeam: async (id: number, teamId: number) => {
+    await apiClient.delete(endpoints.tournamentTeam(id, teamId));
+  },
+  generateBracket: async (id: number) => {
+    const response = await apiClient.post<{ message: string; matches: number }>(endpoints.tournamentBracket(id));
+    return response.data;
   }
 };

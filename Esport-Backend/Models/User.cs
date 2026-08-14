@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Numerics;
-namespace Computational_Practice.Models
+namespace TForge.Models
 {
     public class User
     {

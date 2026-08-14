@@ -1,25 +1,25 @@
 using AutoMapper;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.DTOs;
-using Computational_Practice.Models;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Exceptions;
-using System.Security.Cryptography;
-using System.Text;
+using TForge.Data.Interfaces;
+using TForge.DTOs;
+using TForge.Models;
+using TForge.Services.Interfaces;
+using TForge.Exceptions;
 
-namespace Computational_Practice.Services
+namespace TForge.Services
 {
     public class AuthService : IAuthService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ITokenService _tokenService;
+        private readonly IPasswordHasher _passwordHasher;
         private readonly IMapper _mapper;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUnitOfWork unitOfWork, ITokenService tokenService, IMapper mapper, ILogger<AuthService> logger)
+        public AuthService(IUnitOfWork unitOfWork, ITokenService tokenService, IPasswordHasher passwordHasher, IMapper mapper, ILogger<AuthService> logger)
         {
             _unitOfWork = unitOfWork;
             _tokenService = tokenService;
+            _passwordHasher = passwordHasher;
             _mapper = mapper;
             _logger = logger;
         }
@@ -59,6 +59,12 @@ namespace Computational_Practice.Services
             if (existingUser != null)
             {
                 throw new BusinessLogicException("Користувач з таким іменем вже існує");
+            }
+
+            var existingEmail = await _unitOfWork.Users.GetByEmailAsync(registerDto.Email);
+            if (existingEmail != null)
+            {
+                throw new BusinessLogicException("Користувач з такою поштою вже існує");
             }
 
             var user = new User
@@ -112,17 +118,8 @@ namespace Computational_Practice.Services
             return true;
         }
 
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password + "SALT_KEY"));
-            return Convert.ToBase64String(hashedBytes);
-        }
+        private string HashPassword(string password) => _passwordHasher.Hash(password);
 
-        private static bool VerifyPassword(string password, string hash)
-        {
-            var computedHash = HashPassword(password);
-            return computedHash == hash;
-        }
+        private bool VerifyPassword(string password, string hash) => _passwordHasher.Verify(password, hash);
     }
 }

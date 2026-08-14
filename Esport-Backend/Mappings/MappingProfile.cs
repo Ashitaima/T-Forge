@@ -1,8 +1,8 @@
 using AutoMapper;
-using Computational_Practice.Models;
-using Computational_Practice.DTOs;
+using TForge.Models;
+using TForge.DTOs;
 
-namespace Computational_Practice.Mappings
+namespace TForge.Mappings
 {
     public class MappingProfile : Profile
     {
@@ -27,6 +27,7 @@ namespace Computational_Practice.Mappings
             CreateMap<Tournament, TournamentDto>();
             CreateMap<CreateTournamentDto, Tournament>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizerId, opt => opt.Ignore())
                 .ForMember(dest => dest.CurrentTeams, opt => opt.MapFrom(src => 0))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Registration"))
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
@@ -50,6 +51,7 @@ namespace Computational_Practice.Mappings
             CreateMap<Team, TeamSummaryDto>();
             CreateMap<CreateTeamDto, Team>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CaptainId, opt => opt.Ignore())
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
                 .ForMember(dest => dest.Captain, opt => opt.Ignore())
@@ -66,6 +68,7 @@ namespace Computational_Practice.Mappings
             CreateMap<Player, PlayerSummaryDto>();
             CreateMap<CreatePlayerDto, Player>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.UserId, opt => opt.Ignore())
                 .ForMember(dest => dest.TotalMatches, opt => opt.MapFrom(src => 0))
                 .ForMember(dest => dest.Wins, opt => opt.MapFrom(src => 0))
                 .ForMember(dest => dest.Losses, opt => opt.MapFrom(src => 0))

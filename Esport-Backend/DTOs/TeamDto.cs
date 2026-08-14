@@ -1,4 +1,4 @@
-namespace Computational_Practice.DTOs
+namespace TForge.DTOs
 {
     public class TeamDto
     {
@@ -29,7 +29,9 @@ namespace Computational_Practice.DTOs
         public string Tag { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
-        public int CaptainId { get; set; }
+
+        /// <summary>Заповнює сервер з токена. Задати вручну може лише адміністратор.</summary>
+        public int? CaptainId { get; set; }
     }
 
     public class UpdateTeamDto

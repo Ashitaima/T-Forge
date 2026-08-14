@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Computational_Practice.Data.Context;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.Models;
+using TForge.Data.Context;
+using TForge.Data.Interfaces;
+using TForge.Models;
 
-namespace Computational_Practice.Data.Repositories
+namespace TForge.Data.Repositories
 {
     public class TournamentRepository : GenericRepository<Tournament>, ITournamentRepository
     {
@@ -54,6 +54,13 @@ namespace Computational_Practice.Data.Repositories
                 .Where(t => t.StartDate > DateTime.UtcNow && t.IsActive)
                 .OrderBy(t => t.StartDate)
                 .ToListAsync();
+        }
+
+        public async Task<Tournament?> GetWithTeamsAsync(int id)
+        {
+            return await _dbSet
+                .Include(t => t.Teams)
+                .FirstOrDefaultAsync(t => t.Id == id);
         }
 
         public async Task<Tournament?> GetWithMatchesAsync(int id)

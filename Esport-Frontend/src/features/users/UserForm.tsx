@@ -76,89 +76,89 @@ const UserForm = () => {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold">{id ? "Редагування користувача" : "Новий користувач"}</h1>
-        <p className="mt-2 text-sm text-slate-400">Керування обліковими даними та роллю.</p>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <header className="border-b border-line-soft pb-5">
+        <h1 className="page-title">{id ? "Редагування користувача" : "Новий користувач"}</h1>
+        <p className="muted mt-2 text-body">Керування обліковими даними та роллю.</p>
       </header>
-      <form onSubmit={handleSubmit(onSubmit)} className="glass-panel rounded-2xl p-6 space-y-4">
-        <label className="block text-sm">
+      <form onSubmit={handleSubmit(onSubmit)} className="panel panel-body space-y-5">
+        <label className="field">
           Нікнейм
           <input
             type="text"
             {...register("username")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
-          {errors.username && <p className="mt-1 text-xs text-neon-magenta">{errors.username.message}</p>}
+          {errors.username && <p className="field-error">{errors.username.message}</p>}
         </label>
-        <label className="block text-sm">
+        <label className="field">
           Email
           <input
             type="email"
             {...register("email")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
-          {errors.email && <p className="mt-1 text-xs text-neon-magenta">{errors.email.message}</p>}
+          {errors.email && <p className="field-error">{errors.email.message}</p>}
         </label>
         {!id && (
-          <label className="block text-sm">
+          <label className="field">
             Пароль
             <input
               type="password"
               {...register("password")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+              className="input"
             />
-            {errors.password && <p className="mt-1 text-xs text-neon-magenta">{errors.password.message}</p>}
+            {errors.password && <p className="field-error">{errors.password.message}</p>}
           </label>
         )}
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="block text-sm">
+          <label className="field">
             Ім'я
             <input
               type="text"
               {...register("firstName")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+              className="input"
             />
-            {errors.firstName && <p className="mt-1 text-xs text-neon-magenta">{errors.firstName.message}</p>}
+            {errors.firstName && <p className="field-error">{errors.firstName.message}</p>}
           </label>
-          <label className="block text-sm">
+          <label className="field">
             Прізвище
             <input
               type="text"
               {...register("lastName")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+              className="input"
             />
-            {errors.lastName && <p className="mt-1 text-xs text-neon-magenta">{errors.lastName.message}</p>}
+            {errors.lastName && <p className="field-error">{errors.lastName.message}</p>}
           </label>
         </div>
         {!id && (
-          <label className="block text-sm">
+          <label className="field">
             Роль
             <select
               {...register("role")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+              className="input"
             >
               <option value="User">Користувач</option>
               <option value="Player">Гравець</option>
               <option value="Organizer">Організатор</option>
               <option value="Admin">Адміністратор</option>
             </select>
-            {errors.role && <p className="mt-1 text-xs text-neon-magenta">{errors.role.message}</p>}
+            {errors.role && <p className="field-error">{errors.role.message}</p>}
           </label>
         )}
-        {loading && <div className="text-xs text-slate-400">Завантаження даних...</div>}
-        <div className="flex items-center gap-3">
+        {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-xl bg-neon-cyan/90 px-4 py-2 text-sm font-semibold text-night-900 hover:bg-neon-cyan"
+            className="btn btn-primary"
           >
             {isSubmitting ? "Збереження..." : "Зберегти"}
           </button>
           <button
             type="button"
             onClick={() => navigate("/users")}
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300"
+            className="btn btn-secondary"
           >
             Скасувати
           </button>

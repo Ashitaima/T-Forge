@@ -1,4 +1,4 @@
-namespace Computational_Practice.DTOs
+namespace TForge.DTOs
 {
     public class MatchDto
     {
@@ -10,6 +10,7 @@ namespace Computational_Practice.DTOs
         public int HomeTeamScore { get; set; }
         public int AwayTeamScore { get; set; }
         public string MatchType { get; set; } = string.Empty;
+        public int Round { get; set; }
         public string Format { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

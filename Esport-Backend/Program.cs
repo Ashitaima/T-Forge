@@ -3,18 +3,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Computational_Practice.Data.Context;
-using Computational_Practice.Data;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Services;
-using Computational_Practice.Mappings;
-using Computational_Practice.Middleware;
+using TForge.Data.Context;
+using TForge.Data;
+using TForge.Data.Interfaces;
+using TForge.Services.Interfaces;
+using TForge.Services;
+using TForge.Mappings;
+using TForge.Middleware;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Computational_Practice.Validators;
+using TForge.Validators;
 
-namespace Computational_Practice
+namespace TForge
 {
     public class Program
     {
@@ -32,8 +32,10 @@ namespace Computational_Practice
             builder.Services.AddScoped<ITeamService, TeamService>();
             builder.Services.AddScoped<IPlayerService, PlayerService>();
             builder.Services.AddScoped<IMatchService, MatchService>();
+            builder.Services.AddScoped<IBracketService, BracketService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
+            builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
             builder.Services.AddAutoMapper(typeof(MappingProfile));
 
@@ -84,11 +86,13 @@ namespace Computational_Practice
 
             var app = builder.Build();
 
-            // Сідінг бази даних
+            // Міграції + сідінг бази даних
             using (var scope = app.Services.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<EsportsDbContext>();
-                await DbSeeder.SeedAsync(context);
+                var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                await DatabaseInitializer.InitializeAsync(context, passwordHasher, logger);
             }
 
             // Configure the HTTP request pipeline.

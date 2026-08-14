@@ -1,8 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.RegularExpressions;
+using TForge.Common;
 
-namespace Computational_Practice.Models
+namespace TForge.Models
 {
     public class Tournament
     {
@@ -35,7 +36,7 @@ namespace Computational_Practice.Models
 
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "Registration"; // Registration, InProgress, Completed, Cancelled
+        public string Status { get; set; } = TournamentStatus.Registration; // див. Common/StatusConstants.cs
 
         [Column(TypeName = "decimal(10,2)")]
         public decimal PrizePool { get; set; } = 0;

@@ -1,4 +1,4 @@
-namespace Computational_Practice.Common.Filters
+namespace TForge.Common.Filters
 {
     public class TournamentFilter : PagedRequest
     {

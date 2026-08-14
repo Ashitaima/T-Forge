@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-namespace Computational_Practice.Models
+namespace TForge.Models
 {
     public class Player
     {

@@ -1,54 +1,99 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { teamsApi } from "../../api/teamsApi";
+import { useAuthStore } from "../../store/authStore";
+import { EmptyState, PageHeader, Skeleton } from "../../components/ui/Primitives";
 import type { TeamDto } from "../../types";
 
 const TeamDetail = () => {
   const { id } = useParams();
   const [team, setTeam] = useState<TeamDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (!id) {
       return;
     }
 
-    const load = async () => {
-      setLoading(true);
-      try {
-        const response = await teamsApi.getWithPlayers(Number(id));
-        setTeam(response);
-      } finally {
-        setLoading(false);
-      }
-    };
+    let isActive = true;
+    setLoading(true);
 
-    load();
+    teamsApi
+      .getWithPlayers(Number(id))
+      .then((response) => isActive && setTeam(response))
+      .finally(() => isActive && setLoading(false));
+
+    return () => {
+      isActive = false;
+    };
   }, [id]);
 
+  const isCaptain = user?.id === team?.captain?.id;
+
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold">{team?.name ?? `Команда #${id}`}</h1>
-        <p className="mt-2 text-sm text-slate-400">Склад, ролі та активність гравців.</p>
-      </header>
-      <div className="glass-panel rounded-2xl p-6">
-        <h2 className="text-xl font-semibold">Гравці</h2>
-        {loading && <div className="mt-4 text-sm text-slate-400">Завантаження складу...</div>}
-        {!loading && team?.players?.length === 0 && (
-          <div className="mt-4 text-sm text-slate-400">У команди ще немає гравців.</div>
-        )}
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {team?.players?.map((player) => (
-            <div key={player.id} className="rounded-xl border border-white/10 bg-night-800/60 p-4">
-              <div className="text-sm text-slate-400">{player.position}</div>
-              <div className="mt-2 text-lg font-semibold text-white">{player.nickname}</div>
-              <div className="mt-1 text-xs text-slate-400">Країна: {player.country}</div>
-            </div>
-          ))}
+    <>
+      <PageHeader
+        eyebrow={team?.tag}
+        title={team?.name ?? `Команда #${id}`}
+        description={team?.description}
+        action={
+          isCaptain ? (
+            <Link to={`/teams/${id}/edit`} className="btn btn-secondary">
+              Редагувати
+            </Link>
+          ) : undefined
+        }
+      />
+
+      {team && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-body text-text-muted">
+          <span>
+            Капітан{" "}
+            <span className="text-text">{team.captain ? `@${team.captain.username}` : "не призначено"}</span>
+          </span>
+          {team.region && (
+            <span>
+              Регіон <span className="text-text">{team.region}</span>
+            </span>
+          )}
+          <span>
+            Гравців <span className="tabular font-mono text-text">{team.players?.length ?? 0}</span>
+          </span>
         </div>
-      </div>
-    </div>
+      )}
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2 className="section-title">Склад</h2>
+        </div>
+        <div className="panel-body">
+          {loading && <Skeleton rows={3} />}
+          {!loading && (team?.players?.length ?? 0) === 0 && (
+            <EmptyState
+              title="Склад порожній"
+              hint="Гравці зʼявляться тут, щойно капітан додасть їх до команди."
+            />
+          )}
+          {!loading && (team?.players?.length ?? 0) > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {team?.players?.map((player) => (
+                <div key={player.id} className="surface-raised px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="truncate text-body font-medium text-text">{player.nickname}</span>
+                    {!player.isActive && <span className="pill pill-off shrink-0">Неактивний</span>}
+                  </div>
+                  <div className="muted mt-1 text-micro">{player.position || "Позиція не вказана"}</div>
+                  {player.country && (
+                    <div className="mt-2 font-mono text-micro text-text-faint">{player.country}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </>
   );
 };
 

@@ -1,6 +1,6 @@
-using Computational_Practice.Models;
+using TForge.Models;
 
-namespace Computational_Practice.Data.Interfaces
+namespace TForge.Data.Interfaces
 {
     public interface IUserRepository : IGenericRepository<User>
     {

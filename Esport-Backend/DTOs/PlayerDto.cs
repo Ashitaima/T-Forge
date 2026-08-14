@@ -1,8 +1,9 @@
-namespace Computational_Practice.DTOs
+namespace TForge.DTOs
 {
     public class PlayerDto
     {
         public int Id { get; set; }
+        public int UserId { get; set; }
         public string Nickname { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
@@ -33,7 +34,8 @@ namespace Computational_Practice.DTOs
         public string Position { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public int Age { get; set; }
-        public int UserId { get; set; }
+        /// <summary>Заповнює сервер з токена. Задати вручну може лише адміністратор.</summary>
+        public int? UserId { get; set; }
         public int? TeamId { get; set; }
     }
 

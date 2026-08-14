@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using Computational_Practice.Common;
-using Computational_Practice.Exceptions;
+using TForge.Common;
+using TForge.Exceptions;
 
-namespace Computational_Practice.Middleware
+namespace TForge.Middleware
 {
     public class ExceptionMiddleware
     {
@@ -83,6 +83,15 @@ namespace Computational_Practice.Middleware
                         StatusCode = (int)HttpStatusCode.NotFound
                     };
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    break;
+
+                case ForbiddenException:
+                    response = new ErrorResponse
+                    {
+                        Message = exception.Message,
+                        StatusCode = (int)HttpStatusCode.Forbidden
+                    };
+                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                     break;
 
                 case UnauthorizedAccessException:

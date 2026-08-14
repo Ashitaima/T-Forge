@@ -1,0 +1,6 @@
+@TForge_HostAddress = http://localhost:5274
+
+GET {{TForge_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

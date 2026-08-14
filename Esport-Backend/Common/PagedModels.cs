@@ -1,4 +1,4 @@
-namespace Computational_Practice.Common
+namespace TForge.Common
 {
     public class PagedRequest
     {

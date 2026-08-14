@@ -1,4 +1,4 @@
-namespace Computational_Practice.DTOs
+namespace TForge.DTOs
 {
     public class LoginDto
     {

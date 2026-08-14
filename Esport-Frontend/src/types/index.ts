@@ -44,7 +44,8 @@ export type CreateTournamentDto = {
   endDate: string;
   maxTeams: number;
   prizePool: number;
-  organizerId: number;
+  /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
+  organizerId?: number | null;
 };
 
 export type UpdateTournamentDto = {
@@ -83,7 +84,8 @@ export type CreateTeamDto = {
   tag: string;
   description: string;
   region: string;
-  captainId: number;
+  /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
+  captainId?: number | null;
 };
 
 export type UpdateTeamDto = {
@@ -95,6 +97,7 @@ export type UpdateTeamDto = {
 
 export type PlayerDto = {
   id: number;
+  userId: number;
   nickname: string;
   position: string;
   country: string;
@@ -123,7 +126,8 @@ export type CreatePlayerDto = {
   position: string;
   country: string;
   age: number;
-  userId: number;
+  /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
+  userId?: number | null;
   teamId?: number | null;
 };
 
@@ -153,6 +157,7 @@ export type MatchDto = {
   homeTeamScore: number;
   awayTeamScore: number;
   matchType: string;
+  round: number;
   format: string;
   notes: string;
   createdAt: string;

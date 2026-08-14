@@ -1,7 +1,8 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.Common;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class UpdateMatchValidator : AbstractValidator<UpdateMatchDto>
     {
@@ -36,10 +37,6 @@ namespace Computational_Practice.Validators
                 .When(x => x.StartedAt.HasValue && x.EndedAt.HasValue);
         }
 
-        private bool BeValidStatus(string status)
-        {
-            var validStatuses = new[] { "Scheduled", "In Progress", "Completed", "Cancelled", "Postponed" };
-            return validStatuses.Contains(status);
-        }
+        private bool BeValidStatus(string status) => MatchStatus.IsValid(status);
     }
 }

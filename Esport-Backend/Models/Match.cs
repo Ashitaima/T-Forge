@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-namespace Computational_Practice.Models
+using TForge.Common;
+namespace TForge.Models
 {
     public class Match
     {
@@ -25,7 +26,7 @@ namespace Computational_Practice.Models
 
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "Scheduled"; // Scheduled, InProgress, Completed, Cancelled
+        public string Status { get; set; } = MatchStatus.Scheduled; // див. Common/StatusConstants.cs
 
         public int HomeTeamScore { get; set; } = 0;
         public int AwayTeamScore { get; set; } = 0;
@@ -33,7 +34,12 @@ namespace Computational_Practice.Models
         public int? WinnerTeamId { get; set; } // Nullable - може бути нічия
 
         [StringLength(20)]
-        public string MatchType { get; set; } = "GroupStage"; // GroupStage, QuarterFinal, SemiFinal, Final
+        public string MatchType { get; set; } = MatchTypes.GroupStage; // див. Common/StatusConstants.cs
+
+        /// <summary>
+        /// Раунд у турнірній сітці: 0 — матч поза сіткою, 1..n — раунди single elimination.
+        /// </summary>
+        public int Round { get; set; } = 0;
 
         [StringLength(10)]
         public string Format { get; set; } = "BO1"; // BO1, BO3, BO5 (Best of 1, 3, 5)

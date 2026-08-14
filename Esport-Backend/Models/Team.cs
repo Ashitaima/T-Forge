@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Numerics;
 using System.Text.RegularExpressions;
-namespace Computational_Practice.Models
+namespace TForge.Models
 {
     public class Team
     {

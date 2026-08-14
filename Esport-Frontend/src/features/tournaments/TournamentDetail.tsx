@@ -1,69 +1,247 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AlertCircle, CheckCircle2, Users } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
+import { teamsApi } from "../../api/teamsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
-import type { MatchDto, TournamentDto } from "../../types";
+import { useAuthStore } from "../../store/authStore";
+import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
+import { BracketView } from "./BracketView";
+import type { MatchDto, TeamDto, TeamSummaryDto, TournamentDto } from "../../types";
 
 const TournamentDetail = () => {
   const { id } = useParams();
+  const tournamentId = Number(id);
+  const { user } = useAuthStore();
+
   const [tournament, setTournament] = useState<TournamentDto | null>(null);
   const [matches, setMatches] = useState<MatchDto[]>([]);
+  const [registered, setRegistered] = useState<TeamSummaryDto[]>([]);
+  const [allTeams, setAllTeams] = useState<TeamDto[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!id) {
+  const canManage =
+    user?.role === "Admin" || (user?.role === "Organizer" && tournament?.organizer?.id === user?.id);
+  const isRegistrationOpen = tournament?.status === "Registration";
+
+  const load = useCallback(async () => {
+    if (!tournamentId) {
       return;
     }
 
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [tournamentData, matchesData] = await Promise.all([
-          tournamentsApi.getById(Number(id)),
-          matchesApi.getPaged({ page: 1, pageSize: 8, tournamentId: Number(id) })
-        ]);
-        setTournament(tournamentData);
-        setMatches(matchesData.data);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
+    try {
+      const [tournamentData, matchesData, registeredData, teamsData] = await Promise.all([
+        tournamentsApi.getById(tournamentId),
+        matchesApi.getPaged({ page: 1, pageSize: 64, tournamentId }),
+        tournamentsApi.getRegisteredTeams(tournamentId).catch(() => [] as TeamSummaryDto[]),
+        teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamDto[])
+      ]);
+      setTournament(tournamentData);
+      setMatches(matchesData.data);
+      setRegistered(registeredData);
+      setAllTeams(teamsData);
+    } finally {
+      setLoading(false);
+    }
+  }, [tournamentId]);
 
+  useEffect(() => {
     load();
-  }, [id]);
+  }, [load]);
+
+  // Бекенд повертає зрозумілі повідомлення про помилки — показуємо їх як є
+  const run = async (action: () => Promise<unknown>, successMessage: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await action();
+      setNotice(successMessage);
+      await load();
+    } catch (err: unknown) {
+      const response = (err as { response?: { data?: { message?: string } } }).response;
+      setError(response?.data?.message ?? "Не вдалося виконати дію");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const availableTeams = useMemo(
+    () => allTeams.filter((team) => !registered.some((r) => r.id === team.id)),
+    [allTeams, registered]
+  );
+
+  const hasBracket = matches.some((match) => match.round > 0);
+  const slotsLeft = tournament ? tournament.maxTeams - registered.length : 0;
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">{tournament?.name ?? `Турнір #${id}`}</h1>
-          <p className="mt-2 text-sm text-slate-400">Сітка матчів та поточний статус</p>
+    <>
+      <PageHeader
+        eyebrow={tournament?.game}
+        title={tournament?.name ?? `Турнір #${id}`}
+        description={tournament?.description}
+        action={
+          canManage ? (
+            <Link to={`/tournaments/${id}/edit`} className="btn btn-secondary">
+              Редагувати
+            </Link>
+          ) : undefined
+        }
+      />
+
+      {tournament && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <StatusPill status={tournament.status} />
+          <span className="flex items-center gap-2 text-body text-text-muted">
+            <Users className="h-4 w-4 text-text-faint" />
+            <span className="tabular font-mono text-text">
+              {registered.length}/{tournament.maxTeams}
+            </span>
+            команд
+          </span>
+          <span className="text-body text-text-muted">
+            Призовий фонд{" "}
+            <span className="tabular font-mono text-text">${tournament.prizePool}</span>
+          </span>
+          <span className="tabular font-mono text-micro text-text-faint">
+            {new Date(tournament.startDate).toLocaleDateString("uk-UA")} —{" "}
+            {new Date(tournament.endDate).toLocaleDateString("uk-UA")}
+          </span>
         </div>
-        <Link to={`/tournaments/${id}/edit`} className="text-sm text-neon-cyan">
-          Редагувати
-        </Link>
-      </header>
-      <div className="glass-panel rounded-2xl p-6">
-        <h2 className="text-xl font-semibold">Сітка матчів</h2>
-        {loading && <div className="mt-4 text-sm text-slate-400">Завантаження матчів...</div>}
-        {!loading && matches.length === 0 && (
-          <div className="mt-4 text-sm text-slate-400">Поки немає матчів для цього турніру.</div>
+      )}
+
+      {error && (
+        <div className="notice notice-error">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+      {notice && (
+        <div className="notice notice-success">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{notice}</span>
+        </div>
+      )}
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2 className="section-title">Турнірна сітка</h2>
+          {canManage && isRegistrationOpen && (
+            <button
+              type="button"
+              disabled={busy || registered.length < 2}
+              onClick={() => run(() => tournamentsApi.generateBracket(tournamentId), "Турнірну сітку створено")}
+              className="btn btn-primary"
+            >
+              Згенерувати сітку
+            </button>
+          )}
+        </div>
+        <div className="panel-body">
+          {loading && <Skeleton rows={2} />}
+          {!loading && !hasBracket && (
+            <EmptyState
+              title="Сітку ще не створено"
+              hint={
+                canManage
+                  ? "Зареєструйте щонайменше дві команди, потім згенеруйте сітку — вона розставить пари й розклад автоматично."
+                  : "Організатор згенерує сітку, коли реєстрація завершиться."
+              }
+            />
+          )}
+          {!loading && hasBracket && <BracketView matches={matches} />}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2 className="section-title">Учасники</h2>
+          {isRegistrationOpen && (
+            <span className="font-mono text-micro text-text-faint">
+              {slotsLeft > 0 ? `вільних місць: ${slotsLeft}` : "місць немає"}
+            </span>
+          )}
+        </div>
+
+        {isRegistrationOpen && (
+          <div className="flex flex-wrap gap-3 border-b border-line-soft px-5 py-4">
+            <label className="sr-only" htmlFor="team-picker">
+              Команда для реєстрації
+            </label>
+            <select
+              id="team-picker"
+              value={selectedTeam}
+              onChange={(event) => setSelectedTeam(event.target.value)}
+              className="input min-w-[15rem] flex-1"
+            >
+              <option value="">Оберіть команду</option>
+              {availableTeams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name} ({team.tag})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!selectedTeam || busy || slotsLeft <= 0}
+              onClick={() =>
+                run(
+                  () => tournamentsApi.registerTeam(tournamentId, Number(selectedTeam)),
+                  "Команду зареєстровано"
+                ).then(() => setSelectedTeam(""))
+              }
+              className="btn btn-primary"
+            >
+              Зареєструвати
+            </button>
+          </div>
         )}
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {matches.map((match) => (
-            <div key={match.id} className="rounded-xl border border-white/10 bg-night-800/60 p-4">
-              <div className="text-sm text-slate-400">{match.matchType}</div>
-              <div className="mt-2 text-sm text-slate-200">
-                {match.homeTeam?.name ?? "TBD"} vs {match.awayTeam?.name ?? "TBD"}
-              </div>
-              <div className="text-xs text-neon-green">
-                {match.format} • {new Date(match.scheduledAt).toLocaleString("uk-UA")}
-              </div>
-            </div>
-          ))}
+
+        <div className="panel-body">
+          {loading && <Skeleton rows={2} />}
+          {!loading && registered.length === 0 && (
+            <EmptyState
+              title="Ще немає заявок"
+              hint="Капітан команди або організатор може зареєструвати склад, поки триває реєстрація."
+            />
+          )}
+          {!loading && registered.length > 0 && (
+            <ol className="divide-y divide-line-soft">
+              {registered.map((team, index) => (
+                <li key={team.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                  {/* Номер посіву — реальна інформація: він визначає пари у сітці */}
+                  <span className="tabular w-6 shrink-0 font-mono text-micro text-text-faint">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-body font-medium text-text">{team.name}</div>
+                    <div className="font-mono text-micro text-text-faint">
+                      {team.tag}
+                      {team.region ? ` · ${team.region}` : ""}
+                    </div>
+                  </div>
+                  {isRegistrationOpen && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => run(() => tournamentsApi.withdrawTeam(tournamentId, team.id), "Команду знято")}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      Зняти
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
-      </div>
-    </div>
+      </section>
+    </>
   );
 };
 

@@ -1,8 +1,8 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
+using TForge.DTOs;
+using TForge.Common;
+using TForge.Common.Filters;
 
-namespace Computational_Practice.Services.Interfaces
+namespace TForge.Services.Interfaces
 {
     public interface ITournamentService
     {
@@ -14,9 +14,12 @@ namespace Computational_Practice.Services.Interfaces
         Task<IEnumerable<TournamentDto>> GetByOrganizerAsync(int organizerId);
         Task<IEnumerable<TournamentDto>> GetByGameAsync(string game);
         Task<IEnumerable<TournamentDto>> GetUpcomingAsync();
-        Task<TournamentDto> CreateAsync(CreateTournamentDto createDto);
+        Task<TournamentDto> CreateAsync(CreateTournamentDto createDto, int organizerId);
         Task<TournamentDto?> UpdateAsync(int id, UpdateTournamentDto updateDto);
         Task<bool> DeleteAsync(int id);
+        Task<IEnumerable<TeamSummaryDto>> GetRegisteredTeamsAsync(int tournamentId);
+        Task RegisterTeamAsync(int tournamentId, int teamId, int requestingUserId, bool isAdmin);
+        Task WithdrawTeamAsync(int tournamentId, int teamId, int requestingUserId, bool isAdmin);
         Task<TournamentStatsDto> GetStatsAsync();
     }
 }

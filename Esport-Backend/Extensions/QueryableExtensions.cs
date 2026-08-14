@@ -2,9 +2,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using Computational_Practice.Common;
+using TForge.Common;
 
-namespace Computational_Practice.Extensions
+namespace TForge.Extensions
 {
     public static class QueryableExtensions
     {

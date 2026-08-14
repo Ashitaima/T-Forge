@@ -1,6 +1,6 @@
-using Computational_Practice.DTOs;
+using TForge.DTOs;
 
-namespace Computational_Practice.Services.Interfaces
+namespace TForge.Services.Interfaces
 {
     public interface IAuthService
     {

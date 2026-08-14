@@ -4,7 +4,9 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { matchesApi } from "../../api/matchesApi";
-import type { CreateMatchDto, UpdateMatchDto } from "../../types";
+import { teamsApi } from "../../api/teamsApi";
+import { tournamentsApi } from "../../api/tournamentsApi";
+import type { CreateMatchDto, MatchDto, TeamDto, TournamentDto, UpdateMatchDto } from "../../types";
 
 const schema = z.object({
   tournamentId: z.coerce.number().optional(),
@@ -28,6 +30,9 @@ const MatchForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
+  const [tournaments, setTournaments] = useState<TournamentDto[]>([]);
+  const [teams, setTeams] = useState<TeamDto[]>([]);
+  const [match, setMatch] = useState<MatchDto | null>(null);
   const {
     register,
     handleSubmit,
@@ -35,6 +40,25 @@ const MatchForm = () => {
     setError,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  // Турніри й команди підвантажуються списками, щоб не вводити ID вручну
+  useEffect(() => {
+    let isActive = true;
+
+    Promise.all([
+      tournamentsApi.getAllActive().catch(() => [] as TournamentDto[]),
+      teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamDto[])
+    ]).then(([tournamentList, teamList]) => {
+      if (isActive) {
+        setTournaments(tournamentList);
+        setTeams(teamList);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -45,6 +69,7 @@ const MatchForm = () => {
       setLoading(true);
       try {
         const data = await matchesApi.getById(Number(id));
+        setMatch(data);
         setValue("scheduledAt", data.scheduledAt.slice(0, 16));
         setValue("status", data.status);
         setValue("homeTeamScore", data.homeTeamScore);
@@ -83,7 +108,7 @@ const MatchForm = () => {
         status: values.status ?? "Scheduled",
         homeTeamScore: values.homeTeamScore ?? 0,
         awayTeamScore: values.awayTeamScore ?? 0,
-        winnerTeamId: values.winnerTeamId ?? null,
+        winnerTeamId: values.winnerTeamId ? Number(values.winnerTeamId) : null,
         notes: values.notes ?? "",
         startedAt: values.startedAt ?? null,
         endedAt: values.endedAt ?? null
@@ -95,66 +120,87 @@ const MatchForm = () => {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold">{id ? "Редагування матчу" : "Новий матч"}</h1>
-        <p className="mt-2 text-sm text-slate-400">Контролюйте розклад та результати матчів.</p>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <header className="border-b border-line-soft pb-5">
+        <h1 className="page-title">{id ? "Редагування матчу" : "Новий матч"}</h1>
+        <p className="muted mt-2 text-body">Контролюйте розклад та результати матчів.</p>
       </header>
-      <form onSubmit={handleSubmit(onSubmit)} className="glass-panel rounded-2xl p-6 space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="panel panel-body space-y-5">
         {!id && (
           <>
-            <label className="block text-sm">
-              ID турніру
-              <input
-                type="number"
+            <label className="field">
+              Турнір
+              <select
                 {...register("tournamentId")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-              />
+                className="input"
+              >
+                <option value="">Оберіть турнір</option>
+                {tournaments.map((tournament) => (
+                  <option key={tournament.id} value={tournament.id}>
+                    {tournament.name} ({tournament.game})
+                  </option>
+                ))}
+              </select>
+              {errors.tournamentId && (
+                <p className="field-error">{errors.tournamentId.message}</p>
+              )}
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm">
-                ID домашньої команди
-                <input
-                  type="number"
+              <label className="field">
+                Домашня команда
+                <select
                   {...register("homeTeamId")}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-                />
+                  className="input"
+                >
+                  <option value="">Оберіть команду</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name} ({team.tag})
+                    </option>
+                  ))}
+                </select>
               </label>
-              <label className="block text-sm">
-                ID гостьової команди
-                <input
-                  type="number"
+              <label className="field">
+                Гостьова команда
+                <select
                   {...register("awayTeamId")}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-                />
+                  className="input"
+                >
+                  <option value="">Оберіть команду</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name} ({team.tag})
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
           </>
         )}
-        <label className="block text-sm">
+        <label className="field">
           Час початку
           <input
             type="datetime-local"
             {...register("scheduledAt")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
-          {errors.scheduledAt && <p className="mt-1 text-xs text-neon-magenta">{errors.scheduledAt.message}</p>}
+          {errors.scheduledAt && <p className="field-error">{errors.scheduledAt.message}</p>}
         </label>
         {!id && (
           <>
-            <label className="block text-sm">
+            <label className="field">
               Тип матчу
               <input
                 type="text"
                 {...register("matchType")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                className="input"
               />
             </label>
-            <label className="block text-sm">
+            <label className="field">
               Формат
               <select
                 {...register("format")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                className="input"
               >
                 <option value="BO1">BO1</option>
                 <option value="BO3">BO3</option>
@@ -163,21 +209,21 @@ const MatchForm = () => {
             </label>
           </>
         )}
-        <label className="block text-sm">
+        <label className="field">
           Примітки
           <textarea
             rows={3}
             {...register("notes")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
         </label>
         {id && (
           <>
-            <label className="block text-sm">
+            <label className="field">
               Статус
               <select
                 {...register("status")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                className="input"
               >
                 <option value="Scheduled">Заплановано</option>
                 <option value="InProgress">У процесі</option>
@@ -186,64 +232,67 @@ const MatchForm = () => {
               </select>
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm">
+              <label className="field">
                 Рахунок (домашні)
                 <input
                   type="number"
                   {...register("homeTeamScore")}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                  className="input"
                 />
               </label>
-              <label className="block text-sm">
+              <label className="field">
                 Рахунок (гості)
                 <input
                   type="number"
                   {...register("awayTeamScore")}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                  className="input"
                 />
               </label>
             </div>
-            <label className="block text-sm">
-              ID переможця (необов'язково)
-              <input
-                type="number"
+            <label className="field">
+              Переможець
+              <select
                 {...register("winnerTeamId")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-              />
+                className="input"
+              >
+                <option value="">Не визначено</option>
+                {match?.homeTeam && <option value={match.homeTeam.id}>{match.homeTeam.name}</option>}
+                {match?.awayTeam && <option value={match.awayTeam.id}>{match.awayTeam.name}</option>}
+              </select>
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm">
+              <label className="field">
                 Старт матчу
                 <input
                   type="datetime-local"
                   {...register("startedAt")}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                  className="input"
                 />
               </label>
-              <label className="block text-sm">
+              <label className="field">
                 Завершення матчу
                 <input
                   type="datetime-local"
                   {...register("endedAt")}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+                  className="input"
                 />
               </label>
             </div>
           </>
         )}
-        {loading && <div className="text-xs text-slate-400">Завантаження даних...</div>}
-        <div className="flex items-center gap-3">
+        {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-xl bg-neon-cyan/90 px-4 py-2 text-sm font-semibold text-night-900 hover:bg-neon-cyan"
+            className="btn btn-primary"
           >
             {isSubmitting ? "Збереження..." : "Зберегти"}
           </button>
           <button
             type="button"
             onClick={() => navigate("/matches")}
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300"
+            className="btn btn-secondary"
           >
             Скасувати
           </button>

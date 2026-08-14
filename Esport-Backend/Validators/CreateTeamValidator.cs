@@ -1,7 +1,7 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class CreateTeamValidator : AbstractValidator<CreateTeamDto>
     {
@@ -24,8 +24,10 @@ namespace Computational_Practice.Validators
                 .NotEmpty().WithMessage("Регіон є обов'язковим")
                 .MaximumLength(100).WithMessage("Регіон не може перевищувати 100 символів");
 
+            // Зазвичай капітана визначає сервер за токеном; перевіряємо лише явно передане значення
             RuleFor(x => x.CaptainId)
-                .GreaterThan(0).WithMessage("ID капітана повинен бути більше 0");
+                .GreaterThan(0).WithMessage("ID капітана повинен бути більше 0")
+                .When(x => x.CaptainId.HasValue);
         }
     }
 }

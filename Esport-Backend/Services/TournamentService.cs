@@ -1,14 +1,14 @@
 using AutoMapper;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.DTOs;
-using Computational_Practice.Models;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Extensions;
-using Computational_Practice.Exceptions;
+using TForge.Data.Interfaces;
+using TForge.DTOs;
+using TForge.Models;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Extensions;
+using TForge.Exceptions;
 
-namespace Computational_Practice.Services
+namespace TForge.Services
 {
     public class TournamentService : ITournamentService
     {
@@ -63,13 +63,15 @@ namespace Computational_Practice.Services
             return _mapper.Map<IEnumerable<TournamentDto>>(tournaments);
         }
 
-        public async Task<TournamentDto> CreateAsync(CreateTournamentDto createDto)
+        public async Task<TournamentDto> CreateAsync(CreateTournamentDto createDto, int organizerId)
         {
             var tournament = _mapper.Map<Tournament>(createDto);
+            tournament.OrganizerId = organizerId;
             await _unitOfWork.Tournaments.AddAsync(tournament);
             await _unitOfWork.SaveChangesAsync();
 
-            var createdTournament = await _unitOfWork.Tournaments.GetByIdAsync(tournament.Id);
+            // GetByIdAsync (FindAsync) не підвантажує Organizer — беремо версію з Include
+            var createdTournament = await _unitOfWork.Tournaments.GetWithMatchesAsync(tournament.Id);
             return _mapper.Map<TournamentDto>(createdTournament);
         }
 
@@ -98,12 +100,95 @@ namespace Computational_Practice.Services
             return true;
         }
 
+        public async Task<IEnumerable<TeamSummaryDto>> GetRegisteredTeamsAsync(int tournamentId)
+        {
+            var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(tournamentId)
+                ?? throw new EntityNotFoundException("Tournament", tournamentId);
+
+            return _mapper.Map<IEnumerable<TeamSummaryDto>>(tournament.Teams.OrderBy(t => t.Id));
+        }
+
+        public async Task RegisterTeamAsync(int tournamentId, int teamId, int requestingUserId, bool isAdmin)
+        {
+            var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(tournamentId)
+                ?? throw new EntityNotFoundException("Tournament", tournamentId);
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
+
+            // Реєструвати команду може її капітан, організатор турніру або адміністратор
+            if (!isAdmin && team.CaptainId != requestingUserId && tournament.OrganizerId != requestingUserId)
+            {
+                throw new ForbiddenException(
+                    "Зареєструвати команду може лише її капітан або організатор турніру");
+            }
+
+            if (!tournament.IsActive)
+            {
+                throw new BusinessLogicException("Турнір неактивний");
+            }
+
+            if (tournament.Status != TournamentStatus.Registration)
+            {
+                throw new BusinessLogicException("Реєстрацію на цей турнір закрито");
+            }
+
+            if (!team.IsActive)
+            {
+                throw new BusinessLogicException("Команда неактивна");
+            }
+
+            if (tournament.Teams.Any(t => t.Id == teamId))
+            {
+                throw new BusinessLogicException("Команду вже зареєстровано на цей турнір");
+            }
+
+            if (tournament.Teams.Count >= tournament.MaxTeams)
+            {
+                throw new BusinessLogicException(
+                    $"Досягнуто ліміт команд для цього турніру ({tournament.MaxTeams})");
+            }
+
+            tournament.Teams.Add(team);
+            tournament.CurrentTeams = tournament.Teams.Count;
+            tournament.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task WithdrawTeamAsync(int tournamentId, int teamId, int requestingUserId, bool isAdmin)
+        {
+            var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(tournamentId)
+                ?? throw new EntityNotFoundException("Tournament", tournamentId);
+
+            var team = tournament.Teams.FirstOrDefault(t => t.Id == teamId)
+                ?? throw new BusinessLogicException("Команду не зареєстровано на цей турнір");
+
+            if (!isAdmin && team.CaptainId != requestingUserId && tournament.OrganizerId != requestingUserId)
+            {
+                throw new ForbiddenException(
+                    "Зняти команду може лише її капітан або організатор турніру");
+            }
+
+            if (tournament.Status != TournamentStatus.Registration)
+            {
+                throw new BusinessLogicException(
+                    "Знятися можна лише поки триває реєстрація");
+            }
+
+            tournament.Teams.Remove(team);
+            tournament.CurrentTeams = tournament.Teams.Count;
+            tournament.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
         public async Task<TournamentStatsDto> GetStatsAsync()
         {
             var totalActive = await _unitOfWork.Tournaments.CountAsync(t => t.IsActive);
-            var activeCount = await _unitOfWork.Tournaments.CountAsync(t => t.Status == "Active" && t.IsActive);
-            var completedCount = await _unitOfWork.Tournaments.CountAsync(t => t.Status == "Completed" && t.IsActive);
-            var registrationCount = await _unitOfWork.Tournaments.CountAsync(t => t.Status == "Registration" && t.IsActive);
+            var activeCount = await _unitOfWork.Tournaments.CountAsync(t => t.Status == TournamentStatus.InProgress && t.IsActive);
+            var completedCount = await _unitOfWork.Tournaments.CountAsync(t => t.Status == TournamentStatus.Completed && t.IsActive);
+            var registrationCount = await _unitOfWork.Tournaments.CountAsync(t => t.Status == TournamentStatus.Registration && t.IsActive);
 
             var allTournaments = await _unitOfWork.Tournaments.FindAsync(t => t.IsActive);
             var totalPrizePool = allTournaments.Where(t => t.PrizePool > 0).Sum(t => t.PrizePool);

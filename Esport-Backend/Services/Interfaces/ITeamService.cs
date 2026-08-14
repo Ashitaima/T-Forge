@@ -1,8 +1,8 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
+using TForge.DTOs;
+using TForge.Common;
+using TForge.Common.Filters;
 
-namespace Computational_Practice.Services.Interfaces
+namespace TForge.Services.Interfaces
 {
     public interface ITeamService
     {
@@ -11,7 +11,7 @@ namespace Computational_Practice.Services.Interfaces
         Task<TeamDto?> GetByIdAsync(int id);
         Task<TeamDto?> GetWithPlayersAsync(int id);
         Task<IEnumerable<TeamDto>> GetByTournamentAsync(int tournamentId);
-        Task<TeamDto> CreateAsync(CreateTeamDto createDto);
+        Task<TeamDto> CreateAsync(CreateTeamDto createDto, int captainId);
         Task<TeamDto?> UpdateAsync(int id, UpdateTeamDto updateDto);
         Task<bool> DeleteAsync(int id);
         Task<bool> AddPlayerToTeamAsync(int teamId, int playerId);

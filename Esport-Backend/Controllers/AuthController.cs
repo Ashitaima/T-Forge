@@ -1,11 +1,11 @@
-using Computational_Practice.DTOs;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Exceptions;
+using TForge.DTOs;
+using TForge.Services.Interfaces;
+using TForge.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace Computational_Practice.Controllers
+namespace TForge.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

@@ -1,7 +1,7 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class CreateTournamentValidator : AbstractValidator<CreateTournamentDto>
     {
@@ -33,8 +33,10 @@ namespace Computational_Practice.Validators
                 .NotEmpty().WithMessage("Дата завершення є обов'язковою")
                 .GreaterThan(x => x.StartDate).WithMessage("Дата завершення повинна бути після дати початку");
 
+            // Зазвичай організатора визначає сервер за токеном
             RuleFor(x => x.OrganizerId)
-                .GreaterThan(0).WithMessage("ID організатора повинен бути більше 0");
+                .GreaterThan(0).WithMessage("ID організатора повинен бути більше 0")
+                .When(x => x.OrganizerId.HasValue);
         }
     }
 }

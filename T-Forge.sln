@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36121.58 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Computational Practice", "Computational Practice\Computational Practice.csproj", "{3F0537D1-9E83-48B6-9839-8CC80C19B65A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "T-Forge", "Esport-Backend\T-Forge.csproj", "{3F0537D1-9E83-48B6-9839-8CC80C19B65A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

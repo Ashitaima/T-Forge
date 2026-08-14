@@ -2,25 +2,338 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  font-family: "Rajdhani", system-ui, sans-serif;
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: #0b0e12;
+    /* Ковальський цех: холодне залізо з одним теплим джерелом світла зліва вгорі */
+    background-image:
+      radial-gradient(60rem 40rem at 8% -10%, rgba(255, 107, 26, 0.09), transparent 60%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 30%);
+    background-attachment: fixed;
+    color: #e7ecf3;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: "Unbounded", system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  /* Клавіатурний фокус має бути помітним скрізь */
+  :focus-visible {
+    outline: 2px solid #ff6b1a;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::selection {
+    background: rgba(255, 107, 26, 0.3);
+  }
+
+  /* Цифри в таблицях і рахунках не повинні "стрибати" */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-body {
-  min-height: 100vh;
-  background: radial-gradient(circle at top, rgba(32, 246, 255, 0.12), transparent 45%),
-    radial-gradient(circle at 20% 80%, rgba(255, 59, 246, 0.08), transparent 40%),
-    #0a0c12;
+@layer components {
+  /* ---------- Поверхні ---------- */
+  .surface {
+    @apply rounded-xl border border-line bg-ink-900;
+  }
+
+  .surface-raised {
+    @apply rounded-xl border border-line bg-ink-800 shadow-raise;
+  }
+
+  /* Картка-контейнер розділу: заголовок + тіло */
+  .panel {
+    @apply rounded-xl border border-line bg-ink-900;
+  }
+
+  .panel-header {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-4;
+  }
+
+  .panel-body {
+    @apply px-5 py-5;
+  }
+
+  /* Клікабельна картка списку */
+  .card-link {
+    @apply block rounded-xl border border-line bg-ink-900 transition duration-150;
+  }
+
+  .card-link:hover {
+    @apply border-line -translate-y-px bg-ink-800;
+    box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.9);
+  }
+
+  /* ---------- Типографіка ---------- */
+  .eyebrow {
+    @apply text-eyebrow font-semibold uppercase text-text-faint;
+  }
+
+  .page-title {
+    @apply font-display text-h1 text-text;
+  }
+
+  .section-title {
+    @apply font-display text-h3 text-text;
+  }
+
+  .muted {
+    @apply text-text-muted;
+  }
+
+  /* ---------- Кнопки ---------- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg px-4 text-body font-medium transition duration-150;
+    height: 2.375rem;
+    white-space: nowrap;
+  }
+
+  .btn:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .btn-primary {
+    @apply bg-ember text-ink-950;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-ember-soft;
+  }
+
+  .btn-secondary {
+    @apply border border-line bg-ink-800 text-text;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    @apply border-text-faint bg-ink-700;
+  }
+
+  .btn-ghost {
+    @apply text-text-muted;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    @apply bg-ink-800 text-text;
+  }
+
+  .btn-danger {
+    @apply border border-danger/30 text-danger;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    @apply bg-danger/10;
+  }
+
+  .btn-sm {
+    @apply px-3 text-micro;
+    height: 1.875rem;
+  }
+
+  /* ---------- Форми ---------- */
+  /* Підпис поля живе у самому <label>, а контрол успадкування не зачіпає */
+  .field {
+    @apply block text-micro font-medium text-text-muted;
+  }
+
+  .field .input {
+    @apply mt-1.5;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-micro font-medium text-text-muted;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-line bg-ink-950 px-3 text-body text-text transition duration-150;
+    height: 2.375rem;
+  }
+
+  .input::placeholder {
+    @apply text-text-faint;
+  }
+
+  .input:hover {
+    @apply border-text-faint;
+  }
+
+  .input:focus {
+    @apply border-ember outline-none;
+    box-shadow: 0 0 0 3px rgba(255, 107, 26, 0.15);
+  }
+
+  textarea.input {
+    @apply py-2.5;
+    height: auto;
+    resize: vertical;
+  }
+
+  select.input {
+    @apply cursor-pointer appearance-none pr-9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%238C99AB' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+  }
+
+  .field-error {
+    @apply mt-1.5 text-micro text-danger;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-micro text-text-faint;
+  }
+
+  /* Групування полів у формі — замість суцільного стовпчика інпутів */
+  .fieldset {
+    @apply space-y-4 border-t border-line-soft pt-5;
+  }
+
+  .fieldset-legend {
+    @apply mb-4 text-eyebrow font-semibold uppercase text-text-faint;
+  }
+
+  /* ---------- Статуси ---------- */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-micro font-medium;
+  }
+
+  .pill-neutral {
+    @apply border-line bg-ink-800 text-text-muted;
+  }
+
+  .pill-live {
+    @apply border-ember/40 bg-ember/10 text-ember-soft;
+  }
+
+  .pill-done {
+    @apply border-win/25 bg-win/10 text-win;
+  }
+
+  .pill-off {
+    @apply border-danger/25 bg-danger/10 text-danger;
+  }
+
+  .dot {
+    @apply h-1.5 w-1.5 rounded-full bg-current;
+  }
+
+  /* ---------- Зворотний звʼязок ---------- */
+  .notice {
+    @apply flex items-start gap-2.5 rounded-lg border px-4 py-3 text-body;
+  }
+
+  .notice-error {
+    @apply border-danger/30 bg-danger/10 text-danger;
+  }
+
+  .notice-success {
+    @apply border-win/25 bg-win/10 text-win;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-md bg-ink-800;
+  }
+
+  /* ---------- Таблиці ---------- */
+  .table {
+    @apply w-full border-collapse text-left;
+  }
+
+  .table thead th {
+    @apply whitespace-nowrap border-b border-line px-4 py-3 text-eyebrow font-semibold uppercase text-text-faint;
+  }
+
+  .table tbody tr {
+    @apply border-b border-line-soft transition-colors duration-150;
+  }
+
+  .table tbody tr:last-child {
+    @apply border-b-0;
+  }
+
+  .table tbody tr:hover {
+    @apply bg-ink-800/60;
+  }
+
+  .table td {
+    @apply px-4 py-3 align-middle text-body text-text-muted;
+  }
+
+  .table .cell-primary {
+    @apply font-medium text-text;
+  }
+
+  /* Дії в рядку зʼявляються при наведенні, щоб таблиця лишалась спокійною */
+  .row-actions {
+    @apply flex items-center justify-end gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100;
+  }
+
+  tr:hover .row-actions {
+    @apply opacity-100;
+  }
+
+  @media (hover: none) {
+    .row-actions {
+      @apply opacity-100;
+    }
+  }
+
+  /* ---------- Турнірна сітка ---------- */
+  .bracket-rail {
+    @apply flex gap-0 overflow-x-auto pb-2;
+  }
+
+  .bracket-round {
+    @apply flex min-w-[15rem] flex-col;
+  }
+
+  .bracket-node {
+    @apply overflow-hidden rounded-lg border border-line bg-ink-900;
+  }
+
+  .bracket-node-live {
+    @apply border-ember/50;
+    box-shadow: 0 0 0 1px rgba(255, 107, 26, 0.25), 0 10px 30px -14px rgba(255, 107, 26, 0.5);
+  }
+
+  .bracket-seat {
+    @apply flex items-center justify-between gap-3 px-3 py-2 text-body;
+  }
+
+  .bracket-seat-won {
+    @apply bg-win/[0.07] text-text;
+  }
+
+  .bracket-seat-lost {
+    @apply text-text-faint;
+  }
 }
 
-h1, h2, h3 {
-  font-family: "Oxanium", sans-serif;
-}
-
-.glass-panel {
-  background: linear-gradient(135deg, rgba(21, 27, 43, 0.8), rgba(15, 19, 29, 0.6));
-  border: 1px solid rgba(32, 246, 255, 0.2);
-  box-shadow: 0 0 30px rgba(32, 246, 255, 0.12);
-  backdrop-filter: blur(16px);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

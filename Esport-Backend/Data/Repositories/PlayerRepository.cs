@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Computational_Practice.Data.Context;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.Models;
+using TForge.Data.Context;
+using TForge.Data.Interfaces;
+using TForge.Models;
 
-namespace Computational_Practice.Data.Repositories
+namespace TForge.Data.Repositories
 {
     public class PlayerRepository : GenericRepository<Player>, IPlayerRepository
     {

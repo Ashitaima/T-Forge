@@ -1,32 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { teamsApi } from "../../api/teamsApi";
-import type { TeamDto } from "../../types";
 import { useAuthStore } from "../../store/authStore";
+import { EmptyState, PageHeader, SearchField, Skeleton } from "../../components/ui/Primitives";
+import type { TeamDto } from "../../types";
 
 const TeamsList = () => {
   const [teams, setTeams] = useState<TeamDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const { user, isAuthenticated } = useAuthStore();
-  const canCreateTeam = user?.role === "Admin" || user?.role === "Organizer";
+  const { user } = useAuthStore();
+  const canCreate = user?.role === "Admin" || user?.role === "Organizer";
 
   useEffect(() => {
     let isActive = true;
-    const load = async () => {
-      try {
-        const response = await teamsApi.getPaged({ page: 1, pageSize: 20, search });
-        if (isActive) {
-          setTeams(response.data);
-        }
-      } finally {
-        if (isActive) {
-          setLoading(false);
-        }
-      }
-    };
+    setLoading(true);
 
-    load();
+    teamsApi
+      .getPaged({ page: 1, pageSize: 20, search })
+      .then((response) => isActive && setTeams(response.data))
+      .finally(() => isActive && setLoading(false));
 
     return () => {
       isActive = false;
@@ -34,8 +28,7 @@ const TeamsList = () => {
   }, [search]);
 
   const handleDelete = async (id: number) => {
-    const approved = window.confirm("Видалити команду?");
-    if (!approved) {
+    if (!window.confirm("Видалити команду? Дію не можна скасувати.")) {
       return;
     }
     await teamsApi.remove(id);
@@ -43,77 +36,91 @@ const TeamsList = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">Команди</h1>
-          <p className="mt-2 text-sm text-slate-400">Огляд складів та командного рейтингу.</p>
-        </div>
-        {isAuthenticated && canCreateTeam && (
-          <Link
-            to="/teams/new"
-            className="rounded-xl border border-neon-cyan/40 px-4 py-2 text-sm text-neon-cyan hover:bg-neon-cyan/10"
-          >
-            Створити команду
-          </Link>
-        )}
-      </header>
-      <div className="max-w-md">
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Пошук за назвою"
-          className="w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm text-slate-200"
+    <>
+      <PageHeader
+        eyebrow="Склади"
+        title="Команди"
+        description="Усі зареєстровані команди, їхні капітани та регіони."
+        action={
+          canCreate && (
+            <Link to="/teams/new" className="btn btn-primary">
+              <PlusCircle className="h-4 w-4" />
+              Створити команду
+            </Link>
+          )
+        }
+      />
+
+      <SearchField value={search} onChange={setSearch} placeholder="Пошук за назвою команди" />
+
+      {loading && <Skeleton rows={4} />}
+
+      {!loading && teams.length === 0 && (
+        <EmptyState
+          title={search ? "Команд не знайдено" : "Команд ще немає"}
+          hint={search ? "Спробуйте іншу назву." : "Створіть команду, щоб реєструвати її на турніри."}
+          action={
+            canCreate && !search ? (
+              <Link to="/teams/new" className="btn btn-primary">
+                Створити команду
+              </Link>
+            ) : undefined
+          }
         />
-      </div>
-      <div className="glass-panel rounded-2xl p-6">
-        {loading && <div className="text-sm text-slate-400">Завантаження команд...</div>}
-        <table className="w-full text-left text-sm">
-          <thead className="text-xs uppercase text-slate-500">
-            <tr>
-              <th className="py-2">Команда</th>
-              <th className="py-2">Тег</th>
-              <th className="py-2">Регіон</th>
-              <th className="py-2">Капітан</th>
-              <th className="py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {teams.map((team) => (
-              <tr key={team.id}>
-                <td className="py-3 font-semibold text-white">{team.name}</td>
-                <td className="py-3 text-slate-300">{team.tag}</td>
-                <td className="py-3 text-slate-300">{team.region}</td>
-                <td className="py-3 text-neon-cyan">
-                  {team.captain ? team.captain.username : "Не призначено"}
-                </td>
-                <td className="py-3 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <Link to={`/teams/${team.id}`} className="text-neon-cyan">
-                      Деталі
-                    </Link>
-                    {user?.id === team.captain?.id && (
-                      <>
-                        <Link to={`/teams/${team.id}/edit`} className="text-slate-300">
-                          Редагувати
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(team.id)}
-                          className="text-neon-magenta"
-                        >
-                          Видалити
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
+      )}
+
+      {!loading && teams.length > 0 && (
+        <div className="panel overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Команда</th>
+                <th>Тег</th>
+                <th>Регіон</th>
+                <th>Капітан</th>
+                <th className="w-px" />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody>
+              {teams.map((team) => (
+                <tr key={team.id}>
+                  <td className="cell-primary">
+                    <Link to={`/teams/${team.id}`} className="hover:text-ember">
+                      {team.name}
+                    </Link>
+                  </td>
+                  <td className="font-mono text-micro">{team.tag}</td>
+                  <td>{team.region || "—"}</td>
+                  <td>{team.captain ? `@${team.captain.username}` : "Не призначено"}</td>
+                  <td>
+                    <div className="row-actions">
+                      <Link to={`/teams/${team.id}`} className="btn btn-ghost btn-sm">
+                        Деталі
+                      </Link>
+                      {user?.id === team.captain?.id && (
+                        <>
+                          <Link to={`/teams/${team.id}/edit`} className="btn btn-ghost btn-sm">
+                            Редагувати
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(team.id)}
+                            className="btn btn-ghost btn-sm px-2 text-text-faint hover:text-danger"
+                            aria-label={`Видалити ${team.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
   );
 };
 

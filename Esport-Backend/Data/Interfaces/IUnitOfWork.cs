@@ -1,4 +1,4 @@
-namespace Computational_Practice.Data.Interfaces
+namespace TForge.Data.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {

@@ -4,14 +4,14 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { playersApi } from "../../api/playersApi";
-import type { CreatePlayerDto, UpdatePlayerDto } from "../../types";
+import { teamsApi } from "../../api/teamsApi";
+import type { CreatePlayerDto, TeamDto, UpdatePlayerDto } from "../../types";
 
 const schema = z.object({
   nickname: z.string().min(2, "Вкажіть нікнейм"),
   position: z.string().min(2, "Вкажіть позицію"),
   country: z.string().min(2, "Вкажіть країну"),
   age: z.coerce.number().min(12, "Мінімум 12 років"),
-  userId: z.coerce.number().optional(),
   teamId: z.coerce.number().optional()
 });
 
@@ -21,13 +21,30 @@ const PlayerForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
+  const [teams, setTeams] = useState<TeamDto[]>([]);
   const {
     register,
     handleSubmit,
     setValue,
-    setError,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  // Команди підвантажуються списком, щоб не вводити ID вручну
+  useEffect(() => {
+    let isActive = true;
+    teamsApi
+      .getPaged({ page: 1, pageSize: 100 })
+      .then((response) => {
+        if (isActive) {
+          setTeams(response.data);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -52,11 +69,6 @@ const PlayerForm = () => {
   }, [id, setValue]);
 
   const onSubmit = async (values: FormValues) => {
-    if (!id && !values.userId) {
-      setError("userId", { message: "Вкажіть користувача" });
-      return;
-    }
-
     if (id) {
       const payload: UpdatePlayerDto = {
         position: values.position,
@@ -71,8 +83,7 @@ const PlayerForm = () => {
         position: values.position,
         country: values.country,
         age: values.age,
-        userId: values.userId ?? 0,
-        teamId: values.teamId ?? null
+        teamId: values.teamId ? Number(values.teamId) : null
       };
       await playersApi.create(payload);
     }
@@ -81,82 +92,82 @@ const PlayerForm = () => {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold">{id ? "Редагування гравця" : "Новий гравець"}</h1>
-        <p className="mt-2 text-sm text-slate-400">Заповніть персональні дані та склад.</p>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <header className="border-b border-line-soft pb-5">
+        <h1 className="page-title">{id ? "Редагування гравця" : "Новий гравець"}</h1>
+        <p className="muted mt-2 text-body">Заповніть персональні дані та склад.</p>
       </header>
-      <form onSubmit={handleSubmit(onSubmit)} className="glass-panel rounded-2xl p-6 space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="panel panel-body space-y-5">
         {!id && (
-          <label className="block text-sm">
+          <label className="field">
             Нікнейм
             <input
               type="text"
               {...register("nickname")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+              className="input"
             />
-            {errors.nickname && <p className="mt-1 text-xs text-neon-magenta">{errors.nickname.message}</p>}
+            {errors.nickname && <p className="field-error">{errors.nickname.message}</p>}
           </label>
         )}
-        <label className="block text-sm">
+        <label className="field">
           Позиція
           <input
             type="text"
             {...register("position")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
-          {errors.position && <p className="mt-1 text-xs text-neon-magenta">{errors.position.message}</p>}
+          {errors.position && <p className="field-error">{errors.position.message}</p>}
         </label>
-        <label className="block text-sm">
+        <label className="field">
           Країна
           <input
             type="text"
             {...register("country")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
-          {errors.country && <p className="mt-1 text-xs text-neon-magenta">{errors.country.message}</p>}
+          {errors.country && <p className="field-error">{errors.country.message}</p>}
         </label>
-        <label className="block text-sm">
+        <label className="field">
           Вік
           <input
             type="number"
             {...register("age")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
+            className="input"
           />
-          {errors.age && <p className="mt-1 text-xs text-neon-magenta">{errors.age.message}</p>}
+          {errors.age && <p className="field-error">{errors.age.message}</p>}
         </label>
         {!id && (
-          <label className="block text-sm">
-            ID користувача
-            <input
-              type="number"
-              {...register("userId")}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-            />
-            {errors.userId && <p className="mt-1 text-xs text-neon-magenta">{errors.userId.message}</p>}
-          </label>
+          <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
+            Профіль буде прив'язано до поточного користувача — вказувати ID вручну не потрібно.
+          </p>
         )}
-        <label className="block text-sm">
-          ID команди (необов'язково)
-          <input
-            type="number"
+        <label className="field">
+          Команда (необов'язково)
+          <select
             {...register("teamId")}
-            className="mt-2 w-full rounded-xl border border-white/10 bg-night-800/60 px-3 py-2 text-sm"
-          />
+            className="input"
+          >
+            <option value="">Без команди</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name} ({team.tag})
+              </option>
+            ))}
+          </select>
         </label>
-        {loading && <div className="text-xs text-slate-400">Завантаження даних...</div>}
-        <div className="flex items-center gap-3">
+        {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-xl bg-neon-cyan/90 px-4 py-2 text-sm font-semibold text-night-900 hover:bg-neon-cyan"
+            className="btn btn-primary"
           >
             {isSubmitting ? "Збереження..." : "Зберегти"}
           </button>
           <button
             type="button"
             onClick={() => navigate("/players")}
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300"
+            className="btn btn-secondary"
           >
             Скасувати
           </button>

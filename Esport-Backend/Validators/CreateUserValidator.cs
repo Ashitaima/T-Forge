@@ -1,7 +1,7 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class CreateUserValidator : AbstractValidator<CreateUserDto>
     {

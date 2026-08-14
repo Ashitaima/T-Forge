@@ -1,14 +1,14 @@
 using AutoMapper;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.DTOs;
-using Computational_Practice.Models;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Extensions;
+using TForge.Data.Interfaces;
+using TForge.DTOs;
+using TForge.Models;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace Computational_Practice.Services
+namespace TForge.Services
 {
     public class PlayerService : IPlayerService
     {
@@ -115,9 +115,10 @@ namespace Computational_Practice.Services
             return _mapper.Map<IEnumerable<PlayerDto>>(freeAgents);
         }
 
-        public async Task<PlayerDto> CreateAsync(CreatePlayerDto createDto)
+        public async Task<PlayerDto> CreateAsync(CreatePlayerDto createDto, int userId)
         {
             var player = _mapper.Map<Player>(createDto);
+            player.UserId = userId;
 
             await _unitOfWork.Players.AddAsync(player);
             await _unitOfWork.SaveChangesAsync();

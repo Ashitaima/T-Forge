@@ -1,4 +1,4 @@
-namespace Computational_Practice.DTOs
+namespace TForge.DTOs
 {
     public class TournamentDto
     {
@@ -26,7 +26,9 @@ namespace Computational_Practice.DTOs
         public DateTime EndDate { get; set; }
         public int MaxTeams { get; set; }
         public decimal PrizePool { get; set; }
-        public int OrganizerId { get; set; }
+
+        /// <summary>Заповнює сервер з токена. Задати вручну може лише адміністратор.</summary>
+        public int? OrganizerId { get; set; }
     }
 
     public class UpdateTournamentDto

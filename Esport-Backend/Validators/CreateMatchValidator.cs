@@ -1,7 +1,8 @@
 using FluentValidation;
-using Computational_Practice.DTOs;
+using TForge.Common;
+using TForge.DTOs;
 
-namespace Computational_Practice.Validators
+namespace TForge.Validators
 {
     public class CreateMatchValidator : AbstractValidator<CreateMatchDto>
     {
@@ -33,11 +34,7 @@ namespace Computational_Practice.Validators
                 .MaximumLength(500).WithMessage("Примітки не можуть перевищувати 500 символів");
         }
 
-        private bool BeValidMatchType(string matchType)
-        {
-            var validTypes = new[] { "GroupStage", "QuarterFinal", "SemiFinal", "Final", "ThirdPlace" };
-            return validTypes.Contains(matchType);
-        }
+        private bool BeValidMatchType(string matchType) => MatchTypes.IsValid(matchType);
 
         private bool BeValidFormat(string format)
         {

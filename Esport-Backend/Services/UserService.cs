@@ -1,13 +1,13 @@
 using AutoMapper;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.DTOs;
-using Computational_Practice.Models;
-using Computational_Practice.Services.Interfaces;
-using Computational_Practice.Common;
-using Computational_Practice.Common.Filters;
-using Computational_Practice.Extensions;
+using TForge.Data.Interfaces;
+using TForge.DTOs;
+using TForge.Models;
+using TForge.Services.Interfaces;
+using TForge.Common;
+using TForge.Common.Filters;
+using TForge.Extensions;
 
-namespace Computational_Practice.Services
+namespace TForge.Services
 {
     public class UserService : IUserService
     {

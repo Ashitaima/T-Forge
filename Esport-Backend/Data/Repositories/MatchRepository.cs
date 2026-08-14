@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Computational_Practice.Data.Context;
-using Computational_Practice.Data.Interfaces;
-using Computational_Practice.Models;
+using TForge.Data.Context;
+using TForge.Data.Interfaces;
+using TForge.Models;
 
-namespace Computational_Practice.Data.Repositories
+namespace TForge.Data.Repositories
 {
     public class MatchRepository : GenericRepository<Match>, IMatchRepository
     {
@@ -43,6 +43,21 @@ namespace Computational_Practice.Data.Repositories
                 .Where(m => m.Status == status)
                 .OrderBy(m => m.ScheduledAt)
                 .ToListAsync();
+        }
+
+        /// <summary>Матч разом із турніром і командами — щоб DTO не повертав порожні поля.</summary>
+        public async Task<Match?> GetWithDetailsAsync(int id)
+        {
+            return await GetQueryableWithDetails().FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public IQueryable<Match> GetQueryableWithDetails()
+        {
+            return _dbSet
+                .Include(m => m.Tournament)
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Include(m => m.WinnerTeam);
         }
 
         public async Task<Match?> GetWithPlayersAsync(int id)

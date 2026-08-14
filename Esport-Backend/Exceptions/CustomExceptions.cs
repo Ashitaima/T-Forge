@@ -1,4 +1,4 @@
-namespace Computational_Practice.Exceptions
+namespace TForge.Exceptions
 {
     public class BusinessLogicException : Exception
     {
@@ -19,6 +19,16 @@ namespace Computational_Practice.Exceptions
         }
 
         public EntityNotFoundException(string message) : base(message)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Користувач автентифікований, але не має права на цю дію — 403, а не 401.
+    /// </summary>
+    public class ForbiddenException : Exception
+    {
+        public ForbiddenException(string message) : base(message)
         {
         }
     }

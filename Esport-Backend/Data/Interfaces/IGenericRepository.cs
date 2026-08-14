@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace Computational_Practice.Data.Interfaces
+namespace TForge.Data.Interfaces
 {
     public interface IGenericRepository<T> where T : class
     {
