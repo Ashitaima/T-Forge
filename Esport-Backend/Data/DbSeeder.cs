@@ -294,6 +294,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[0].Id, // AlexPro
+                    TeamId = teams[0].Id, // Phoenix Warriors
                     Kills = 24,
                     Deaths = 15,
                     Assists = 8,
@@ -304,6 +305,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[2].Id, // MikeElite
+                    TeamId = teams[0].Id, // Phoenix Warriors
                     Kills = 19,
                     Deaths = 14,
                     Assists = 12,
@@ -314,6 +316,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[1].Id, // SarahSniper
+                    TeamId = teams[1].Id, // Dragon Slayers
                     Kills = 18,
                     Deaths = 16,
                     Assists = 6,
@@ -324,6 +327,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[3].Id, // EmmaChamp
+                    TeamId = teams[1].Id, // Dragon Slayers
                     Kills = 14,
                     Deaths = 18,
                     Assists = 15,
