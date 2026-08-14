@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TForge.Tests</RootNamespace>
+    <AssemblyName>TForge.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <!-- Aligns the transitive EF Core version with the one T-Forge.csproj is actually
+         compiled against (pulled in privately via EntityFrameworkCore.Design/Tools 9.0.6).
+         Without this pin, NuGet resolves EntityFrameworkCore to the lower 9.0.1 floor from
+         Npgsql.EntityFrameworkCore.PostgreSQL, causing MSB3277 version-conflict warnings. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Esport-Backend\T-Forge.csproj" />
+  </ItemGroup>
+
+</Project>

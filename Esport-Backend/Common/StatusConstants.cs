@@ -71,4 +71,15 @@ namespace TForge.Common
 
         public static bool IsValid(string? status) => status != null && All.Contains(status);
     }
+
+    /// <summary>
+    /// Результат з погляду однієї сторони. Використовується і для серії команди,
+    /// і для рядка журналу матчів гравця, тому рядкові значення визначені один раз.
+    /// </summary>
+    public static class ResultType
+    {
+        public const string Win = "Win";
+        public const string Loss = "Loss";
+        public const string Pending = "Pending";
+    }
 }
