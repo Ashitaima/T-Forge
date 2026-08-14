@@ -14,15 +14,18 @@ namespace TForge.Controllers
     {
         private readonly ITournamentService _tournamentService;
         private readonly IBracketService _bracketService;
+        private readonly IStandingsService _standingsService;
         private readonly ILogger<TournamentsController> _logger;
 
         public TournamentsController(
             ITournamentService tournamentService,
             IBracketService bracketService,
+            IStandingsService standingsService,
             ILogger<TournamentsController> logger)
         {
             _tournamentService = tournamentService;
             _bracketService = bracketService;
+            _standingsService = standingsService;
             _logger = logger;
         }
 
@@ -100,6 +103,13 @@ namespace TForge.Controllers
         {
             await _tournamentService.WithdrawTeamAsync(id, teamId, GetUserIdOrThrow(), IsAdmin);
             return Ok(new { message = "Команду знято з турніру" });
+        }
+
+        /// <summary>Підсумкова таблиця турніру, виведена з сітки.</summary>
+        [HttpGet("{id}/standings")]
+        public async Task<ActionResult<IEnumerable<TournamentStandingDto>>> GetStandings(int id)
+        {
+            return Ok(await _standingsService.GetTournamentStandingsAsync(id));
         }
 
         // ---- Турнірна сітка ----

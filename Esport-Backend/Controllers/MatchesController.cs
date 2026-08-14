@@ -13,11 +13,16 @@ namespace TForge.Controllers
     public class MatchesController : ControllerBase
     {
         private readonly IMatchService _matchService;
+        private readonly IMatchRosterService _rosterService;
         private readonly ILogger<MatchesController> _logger;
 
-        public MatchesController(IMatchService matchService, ILogger<MatchesController> logger)
+        public MatchesController(
+            IMatchService matchService,
+            IMatchRosterService rosterService,
+            ILogger<MatchesController> logger)
         {
             _matchService = matchService;
+            _rosterService = rosterService;
             _logger = logger;
         }
 
@@ -116,6 +121,53 @@ namespace TForge.Controllers
             }
 
             return Ok("Матч успішно завершено");
+        }
+
+        /// <summary>Живий рахунок. Зміни розсилаються підписникам через SignalR.</summary>
+        [HttpPut("{id}/score")]
+        [Authorize(Roles = "Admin,Organizer")]
+        public async Task<ActionResult<MatchDto>> UpdateScore(int id, [FromBody] UpdateScoreDto dto)
+        {
+            return Ok(await _matchService.UpdateScoreAsync(id, dto));
+        }
+
+        // ---- Ростер матчу ----
+
+        [HttpGet("{id}/players")]
+        public async Task<ActionResult<IEnumerable<MatchPlayerDto>>> GetRoster(int id)
+        {
+            return Ok(await _rosterService.GetRosterAsync(id));
+        }
+
+        /// <summary>Підтягує активних гравців обох команд у ростер.</summary>
+        [HttpPost("{id}/players/autofill")]
+        [Authorize(Roles = "Admin,Organizer")]
+        public async Task<ActionResult<IEnumerable<MatchPlayerDto>>> AutoFillRoster(int id)
+        {
+            return Ok(await _rosterService.AutoFillAsync(id));
+        }
+
+        [HttpPost("{id}/players")]
+        [Authorize(Roles = "Admin,Organizer")]
+        public async Task<ActionResult<MatchPlayerDto>> AddRosterPlayer(int id, [FromBody] CreateMatchPlayerDto dto)
+        {
+            return Ok(await _rosterService.AddPlayerAsync(id, dto));
+        }
+
+        [HttpPut("{id}/players/{entryId}")]
+        [Authorize(Roles = "Admin,Organizer")]
+        public async Task<ActionResult<MatchPlayerDto>> UpdateRosterPlayer(
+            int id, int entryId, [FromBody] UpdateMatchPlayerDto dto)
+        {
+            return Ok(await _rosterService.UpdateEntryAsync(id, entryId, dto));
+        }
+
+        [HttpDelete("{id}/players/{entryId}")]
+        [Authorize(Roles = "Admin,Organizer")]
+        public async Task<ActionResult> RemoveRosterPlayer(int id, int entryId)
+        {
+            await _rosterService.RemoveEntryAsync(id, entryId);
+            return NoContent();
         }
 
         [HttpPost("{id}/cancel")]

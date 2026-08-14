@@ -129,6 +129,18 @@ export const router = createBrowserRouter([
         })
       },
       {
+        path: "standings",
+        lazy: async () => ({
+          Component: (await import("../features/standings/StandingsPage")).default
+        })
+      },
+      {
+        path: "matches/:id",
+        lazy: async () => ({
+          Component: (await import("../features/matches/MatchDetail")).default
+        })
+      },
+      {
         path: "matches",
         lazy: async () => ({
           Component: (await import("../features/matches/MatchesSchedule")).default

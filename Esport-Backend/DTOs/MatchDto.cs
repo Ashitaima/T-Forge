@@ -44,6 +44,32 @@ namespace TForge.DTOs
         public DateTime? EndedAt { get; set; }
     }
 
+    public class CreateMatchPlayerDto
+    {
+        public int PlayerId { get; set; }
+        public int Kills { get; set; }
+        public int Deaths { get; set; }
+        public int Assists { get; set; }
+        public string Champion { get; set; } = string.Empty;
+        public bool IsStarter { get; set; } = true;
+    }
+
+    public class UpdateMatchPlayerDto
+    {
+        public int Kills { get; set; }
+        public int Deaths { get; set; }
+        public int Assists { get; set; }
+        public string Champion { get; set; } = string.Empty;
+        public bool IsStarter { get; set; } = true;
+    }
+
+    /// <summary>Оновлення рахунку під час матчу.</summary>
+    public class UpdateScoreDto
+    {
+        public int HomeTeamScore { get; set; }
+        public int AwayTeamScore { get; set; }
+    }
+
     public class MatchPlayerDto
     {
         public int Id { get; set; }
@@ -52,6 +78,8 @@ namespace TForge.DTOs
         public int Assists { get; set; }
         public string Champion { get; set; } = string.Empty;
         public bool IsStarter { get; set; }
+        public int PlayerId { get; set; }
+        public int? TeamId { get; set; }
         public PlayerSummaryDto? Player { get; set; }
     }
 }

@@ -10,6 +10,7 @@ using TForge.Services.Interfaces;
 using TForge.Services;
 using TForge.Mappings;
 using TForge.Middleware;
+using TForge.Hubs;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using TForge.Validators;
@@ -33,6 +34,8 @@ namespace TForge
             builder.Services.AddScoped<IPlayerService, PlayerService>();
             builder.Services.AddScoped<IMatchService, MatchService>();
             builder.Services.AddScoped<IBracketService, BracketService>();
+            builder.Services.AddScoped<IStandingsService, StandingsService>();
+            builder.Services.AddScoped<IMatchRosterService, MatchRosterService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
@@ -74,11 +77,14 @@ namespace TForge
                 options.AddPolicy("Frontend", policy =>
                 {
                     policy
-                        .WithOrigins("http://localhost:5173")
+                        .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
                         .AllowAnyHeader()
-                        .AllowAnyMethod();
+                        .AllowAnyMethod()
+                        .AllowCredentials();
                 });
             });
+
+            builder.Services.AddSignalR();
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
@@ -115,6 +121,7 @@ namespace TForge
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<MatchHub>("/hubs/matches");
 
             app.Run();
         }

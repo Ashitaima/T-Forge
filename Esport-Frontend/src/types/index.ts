@@ -140,6 +140,8 @@ export type UpdatePlayerDto = {
 
 export type MatchPlayerDto = {
   id: number;
+  playerId: number;
+  teamId?: number | null;
   kills: number;
   deaths: number;
   assists: number;
@@ -187,6 +189,62 @@ export type UpdateMatchDto = {
   notes: string;
   startedAt?: string | null;
   endedAt?: string | null;
+};
+
+export type CreateMatchPlayerDto = {
+  playerId: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  champion: string;
+  isStarter: boolean;
+};
+
+export type UpdateMatchPlayerDto = {
+  kills: number;
+  deaths: number;
+  assists: number;
+  champion: string;
+  isStarter: boolean;
+};
+
+export type UpdateScoreDto = {
+  homeTeamScore: number;
+  awayTeamScore: number;
+};
+
+export type TournamentStandingDto = {
+  place: number;
+  team?: TeamSummaryDto | null;
+  outcome: string;
+  played: number;
+  wins: number;
+  losses: number;
+  stillPlaying: boolean;
+};
+
+export type TeamStandingDto = {
+  rank: number;
+  team?: TeamSummaryDto | null;
+  played: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  titles: number;
+};
+
+export type PlayerStandingDto = {
+  rank: number;
+  player?: PlayerSummaryDto | null;
+  teamName?: string | null;
+  matches: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kda: number;
+  wins: number;
+  losses: number;
+  winRate: number;
 };
 
 export type AuthResponseDto = {

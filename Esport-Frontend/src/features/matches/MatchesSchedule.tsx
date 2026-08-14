@@ -49,6 +49,9 @@ const MatchRow = ({
       <div className="flex shrink-0 items-center gap-3">
         <span className="font-mono text-micro text-text-faint">{match.format}</span>
         <StatusPill status={match.status} />
+        <Link to={`/matches/${match.id}`} className="btn btn-ghost btn-sm">
+          Деталі
+        </Link>
       </div>
 
       {canEdit && (

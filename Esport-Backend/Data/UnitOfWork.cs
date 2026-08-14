@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using TForge.Data.Context;
 using TForge.Data.Interfaces;
 using TForge.Data.Repositories;
+using TForge.Models;
 
 namespace TForge.Data
 {
@@ -20,6 +21,7 @@ namespace TForge.Data
         private ITeamRepository? _teams;
         private IPlayerRepository? _players;
         private IMatchRepository? _matches;
+        private IGenericRepository<MatchPlayer>? _matchPlayers;
 
         public IUserRepository Users =>
             _users ??= new UserRepository(_context);
@@ -35,6 +37,9 @@ namespace TForge.Data
 
         public IMatchRepository Matches =>
             _matches ??= new MatchRepository(_context);
+
+        public IGenericRepository<MatchPlayer> MatchPlayers =>
+            _matchPlayers ??= new GenericRepository<MatchPlayer>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

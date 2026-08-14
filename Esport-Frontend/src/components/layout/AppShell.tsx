@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Anvil, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
+import { Anvil, CalendarClock, LayoutGrid, ListOrdered, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/teams", label: "Команди", icon: UsersRound },
   { to: "/players", label: "Гравці", icon: UserRound },
   { to: "/matches", label: "Матчі", icon: CalendarClock },
+  { to: "/standings", label: "Таблиця", icon: ListOrdered },
   { to: "/users", label: "Користувачі", icon: Shield, adminOnly: true }
 ];
 

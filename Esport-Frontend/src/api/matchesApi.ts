@@ -1,6 +1,15 @@
 import { apiClient } from "./apiClient";
 import { endpoints } from "./endpoints";
-import type { CreateMatchDto, MatchDto, PagedResponse, UpdateMatchDto } from "../types";
+import type {
+  CreateMatchDto,
+  CreateMatchPlayerDto,
+  MatchDto,
+  MatchPlayerDto,
+  PagedResponse,
+  UpdateMatchDto,
+  UpdateMatchPlayerDto,
+  UpdateScoreDto
+} from "../types";
 
 export const matchesApi = {
   getPaged: async (params: Record<string, string | number | boolean | undefined>) => {
@@ -46,5 +55,28 @@ export const matchesApi = {
   },
   cancel: async (id: number, payload: { reason?: string | null }) => {
     await apiClient.post(`${endpoints.matches}/${id}/cancel`, payload);
+  },
+  updateScore: async (id: number, payload: UpdateScoreDto) => {
+    const response = await apiClient.put<MatchDto>(endpoints.matchScore(id), payload);
+    return response.data;
+  },
+  getRoster: async (id: number) => {
+    const response = await apiClient.get<MatchPlayerDto[]>(endpoints.matchPlayers(id));
+    return response.data;
+  },
+  autofillRoster: async (id: number) => {
+    const response = await apiClient.post<MatchPlayerDto[]>(endpoints.matchPlayersAutofill(id));
+    return response.data;
+  },
+  addRosterPlayer: async (id: number, payload: CreateMatchPlayerDto) => {
+    const response = await apiClient.post<MatchPlayerDto>(endpoints.matchPlayers(id), payload);
+    return response.data;
+  },
+  updateRosterPlayer: async (id: number, entryId: number, payload: UpdateMatchPlayerDto) => {
+    const response = await apiClient.put<MatchPlayerDto>(endpoints.matchPlayer(id, entryId), payload);
+    return response.data;
+  },
+  removeRosterPlayer: async (id: number, entryId: number) => {
+    await apiClient.delete(endpoints.matchPlayer(id, entryId));
   }
 };

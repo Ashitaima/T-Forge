@@ -7,6 +7,8 @@ using TForge.Common;
 using TForge.Common.Filters;
 using TForge.Extensions;
 using TForge.Exceptions;
+using TForge.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace TForge.Services
 {
@@ -14,14 +16,62 @@ namespace TForge.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IBracketService _bracketService;
+        private readonly IMatchRosterService _rosterService;
+        private readonly IHubContext<MatchHub> _hub;
         private readonly IMapper _mapper;
 
-        public MatchService(IUnitOfWork unitOfWork, IBracketService bracketService, IMapper mapper)
+        public MatchService(
+            IUnitOfWork unitOfWork,
+            IBracketService bracketService,
+            IMatchRosterService rosterService,
+            IHubContext<MatchHub> hub,
+            IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _bracketService = bracketService;
+            _rosterService = rosterService;
+            _hub = hub;
             _mapper = mapper;
         }
+
+        /// <summary>Оновлює рахунок матчу, що триває, і розсилає його підписникам.</summary>
+        public async Task<MatchDto> UpdateScoreAsync(int id, UpdateScoreDto dto)
+        {
+            var match = await _unitOfWork.Matches.GetByIdAsync(id)
+                ?? throw new EntityNotFoundException("Match", id);
+
+            if (match.Status != MatchStatus.InProgress)
+            {
+                throw new BusinessLogicException("Рахунок можна змінювати лише під час матчу");
+            }
+
+            if (dto.HomeTeamScore < 0 || dto.AwayTeamScore < 0)
+            {
+                throw new BusinessLogicException("Рахунок не може бути відʼємним");
+            }
+
+            match.HomeTeamScore = dto.HomeTeamScore;
+            match.AwayTeamScore = dto.AwayTeamScore;
+            await _unitOfWork.SaveChangesAsync();
+
+            await _hub.Clients.Group(MatchHub.GroupFor(id)).SendAsync(
+                MatchHubEvents.ScoreUpdated,
+                new { matchId = id, homeTeamScore = match.HomeTeamScore, awayTeamScore = match.AwayTeamScore });
+
+            return _mapper.Map<MatchDto>(match);
+        }
+
+        private Task BroadcastStatusAsync(Match match) =>
+            _hub.Clients.Group(MatchHub.GroupFor(match.Id)).SendAsync(
+                MatchHubEvents.MatchStatusChanged,
+                new
+                {
+                    matchId = match.Id,
+                    status = match.Status,
+                    homeTeamScore = match.HomeTeamScore,
+                    awayTeamScore = match.AwayTeamScore,
+                    winnerTeamId = match.WinnerTeamId
+                });
 
         public async Task<IEnumerable<MatchDto>> GetAllAsync()
         {
@@ -175,6 +225,7 @@ namespace TForge.Services
             match.StartedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync();
+            await BroadcastStatusAsync(match);
 
             return true;
         }
@@ -207,7 +258,9 @@ namespace TForge.Services
 
             await _unitOfWork.SaveChangesAsync();
 
+            await _rosterService.ApplyMatchResultAsync(match);
             await _bracketService.AdvanceAsync(match);
+            await BroadcastStatusAsync(match);
 
             return true;
         }
@@ -222,6 +275,7 @@ namespace TForge.Services
             match.Notes = reason ?? match.Notes;
 
             await _unitOfWork.SaveChangesAsync();
+            await BroadcastStatusAsync(match);
 
             return true;
         }

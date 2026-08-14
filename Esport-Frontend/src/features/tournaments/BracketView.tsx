@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { Link } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import type { MatchDto } from "../../types";
 
@@ -130,9 +131,12 @@ export const BracketView = ({ matches }: { matches: MatchDto[] }) => {
                       : "lost";
 
                   return (
-                    <article
+                    <Link
                       key={match.id}
-                      className={`bracket-node ${match.status === "InProgress" ? "bracket-node-live" : ""}`}
+                      to={`/matches/${match.id}`}
+                      className={`bracket-node block transition hover:border-text-faint ${
+                        match.status === "InProgress" ? "bracket-node-live" : ""
+                      }`}
                     >
                       <Seat
                         name={match.homeTeam?.name ?? "Очікується"}
@@ -160,7 +164,7 @@ export const BracketView = ({ matches }: { matches: MatchDto[] }) => {
                               })}
                         </span>
                       </div>
-                    </article>
+                    </Link>
                   );
                 })}
               </div>

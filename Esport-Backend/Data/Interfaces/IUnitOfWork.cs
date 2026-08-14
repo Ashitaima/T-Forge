@@ -1,3 +1,5 @@
+using TForge.Models;
+
 namespace TForge.Data.Interfaces
 {
     public interface IUnitOfWork : IDisposable
@@ -7,6 +9,7 @@ namespace TForge.Data.Interfaces
         ITeamRepository Teams { get; }
         IPlayerRepository Players { get; }
         IMatchRepository Matches { get; }
+        IGenericRepository<MatchPlayer> MatchPlayers { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

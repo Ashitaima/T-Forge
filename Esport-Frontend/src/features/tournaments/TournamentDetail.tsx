@@ -7,7 +7,7 @@ import { tournamentsApi } from "../../api/tournamentsApi";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import { BracketView } from "./BracketView";
-import type { MatchDto, TeamDto, TeamSummaryDto, TournamentDto } from "../../types";
+import type { MatchDto, TeamDto, TeamSummaryDto, TournamentDto, TournamentStandingDto } from "../../types";
 
 const TournamentDetail = () => {
   const { id } = useParams();
@@ -18,6 +18,7 @@ const TournamentDetail = () => {
   const [matches, setMatches] = useState<MatchDto[]>([]);
   const [registered, setRegistered] = useState<TeamSummaryDto[]>([]);
   const [allTeams, setAllTeams] = useState<TeamDto[]>([]);
+  const [standings, setStandings] = useState<TournamentStandingDto[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -35,16 +36,18 @@ const TournamentDetail = () => {
 
     setLoading(true);
     try {
-      const [tournamentData, matchesData, registeredData, teamsData] = await Promise.all([
+      const [tournamentData, matchesData, registeredData, teamsData, standingsData] = await Promise.all([
         tournamentsApi.getById(tournamentId),
         matchesApi.getPaged({ page: 1, pageSize: 64, tournamentId }),
         tournamentsApi.getRegisteredTeams(tournamentId).catch(() => [] as TeamSummaryDto[]),
-        teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamDto[])
+        teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamDto[]),
+        tournamentsApi.getStandings(tournamentId).catch(() => [] as TournamentStandingDto[])
       ]);
       setTournament(tournamentData);
       setMatches(matchesData.data);
       setRegistered(registeredData);
       setAllTeams(teamsData);
+      setStandings(standingsData);
     } finally {
       setLoading(false);
     }
@@ -157,6 +160,50 @@ const TournamentDetail = () => {
           {!loading && hasBracket && <BracketView matches={matches} />}
         </div>
       </section>
+
+      {hasBracket && standings.length > 0 && (
+        <section className="panel overflow-x-auto">
+          <div className="panel-header">
+            <h2 className="section-title">Підсумкова таблиця</h2>
+          </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="w-px">#</th>
+                <th>Команда</th>
+                <th>Результат</th>
+                <th className="text-right">Ігор</th>
+                <th className="text-right">В</th>
+                <th className="text-right">П</th>
+              </tr>
+            </thead>
+            <tbody>
+              {standings.map((row) => (
+                <tr key={row.team?.id}>
+                  <td>
+                    <span className={`tabular font-mono ${row.place === 1 ? "text-ember" : "text-text-faint"}`}>
+                      {String(row.place).padStart(2, "0")}
+                    </span>
+                  </td>
+                  <td className="cell-primary">
+                    <Link to={`/teams/${row.team?.id}`} className="hover:text-ember">
+                      {row.team?.name}
+                    </Link>
+                  </td>
+                  <td>
+                    <span className={`pill ${row.place === 1 ? "pill-live" : "pill-neutral"}`}>
+                      {row.outcome}
+                    </span>
+                  </td>
+                  <td className="tabular text-right font-mono">{row.played}</td>
+                  <td className="tabular text-right font-mono text-win">{row.wins}</td>
+                  <td className="tabular text-right font-mono">{row.losses}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-header">
