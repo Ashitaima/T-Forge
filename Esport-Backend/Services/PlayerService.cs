@@ -7,17 +7,20 @@ using TForge.Common;
 using TForge.Common.Filters;
 using TForge.Extensions;
 using Microsoft.EntityFrameworkCore;
+using TForge.Exceptions;
 
 namespace TForge.Services
 {
     public class PlayerService : IPlayerService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IStandingsService _standingsService;
         private readonly IMapper _mapper;
 
-        public PlayerService(IUnitOfWork unitOfWork, IMapper mapper)
+        public PlayerService(IUnitOfWork unitOfWork, IStandingsService standingsService, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _standingsService = standingsService;
             _mapper = mapper;
         }
 
@@ -90,16 +93,99 @@ namespace TForge.Services
             return player != null ? _mapper.Map<PlayerDto>(player) : null;
         }
 
+        public async Task<PlayerProfileDto> GetProfileAsync(int id)
+        {
+            var player = await _unitOfWork.Players.GetQueryable()
+                .Include(p => p.User)
+                .Include(p => p.Team)
+                .FirstOrDefaultAsync(p => p.Id == id)
+                ?? throw new EntityNotFoundException("Player", id);
+
+            var career = await _standingsService.GetPlayerCareerAsync(id);
+
+            return new PlayerProfileDto
+            {
+                Player = _mapper.Map<PlayerDto>(player),
+                Matches = career.Matches,
+                Wins = career.Wins,
+                Losses = career.Losses,
+                WinRate = career.WinRate,
+                Kills = career.Kills,
+                Deaths = career.Deaths,
+                Assists = career.Assists,
+                Kda = career.Kda
+            };
+        }
+
         public async Task<PlayerDto?> GetWithTeamAsync(int id)
         {
             var player = await _unitOfWork.Players.GetByIdAsync(id);
             return player != null ? _mapper.Map<PlayerDto>(player) : null;
         }
 
-        public async Task<PlayerDto?> GetWithMatchesAsync(int id)
+        public async Task<PagedResponse<PlayerMatchDto>> GetMatchLogAsync(int id, PagedRequest request)
         {
-            var player = await _unitOfWork.Players.GetByIdAsync(id);
-            return player != null ? _mapper.Map<PlayerDto>(player) : null;
+            var exists = await _unitOfWork.Players.ExistsAsync(p => p.Id == id);
+            if (!exists)
+            {
+                throw new EntityNotFoundException("Player", id);
+            }
+
+            var query = _unitOfWork.MatchPlayers.GetQueryable()
+                .Include(mp => mp.Team)
+                .Include(mp => mp.Match).ThenInclude(m => m.HomeTeam)
+                .Include(mp => mp.Match).ThenInclude(m => m.AwayTeam)
+                .Include(mp => mp.Match).ThenInclude(m => m.Tournament)
+                .Where(mp => mp.PlayerId == id)
+                .OrderByDescending(mp => mp.Match.ScheduledAt)
+                .ThenByDescending(mp => mp.MatchId);
+
+            var totalCount = await query.CountAsync();
+            var rows = await query.Skip(request.Skip).Take(request.Take).ToListAsync();
+
+            return new PagedResponse<PlayerMatchDto>
+            {
+                Data = rows.Select(ToLogEntry).ToList(),
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = request.PageSize
+            };
+        }
+
+        /// <summary>
+        /// Суперник — це та зі сторін матчу, якою не є команда з рядка ростера,
+        /// тож журнал лишається правильним навіть після трансферу гравця.
+        /// </summary>
+        private PlayerMatchDto ToLogEntry(MatchPlayer entry)
+        {
+            var match = entry.Match;
+            var playedAtHome = entry.TeamId == match.HomeTeamId;
+
+            var opponent = playedAtHome ? match.AwayTeam : match.HomeTeam;
+            var teamScore = playedAtHome ? match.HomeTeamScore : match.AwayTeamScore;
+            var opponentScore = playedAtHome ? match.AwayTeamScore : match.HomeTeamScore;
+
+            var result = match.Status != MatchStatus.Completed || match.WinnerTeamId == null
+                ? ResultType.Pending
+                : match.WinnerTeamId == entry.TeamId ? ResultType.Win : ResultType.Loss;
+
+            return new PlayerMatchDto
+            {
+                MatchId = match.Id,
+                ScheduledAt = match.ScheduledAt,
+                Status = match.Status,
+                PlayedFor = _mapper.Map<TeamSummaryDto>(entry.Team),
+                Opponent = opponent == null ? null : _mapper.Map<TeamSummaryDto>(opponent),
+                TeamScore = teamScore,
+                OpponentScore = opponentScore,
+                Result = result,
+                TournamentName = match.Tournament?.Name,
+                MatchType = match.MatchType,
+                Kills = entry.Kills,
+                Deaths = entry.Deaths,
+                Assists = entry.Assists,
+                Champion = entry.Champion
+            };
         }
 
         public async Task<IEnumerable<PlayerDto>> GetByTeamAsync(int teamId)

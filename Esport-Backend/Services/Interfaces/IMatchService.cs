@@ -12,7 +12,6 @@ namespace TForge.Services.Interfaces
         Task<MatchDto?> GetWithDetailsAsync(int id);
         Task<IEnumerable<MatchDto>> GetByTournamentAsync(int tournamentId);
         Task<IEnumerable<MatchDto>> GetByTeamAsync(int teamId);
-        Task<IEnumerable<MatchDto>> GetByPlayerAsync(int playerId);
         Task<IEnumerable<MatchDto>> GetByStatusAsync(string status);
         Task<IEnumerable<MatchDto>> GetScheduledMatchesAsync();
         Task<IEnumerable<MatchDto>> GetCompletedMatchesAsync();

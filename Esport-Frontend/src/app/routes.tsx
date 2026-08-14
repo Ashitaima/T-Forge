@@ -117,6 +117,12 @@ export const router = createBrowserRouter([
         })
       },
       {
+        path: "players/:id",
+        lazy: async () => ({
+          Component: (await import("../features/players/PlayerDetail")).default
+        })
+      },
+      {
         path: "players",
         lazy: async () => ({
           Component: (await import("../features/players/PlayersList")).default

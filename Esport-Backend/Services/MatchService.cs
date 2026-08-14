@@ -153,13 +153,6 @@ namespace TForge.Services
             return _mapper.Map<IEnumerable<MatchDto>>(matches);
         }
 
-        public async Task<IEnumerable<MatchDto>> GetByPlayerAsync(int playerId)
-        {
-            var matches = await _unitOfWork.Matches.GetAllAsync();
-            var playerMatches = matches.Where(m => m.MatchPlayers.Any(mp => mp.PlayerId == playerId));
-            return _mapper.Map<IEnumerable<MatchDto>>(playerMatches);
-        }
-
         public async Task<IEnumerable<MatchDto>> GetByStatusAsync(string status)
         {
             var matches = await _unitOfWork.Matches.GetByStatusAsync(status);

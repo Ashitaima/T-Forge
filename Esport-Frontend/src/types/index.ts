@@ -266,3 +266,45 @@ export type TournamentStatsDto = {
   totalPrizePool: number;
   popularGames: GameStatsDto[];
 };
+
+export type StreakDto = {
+  type: string; // "Win" | "Loss"
+  count: number;
+};
+
+export type TeamSummaryStatsDto = {
+  played: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  streak?: StreakDto | null;
+};
+
+export type PlayerProfileDto = {
+  player?: PlayerDto | null;
+  matches: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kda: number;
+};
+
+export type PlayerMatchDto = {
+  matchId: number;
+  scheduledAt: string;
+  status: string;
+  playedFor?: TeamSummaryDto | null;
+  opponent?: TeamSummaryDto | null;
+  teamScore: number;
+  opponentScore: number;
+  result: string; // "Win" | "Loss" | "Pending"
+  tournamentName?: string | null;
+  matchType: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  champion: string;
+};

@@ -1,6 +1,13 @@
 import { apiClient } from "./apiClient";
 import { endpoints } from "./endpoints";
-import type { CreatePlayerDto, PagedResponse, PlayerDto, UpdatePlayerDto } from "../types";
+import type {
+  CreatePlayerDto,
+  PagedResponse,
+  PlayerDto,
+  PlayerMatchDto,
+  PlayerProfileDto,
+  UpdatePlayerDto
+} from "../types";
 
 export const playersApi = {
   getPaged: async (params: Record<string, string | number | boolean | undefined>) => {
@@ -15,8 +22,12 @@ export const playersApi = {
     const response = await apiClient.get<PlayerDto>(`${endpoints.players}/${id}/team`);
     return response.data;
   },
-  getWithMatches: async (id: number) => {
-    const response = await apiClient.get<PlayerDto>(`${endpoints.players}/${id}/matches`);
+  getProfile: async (id: number) => {
+    const response = await apiClient.get<PlayerProfileDto>(endpoints.playerProfile(id));
+    return response.data;
+  },
+  getMatchLog: async (id: number, params: { page: number; pageSize: number }) => {
+    const response = await apiClient.get<PagedResponse<PlayerMatchDto>>(endpoints.playerMatches(id), { params });
     return response.data;
   },
   create: async (payload: CreatePlayerDto) => {

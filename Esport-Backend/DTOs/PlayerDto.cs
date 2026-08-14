@@ -60,4 +60,21 @@ namespace TForge.DTOs
         public double AverageAssists { get; set; }
         public double KDRatio { get; set; }
     }
+
+    /// <summary>
+    /// Профіль гравця. Усі показники нижче виведені з рядків MatchPlayer,
+    /// тож вони узгоджені з таблицею гравців і журналом матчів.
+    /// </summary>
+    public class PlayerProfileDto
+    {
+        public PlayerDto? Player { get; set; }
+        public int Matches { get; set; }
+        public int Wins { get; set; }
+        public int Losses { get; set; }
+        public decimal WinRate { get; set; }
+        public int Kills { get; set; }
+        public int Deaths { get; set; }
+        public int Assists { get; set; }
+        public double Kda { get; set; }
+    }
 }

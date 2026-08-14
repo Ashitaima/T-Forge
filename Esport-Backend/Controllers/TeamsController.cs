@@ -13,11 +13,16 @@ namespace TForge.Controllers
     public class TeamsController : ApiControllerBase
     {
         private readonly ITeamService _teamService;
+        private readonly IStandingsService _standingsService;
         private readonly ILogger<TeamsController> _logger;
 
-        public TeamsController(ITeamService teamService, ILogger<TeamsController> logger)
+        public TeamsController(
+            ITeamService teamService,
+            IStandingsService standingsService,
+            ILogger<TeamsController> logger)
         {
             _teamService = teamService;
+            _standingsService = standingsService;
             _logger = logger;
         }
 
@@ -31,15 +36,22 @@ namespace TForge.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<TeamDto>> GetTeam(int id)
         {
-            var team = await _teamService.GetByIdAsync(id);
+            var team = await _teamService.GetByIdAsync(id) ?? throw new EntityNotFoundException("Team", id);
             return Ok(team);
         }
 
         [HttpGet("{id}/players")]
         public async Task<ActionResult<TeamDto>> GetTeamWithPlayers(int id)
         {
-            var team = await _teamService.GetWithPlayersAsync(id);
+            var team = await _teamService.GetWithPlayersAsync(id) ?? throw new EntityNotFoundException("Team", id);
             return Ok(team);
+        }
+
+        /// <summary>Форма команди за всіма зіграними матчами.</summary>
+        [HttpGet("{id}/summary")]
+        public async Task<ActionResult<TeamSummaryStatsDto>> GetTeamSummary(int id)
+        {
+            return Ok(await _standingsService.GetTeamSummaryAsync(id));
         }
 
         [HttpPost]
