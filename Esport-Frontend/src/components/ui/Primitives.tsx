@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { ReactNode } from "react";
 
 export const SearchField = ({
@@ -129,3 +129,96 @@ export const StatCard = ({
     {hint && <div className="muted mt-2 text-micro">{hint}</div>}
   </div>
 );
+
+/**
+ * Нумерована пагінація. За великої кількості сторінок середні номери
+ * згортаються в трикрапку, щоб рядок не розповзався.
+ */
+export const Pager = ({
+  page,
+  pageSize,
+  totalCount,
+  totalPages,
+  onChange,
+  disabled = false
+}: {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+  disabled?: boolean;
+}) => {
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalCount);
+
+  // Завжди показуємо першу й останню сторінку та вікно навколо поточної
+  const numbers: (number | "gap")[] = [];
+  for (let candidate = 1; candidate <= totalPages; candidate++) {
+    const nearCurrent = Math.abs(candidate - page) <= 1;
+    const isEdge = candidate === 1 || candidate === totalPages;
+
+    if (nearCurrent || isEdge) {
+      numbers.push(candidate);
+    } else if (numbers[numbers.length - 1] !== "gap") {
+      numbers.push("gap");
+    }
+  }
+
+  return (
+    <nav className="flex flex-wrap items-center justify-between gap-3 pt-1" aria-label="Пагінація">
+      <span className="tabular font-mono text-micro text-text-faint">
+        Показано {from}–{to} з {totalCount}
+      </span>
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={disabled || page <= 1}
+          onClick={() => onChange(page - 1)}
+          className="btn btn-ghost btn-sm px-2"
+          aria-label="Попередня сторінка"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {numbers.map((entry, index) =>
+          entry === "gap" ? (
+            <span key={`gap-${index}`} className="px-1 text-micro text-text-faint">
+              …
+            </span>
+          ) : (
+            <button
+              key={entry}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(entry)}
+              aria-current={entry === page ? "page" : undefined}
+              className={`tabular min-w-[2rem] rounded-lg px-2 py-1 font-mono text-micro transition ${
+                entry === page
+                  ? "bg-ember text-ink-950"
+                  : "text-text-muted hover:bg-ink-800 hover:text-text"
+              }`}
+            >
+              {entry}
+            </button>
+          )
+        )}
+
+        <button
+          type="button"
+          disabled={disabled || page >= totalPages}
+          onClick={() => onChange(page + 1)}
+          className="btn btn-ghost btn-sm px-2"
+          aria-label="Наступна сторінка"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </nav>
+  );
+};

@@ -143,10 +143,12 @@ namespace TForge.Data
                     Country = "Ukraine",
                     Age = 22,
                     TeamId = teams[0].Id, // Phoenix Warriors
-                    TotalMatches = 145,
-                    Wins = 89,
-                    Losses = 56,
-                    WinRate = 61.38m,
+                    // Кешовані лічильники мають відповідати рядкам MatchPlayer,
+                    // що засіваються нижче для завершеного матчу Phoenix Warriors vs Dragon Slayers
+                    TotalMatches = 1,
+                    Wins = 1,
+                    Losses = 0,
+                    WinRate = 100m,
                     Ranking = 1250,
                     IsActive = true,
                     JoinedAt = DateTime.UtcNow.AddMonths(-6)
@@ -159,10 +161,12 @@ namespace TForge.Data
                     Country = "USA",
                     Age = 24,
                     TeamId = teams[1].Id, // Dragon Slayers
-                    TotalMatches = 167,
-                    Wins = 112,
-                    Losses = 55,
-                    WinRate = 67.07m,
+                    // Кешовані лічильники мають відповідати рядкам MatchPlayer,
+                    // що засіваються нижче для завершеного матчу Phoenix Warriors vs Dragon Slayers
+                    TotalMatches = 1,
+                    Wins = 0,
+                    Losses = 1,
+                    WinRate = 0m,
                     Ranking = 1180,
                     IsActive = true,
                     JoinedAt = DateTime.UtcNow.AddMonths(-8)
@@ -175,10 +179,12 @@ namespace TForge.Data
                     Country = "Canada",
                     Age = 21,
                     TeamId = teams[0].Id, // Phoenix Warriors
-                    TotalMatches = 98,
-                    Wins = 62,
-                    Losses = 36,
-                    WinRate = 63.27m,
+                    // Кешовані лічильники мають відповідати рядкам MatchPlayer,
+                    // що засіваються нижче для завершеного матчу Phoenix Warriors vs Dragon Slayers
+                    TotalMatches = 1,
+                    Wins = 1,
+                    Losses = 0,
+                    WinRate = 100m,
                     Ranking = 1320,
                     IsActive = true,
                     JoinedAt = DateTime.UtcNow.AddMonths(-4)
@@ -191,10 +197,12 @@ namespace TForge.Data
                     Country = "Germany",
                     Age = 23,
                     TeamId = teams[1].Id, // Dragon Slayers
-                    TotalMatches = 203,
-                    Wins = 134,
-                    Losses = 69,
-                    WinRate = 65.52m,
+                    // Кешовані лічильники мають відповідати рядкам MatchPlayer,
+                    // що засіваються нижче для завершеного матчу Phoenix Warriors vs Dragon Slayers
+                    TotalMatches = 1,
+                    Wins = 0,
+                    Losses = 1,
+                    WinRate = 0m,
                     Ranking = 1210,
                     IsActive = true,
                     JoinedAt = DateTime.UtcNow.AddMonths(-10)
@@ -294,6 +302,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[0].Id, // AlexPro
+                    TeamId = teams[0].Id, // Phoenix Warriors
                     Kills = 24,
                     Deaths = 15,
                     Assists = 8,
@@ -304,6 +313,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[2].Id, // MikeElite
+                    TeamId = teams[0].Id, // Phoenix Warriors
                     Kills = 19,
                     Deaths = 14,
                     Assists = 12,
@@ -314,6 +324,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[1].Id, // SarahSniper
+                    TeamId = teams[1].Id, // Dragon Slayers
                     Kills = 18,
                     Deaths = 16,
                     Assists = 6,
@@ -324,6 +335,7 @@ namespace TForge.Data
                 {
                     MatchId = matches[0].Id,
                     PlayerId = players[3].Id, // EmmaChamp
+                    TeamId = teams[1].Id, // Dragon Slayers
                     Kills = 14,
                     Deaths = 18,
                     Assists = 15,

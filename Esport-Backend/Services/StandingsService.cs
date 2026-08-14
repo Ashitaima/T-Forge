@@ -166,13 +166,47 @@ namespace TForge.Services
             return rows;
         }
 
+        public async Task<TeamSummaryStatsDto> GetTeamSummaryAsync(int teamId)
+        {
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
+
+            var matches = await _unitOfWork.Matches.GetQueryable()
+                .Where(m => m.HomeTeamId == team.Id || m.AwayTeamId == team.Id)
+                .ToListAsync();
+
+            var record = TeamRecordCalculator.CalculateRecord(matches, team.Id);
+            var streak = TeamRecordCalculator.CalculateStreak(matches, team.Id);
+
+            return new TeamSummaryStatsDto
+            {
+                Played = record.Played,
+                Wins = record.Wins,
+                Losses = record.Losses,
+                WinRate = record.WinRate,
+                Streak = streak == null ? null : new StreakDto { Type = streak.Type, Count = streak.Count }
+            };
+        }
+
+        public async Task<PlayerRecordCalculator.PlayerRecord> GetPlayerCareerAsync(int playerId)
+        {
+            var rows = await _unitOfWork.MatchPlayers.GetQueryable()
+                .Include(mp => mp.Match)
+                .Where(mp => mp.PlayerId == playerId)
+                .ToListAsync();
+
+            return PlayerRecordCalculator.Calculate(rows);
+        }
+
         public async Task<IEnumerable<PlayerStandingDto>> GetPlayerStandingsAsync()
         {
+            // Рахуємо лише матчі, що дійсно мають переможця — так само, як PlayerRecordCalculator,
+            // щоб таблиця лідерів не розходилась із профілем гравця для нічиїх/незавершених матчів.
             var stats = await _unitOfWork.MatchPlayers.GetQueryable()
                 .Include(mp => mp.Match)
                 .Include(mp => mp.Player)
                 .ThenInclude(p => p.Team)
-                .Where(mp => mp.Match.Status == MatchStatus.Completed)
+                .Where(mp => mp.Match.Status == MatchStatus.Completed && mp.Match.WinnerTeamId != null)
                 .ToListAsync();
 
             var rows = stats
@@ -184,7 +218,7 @@ namespace TForge.Services
                     var assists = group.Sum(mp => mp.Assists);
 
                     var wins = group.Count(mp =>
-                        mp.Match.WinnerTeamId != null && mp.Match.WinnerTeamId == mp.Player.TeamId);
+                        mp.Match.WinnerTeamId != null && mp.Match.WinnerTeamId == mp.TeamId);
 
                     return new PlayerStandingDto
                     {

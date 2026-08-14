@@ -82,4 +82,23 @@ namespace TForge.DTOs
         public int? TeamId { get; set; }
         public PlayerSummaryDto? Player { get; set; }
     }
+
+    /// <summary>Рядок журналу матчів гравця — з погляду команди, за яку він грав.</summary>
+    public class PlayerMatchDto
+    {
+        public int MatchId { get; set; }
+        public DateTime ScheduledAt { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public TeamSummaryDto? PlayedFor { get; set; }
+        public TeamSummaryDto? Opponent { get; set; }
+        public int TeamScore { get; set; }
+        public int OpponentScore { get; set; }
+        public string Result { get; set; } = string.Empty;  // "Win" | "Loss" | "Pending"
+        public string? TournamentName { get; set; }
+        public string MatchType { get; set; } = string.Empty;
+        public int Kills { get; set; }
+        public int Deaths { get; set; }
+        public int Assists { get; set; }
+        public string Champion { get; set; } = string.Empty;
+    }
 }

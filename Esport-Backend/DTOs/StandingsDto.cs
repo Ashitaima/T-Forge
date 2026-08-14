@@ -46,4 +46,20 @@ namespace TForge.DTOs
         public int Losses { get; set; }
         public decimal WinRate { get; set; }
     }
+
+    /// <summary>Форма команди: підсумковий рекорд і поточна серія.</summary>
+    public class TeamSummaryStatsDto
+    {
+        public int Played { get; set; }
+        public int Wins { get; set; }
+        public int Losses { get; set; }
+        public decimal WinRate { get; set; }
+        public StreakDto? Streak { get; set; }
+    }
+
+    public class StreakDto
+    {
+        public string Type { get; set; } = string.Empty;  // "Win" | "Loss"
+        public int Count { get; set; }
+    }
 }

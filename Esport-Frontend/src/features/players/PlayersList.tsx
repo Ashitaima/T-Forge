@@ -1,37 +1,37 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { playersApi } from "../../api/playersApi";
 import { useAuthStore } from "../../store/authStore";
-import { EmptyState, PageHeader, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { usePagedList } from "../../hooks/usePagedList";
 import type { PlayerDto } from "../../types";
 
 const PlayersList = () => {
-  const [players, setPlayers] = useState<PlayerDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { user, isAuthenticated } = useAuthStore();
+  const pageSize = 20;
 
-  useEffect(() => {
-    let isActive = true;
-    setLoading(true);
-
-    playersApi
-      .getPaged({ page: 1, pageSize: 20, search })
-      .then((response) => isActive && setPlayers(response.data))
-      .finally(() => isActive && setLoading(false));
-
-    return () => {
-      isActive = false;
-    };
-  }, [search]);
+  const {
+    items: players,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    loading,
+    reload
+  } = usePagedList<PlayerDto>(
+    (page, pageSize) => playersApi.getPaged({ page, pageSize, search }),
+    search,
+    pageSize
+  );
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Видалити гравця? Дію не можна скасувати.")) {
       return;
     }
     await playersApi.remove(id);
-    setPlayers((prev) => prev.filter((player) => player.id !== id));
+    reload();
   };
 
   return (
@@ -81,7 +81,11 @@ const PlayersList = () => {
 
                 return (
                   <tr key={player.id}>
-                    <td className="cell-primary">{player.nickname}</td>
+                    <td className="cell-primary">
+                      <Link to={`/players/${player.id}`} className="hover:text-ember">
+                        {player.nickname}
+                      </Link>
+                    </td>
                     <td>{player.position || "—"}</td>
                     <td>{player.country || "—"}</td>
                     <td>
@@ -119,6 +123,15 @@ const PlayersList = () => {
           </table>
         </div>
       )}
+
+      <Pager
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        onChange={setPage}
+        disabled={loading}
+      />
     </>
   );
 };

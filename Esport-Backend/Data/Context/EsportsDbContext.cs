@@ -206,6 +206,12 @@ namespace TForge.Data.Context
                     .HasForeignKey(mp => mp.PlayerId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // Команду матчу не можна видалити, поки на неї посилається історія
+                entity.HasOne(mp => mp.Team)
+                    .WithMany()
+                    .HasForeignKey(mp => mp.TeamId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 // Один гравець може бути тільки раз в одному матчі
                 entity.HasIndex(new[] { "MatchId", "PlayerId" }).IsUnique();
             });

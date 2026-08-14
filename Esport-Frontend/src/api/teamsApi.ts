@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 import { endpoints } from "./endpoints";
-import type { CreateTeamDto, PagedResponse, TeamDto, UpdateTeamDto } from "../types";
+import type { CreateTeamDto, PagedResponse, TeamDto, TeamSummaryStatsDto, UpdateTeamDto } from "../types";
 
 export const teamsApi = {
   getPaged: async (params: Record<string, string | number | boolean | undefined>) => {
@@ -31,5 +31,9 @@ export const teamsApi = {
   },
   removePlayer: async (teamId: number, playerId: number) => {
     await apiClient.delete(`${endpoints.teams}/${teamId}/players/${playerId}`);
+  },
+  getSummary: async (id: number) => {
+    const response = await apiClient.get<TeamSummaryStatsDto>(endpoints.teamSummary(id));
+    return response.data;
   }
 };

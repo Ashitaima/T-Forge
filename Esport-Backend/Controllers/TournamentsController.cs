@@ -46,7 +46,7 @@ namespace TForge.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<TournamentDto>> GetTournament(int id)
         {
-            var tournament = await _tournamentService.GetWithMatchesAsync(id);
+            var tournament = await _tournamentService.GetWithMatchesAsync(id) ?? throw new EntityNotFoundException("Tournament", id);
             return Ok(tournament);
         }
 

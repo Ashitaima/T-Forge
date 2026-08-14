@@ -49,6 +49,8 @@ namespace TForge.Services
                 {
                     MatchId = matchId,
                     PlayerId = player.Id,
+                    // Фіксуємо команду саме на момент матчу
+                    TeamId = player.TeamId!.Value,
                     IsStarter = true
                 })
                 .ToList();
@@ -86,6 +88,7 @@ namespace TForge.Services
             {
                 MatchId = matchId,
                 PlayerId = dto.PlayerId,
+                TeamId = player.TeamId!.Value,
                 Kills = dto.Kills,
                 Deaths = dto.Deaths,
                 Assists = dto.Assists,
@@ -129,9 +132,9 @@ namespace TForge.Services
         }
 
         /// <summary>
-        /// Переносить результат завершеного матчу в кар'єрну статистику гравців.
-        /// Рахуємо тих, хто був у ростері; якщо ростер не заповнювали — беремо
-        /// поточні склади обох команд, щоб показники не лишались нульовими.
+        /// Переносить результат завершеного матчу в карʼєрну статистику гравців.
+        /// Якщо ростер не заповнювали, створюємо його зараз — так MatchPlayer лишається
+        /// повним записом участі, а поточний склад команди не переписує минуле.
         /// </summary>
         public async Task ApplyMatchResultAsync(Match match)
         {
@@ -141,21 +144,18 @@ namespace TForge.Services
             }
 
             var roster = await LoadRosterAsync(match.Id);
-            var players = roster.Select(mp => mp.Player).Where(p => p != null).ToList();
 
-            if (players.Count == 0)
+            if (roster.Count == 0)
             {
-                players = await _unitOfWork.Players.GetQueryable()
-                    .Where(p => p.IsActive && p.TeamId != null &&
-                                (p.TeamId == match.HomeTeamId || p.TeamId == match.AwayTeamId))
-                    .ToListAsync();
+                roster = await MaterialiseRosterAsync(match);
             }
 
-            foreach (var player in players)
+            foreach (var entry in roster)
             {
+                var player = entry.Player;
                 player.TotalMatches += 1;
 
-                if (player.TeamId == match.WinnerTeamId)
+                if (entry.TeamId == match.WinnerTeamId)
                 {
                     player.Wins += 1;
                 }
@@ -172,6 +172,33 @@ namespace TForge.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        /// <summary>Створює порожні рядки ростера для активних гравців обох команд.</summary>
+        private async Task<List<MatchPlayer>> MaterialiseRosterAsync(Match match)
+        {
+            var squad = await _unitOfWork.Players.GetQueryable()
+                .Where(p => p.IsActive && p.TeamId != null &&
+                            (p.TeamId == match.HomeTeamId || p.TeamId == match.AwayTeamId))
+                .ToListAsync();
+
+            if (squad.Count == 0)
+            {
+                return new List<MatchPlayer>();
+            }
+
+            var created = squad.Select(player => new MatchPlayer
+            {
+                MatchId = match.Id,
+                PlayerId = player.Id,
+                TeamId = player.TeamId!.Value,
+                IsStarter = true
+            }).ToList();
+
+            await _unitOfWork.MatchPlayers.AddRangeAsync(created);
+            await _unitOfWork.SaveChangesAsync();
+
+            return await LoadRosterAsync(match.Id);
+        }
+
         private async Task<Match> EnsureMatchExistsAsync(int matchId)
         {
             return await _unitOfWork.Matches.GetByIdAsync(matchId)
@@ -183,8 +210,9 @@ namespace TForge.Services
             return await _unitOfWork.MatchPlayers.GetQueryable()
                 .Include(mp => mp.Player)
                 .ThenInclude(p => p.Team)
+                .Include(mp => mp.Match)
                 .Where(mp => mp.MatchId == matchId)
-                .OrderBy(mp => mp.Player.TeamId)
+                .OrderBy(mp => mp.TeamId)
                 .ThenBy(mp => mp.Player.Nickname)
                 .ToListAsync();
         }

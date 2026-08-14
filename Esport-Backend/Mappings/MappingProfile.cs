@@ -123,8 +123,7 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.WinnerTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
 
-            CreateMap<MatchPlayer, MatchPlayerDto>()
-                .ForMember(dest => dest.TeamId, opt => opt.MapFrom(src => src.Player.TeamId));
+            CreateMap<MatchPlayer, MatchPlayerDto>();
         }
     }
 }

@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { usersApi } from "../../api/usersApi";
-import { EmptyState, PageHeader, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { usePagedList } from "../../hooks/usePagedList";
 import type { UserDto } from "../../types";
 
 const roleLabels: Record<string, string> = {
@@ -14,30 +15,29 @@ const roleLabels: Record<string, string> = {
 };
 
 const UsersList = () => {
-  const [users, setUsers] = useState<UserDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const pageSize = 20;
 
-  useEffect(() => {
-    let isActive = true;
-    setLoading(true);
-
-    usersApi
-      .getPaged({ page: 1, pageSize: 20, search })
-      .then((response) => isActive && setUsers(response.data))
-      .finally(() => isActive && setLoading(false));
-
-    return () => {
-      isActive = false;
-    };
-  }, [search]);
+  const {
+    items: users,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    loading,
+    reload
+  } = usePagedList<UserDto>(
+    (page, pageSize) => usersApi.getPaged({ page, pageSize, search }),
+    search,
+    pageSize
+  );
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Видалити користувача? Дію не можна скасувати.")) {
       return;
     }
     await usersApi.remove(id);
-    setUsers((prev) => prev.filter((user) => user.id !== id));
+    reload();
   };
 
   return (
@@ -112,6 +112,15 @@ const UsersList = () => {
           </table>
         </div>
       )}
+
+      <Pager
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        onChange={setPage}
+        disabled={loading}
+      />
     </>
   );
 };

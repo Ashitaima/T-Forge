@@ -42,11 +42,19 @@ namespace TForge.Controllers
             return Ok(player);
         }
 
-        [HttpGet("{id}/matches")]
-        public async Task<ActionResult<PlayerDto>> GetPlayerWithMatches(int id)
+        /// <summary>Профіль гравця: особисті дані та статистика за всіма матчами.</summary>
+        [HttpGet("{id}/profile")]
+        public async Task<ActionResult<PlayerProfileDto>> GetPlayerProfile(int id)
         {
-            var player = await _playerService.GetWithMatchesAsync(id);
-            return Ok(player);
+            return Ok(await _playerService.GetProfileAsync(id));
+        }
+
+        /// <summary>Журнал матчів гравця з його власною статистикою за кожен матч.</summary>
+        [HttpGet("{id}/matches")]
+        public async Task<ActionResult<PagedResponse<PlayerMatchDto>>> GetPlayerMatches(
+            int id, [FromQuery] PagedRequest request)
+        {
+            return Ok(await _playerService.GetMatchLogAsync(id, request));
         }
 
         [HttpPost]

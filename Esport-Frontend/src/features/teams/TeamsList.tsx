@@ -1,38 +1,38 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { teamsApi } from "../../api/teamsApi";
 import { useAuthStore } from "../../store/authStore";
-import { EmptyState, PageHeader, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { usePagedList } from "../../hooks/usePagedList";
 import type { TeamDto } from "../../types";
 
 const TeamsList = () => {
-  const [teams, setTeams] = useState<TeamDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { user } = useAuthStore();
   const canCreate = user?.role === "Admin" || user?.role === "Organizer";
+  const pageSize = 20;
 
-  useEffect(() => {
-    let isActive = true;
-    setLoading(true);
-
-    teamsApi
-      .getPaged({ page: 1, pageSize: 20, search })
-      .then((response) => isActive && setTeams(response.data))
-      .finally(() => isActive && setLoading(false));
-
-    return () => {
-      isActive = false;
-    };
-  }, [search]);
+  const {
+    items: teams,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    loading,
+    reload
+  } = usePagedList<TeamDto>(
+    (page, pageSize) => teamsApi.getPaged({ page, pageSize, search }),
+    search,
+    pageSize
+  );
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Видалити команду? Дію не можна скасувати.")) {
       return;
     }
     await teamsApi.remove(id);
-    setTeams((prev) => prev.filter((team) => team.id !== id));
+    reload();
   };
 
   return (
@@ -120,6 +120,15 @@ const TeamsList = () => {
           </table>
         </div>
       )}
+
+      <Pager
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        onChange={setPage}
+        disabled={loading}
+      />
     </>
   );
 };

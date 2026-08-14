@@ -10,7 +10,41 @@ namespace TForge.Extensions
     {
         public static IQueryable<T> ApplyPaging<T>(this IQueryable<T> query, PagedRequest request)
         {
+            // LIMIT/OFFSET без ORDER BY повертає рядки у невизначеному порядку в PostgreSQL,
+            // тож без стабільного сортування сторінки можуть пропускати або дублювати записи.
+            // Якщо запит ще не впорядковано — застосовуємо детермінований fallback за Id.
+            //
+            // NOTE: We cannot detect ordering via `query is not IOrderedQueryable<T>` — EF Core's
+            // internal EntityQueryable<T> implements IOrderedQueryable<T> unconditionally, whether
+            // or not an OrderBy was ever applied, so that type check always passes once a query has
+            // gone through .Where()/.Include() etc. Instead we inspect the expression tree itself.
+            if (!query.IsOrdered())
+            {
+                query = query.OrderBy(x => EF.Property<int>(x!, "Id"));
+            }
+
             return query.Skip(request.Skip).Take(request.Take);
+        }
+
+        private static bool IsOrdered<T>(this IQueryable<T> query)
+        {
+            var expression = query.Expression;
+
+            while (expression is MethodCallExpression methodCall)
+            {
+                if (methodCall.Method.DeclaringType == typeof(Queryable) &&
+                    methodCall.Method.Name is nameof(Queryable.OrderBy)
+                        or nameof(Queryable.OrderByDescending)
+                        or nameof(Queryable.ThenBy)
+                        or nameof(Queryable.ThenByDescending))
+                {
+                    return true;
+                }
+
+                expression = methodCall.Arguments.Count > 0 ? methodCall.Arguments[0] : null!;
+            }
+
+            return false;
         }
 
         public static IQueryable<T> ApplySorting<T>(this IQueryable<T> query, string? sortBy, string sortDirection = "asc")
