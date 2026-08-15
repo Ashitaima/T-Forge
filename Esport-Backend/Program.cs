@@ -36,6 +36,7 @@ namespace TForge
             builder.Services.AddScoped<IBracketService, BracketService>();
             builder.Services.AddScoped<IStandingsService, StandingsService>();
             builder.Services.AddScoped<IMatchRosterService, MatchRosterService>();
+            builder.Services.AddScoped<IMembershipRequestService, MembershipRequestService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();

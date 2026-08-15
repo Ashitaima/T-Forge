@@ -22,6 +22,7 @@ namespace TForge.Data
         private IPlayerRepository? _players;
         private IMatchRepository? _matches;
         private IGenericRepository<MatchPlayer>? _matchPlayers;
+        private IGenericRepository<TeamMembershipRequest>? _membershipRequests;
 
         public IUserRepository Users =>
             _users ??= new UserRepository(_context);
@@ -40,6 +41,9 @@ namespace TForge.Data
 
         public IGenericRepository<MatchPlayer> MatchPlayers =>
             _matchPlayers ??= new GenericRepository<MatchPlayer>(_context);
+
+        public IGenericRepository<TeamMembershipRequest> MembershipRequests =>
+            _membershipRequests ??= new GenericRepository<TeamMembershipRequest>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

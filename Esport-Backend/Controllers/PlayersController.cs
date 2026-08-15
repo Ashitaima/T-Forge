@@ -13,11 +13,16 @@ namespace TForge.Controllers
     public class PlayersController : ApiControllerBase
     {
         private readonly IPlayerService _playerService;
+        private readonly IMembershipRequestService _membershipRequestService;
         private readonly ILogger<PlayersController> _logger;
 
-        public PlayersController(IPlayerService playerService, ILogger<PlayersController> logger)
+        public PlayersController(
+            IPlayerService playerService,
+            IMembershipRequestService membershipRequestService,
+            ILogger<PlayersController> logger)
         {
             _playerService = playerService;
+            _membershipRequestService = membershipRequestService;
             _logger = logger;
         }
 
@@ -26,6 +31,26 @@ namespace TForge.Controllers
         {
             var players = await _playerService.GetPagedAsync(filter, filter);
             return Ok(players);
+        }
+
+        /// <summary>
+        /// Профіль гравця поточного користувача. Потрібен фронтенду, щоб знати
+        /// власний playerId — без нього не показати кнопку подання заявки.
+        /// </summary>
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<PlayerDto>> GetMyPlayer()
+        {
+            var userId = GetUserIdOrThrow();
+
+            var players = await _playerService.GetPagedAsync(
+                new PagedRequest { Page = 1, PageSize = 1 },
+                new PlayerFilter { UserId = userId });
+
+            var player = players.Data.FirstOrDefault()
+                ?? throw new EntityNotFoundException("Гравця для цього користувача не знайдено");
+
+            return Ok(player);
         }
 
         [HttpGet("{id}")]
@@ -96,24 +121,6 @@ namespace TForge.Controllers
             return NoContent();
         }
 
-        [HttpPost("{playerId}/join-team/{teamId}")]
-        [Authorize]
-        public async Task<ActionResult> JoinTeam(int playerId, int teamId)
-        {
-            if (!await IsOwnerOrAdminAsync(playerId))
-            {
-                return Forbid();
-            }
-
-            var result = await _playerService.JoinTeamAsync(playerId, teamId);
-            if (!result)
-            {
-                throw new BusinessLogicException("Не вдалося приєднатися до команди");
-            }
-
-            return Ok("Гравець успішно приєднався до команди");
-        }
-
         [HttpPost("{playerId}/leave-team")]
         [Authorize]
         public async Task<ActionResult> LeaveTeam(int playerId)
@@ -130,6 +137,29 @@ namespace TForge.Controllers
             }
 
             return Ok("Гравець успішно покинув команду");
+        }
+
+        /// <summary>Гравець подає заявку до команди.</summary>
+        [HttpPost("{playerId}/applications/{teamId}")]
+        [Authorize]
+        public async Task<ActionResult<MembershipRequestDto>> ApplyToTeam(int playerId, int teamId)
+        {
+            var request = await _membershipRequestService.ApplyAsync(
+                playerId, teamId, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(request);
+        }
+
+        /// <summary>Запити гравця — і вхідні запрошення, і надіслані заявки.</summary>
+        [HttpGet("{playerId}/membership-requests")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<MembershipRequestDto>>> GetMembershipRequests(
+            int playerId, [FromQuery] string? status)
+        {
+            var requests = await _membershipRequestService.GetForPlayerAsync(
+                playerId, status, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(requests);
         }
 
         /// <summary>

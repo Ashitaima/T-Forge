@@ -14,15 +14,18 @@ namespace TForge.Controllers
     {
         private readonly ITeamService _teamService;
         private readonly IStandingsService _standingsService;
+        private readonly IMembershipRequestService _membershipRequestService;
         private readonly ILogger<TeamsController> _logger;
 
         public TeamsController(
             ITeamService teamService,
             IStandingsService standingsService,
+            IMembershipRequestService membershipRequestService,
             ILogger<TeamsController> logger)
         {
             _teamService = teamService;
             _standingsService = standingsService;
+            _membershipRequestService = membershipRequestService;
             _logger = logger;
         }
 
@@ -107,21 +110,16 @@ namespace TForge.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Примусове додавання гравця — лише для адміністрування.
+        /// Капітан додає гравців через запрошення, а не напряму.
+        /// </summary>
         [HttpPost("{teamId}/players/{playerId}")]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> AddPlayerToTeam(int teamId, int playerId)
         {
-            var userId = GetUserIdOrThrow();
-            var team = await _teamService.GetWithPlayersAsync(teamId);
-            if (team == null)
-            {
-                throw new EntityNotFoundException("Team", teamId);
-            }
-
-            if (team.Captain?.Id != userId)
-            {
-                return Forbid();
-            }
+            _ = await _teamService.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
 
             var result = await _teamService.AddPlayerToTeamAsync(teamId, playerId);
             if (!result)
@@ -155,6 +153,29 @@ namespace TForge.Controllers
             }
 
             return Ok("Гравця успішно видалено з команди");
+        }
+
+        /// <summary>Капітан запрошує гравця до команди.</summary>
+        [HttpPost("{teamId}/invitations/{playerId}")]
+        [Authorize]
+        public async Task<ActionResult<MembershipRequestDto>> InvitePlayer(int teamId, int playerId)
+        {
+            var request = await _membershipRequestService.InviteAsync(
+                teamId, playerId, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(request);
+        }
+
+        /// <summary>Запити команди — і вхідні заявки, і надіслані запрошення.</summary>
+        [HttpGet("{teamId}/membership-requests")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<MembershipRequestDto>>> GetMembershipRequests(
+            int teamId, [FromQuery] string? status)
+        {
+            var requests = await _membershipRequestService.GetForTeamAsync(
+                teamId, status, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(requests);
         }
 
     }

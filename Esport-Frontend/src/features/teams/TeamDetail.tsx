@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
+import { membershipRequestsApi } from "../../api/membershipRequestsApi";
+import { playersApi } from "../../api/playersApi";
 import { teamsApi } from "../../api/teamsApi";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Pager, Skeleton } from "../../components/ui/Primitives";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
-import type { MatchDto, TeamDto, TeamSummaryStatsDto } from "../../types";
+import type { MatchDto, MembershipRequestDto, PlayerDto, TeamDto, TeamSummaryStatsDto } from "../../types";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -21,14 +24,16 @@ const TeamDetail = () => {
   const [missing, setMissing] = useState(false);
 
   // Профіль і підсумок не залежать від сторінки історії
-  useEffect(() => {
+  const teamRequestToken = useRef(0);
+
+  const loadTeam = useCallback(() => {
     if (Number.isNaN(teamId)) {
       setMissing(true);
       setLoading(false);
       return;
     }
 
-    let isActive = true;
+    const token = ++teamRequestToken.current;
     setLoading(true);
 
     Promise.all([
@@ -36,19 +41,27 @@ const TeamDetail = () => {
       teamsApi.getSummary(teamId).catch(() => null)
     ])
       .then(([teamData, summaryData]) => {
-        if (!isActive) {
-          return;
+        if (token !== teamRequestToken.current) {
+          return; // застаріла відповідь — команду вже змінили
         }
         setTeam(teamData);
         setSummary(summaryData);
       })
-      .catch(() => isActive && setMissing(true))
-      .finally(() => isActive && setLoading(false));
-
-    return () => {
-      isActive = false;
-    };
+      .catch(() => {
+        if (token === teamRequestToken.current) {
+          setMissing(true);
+        }
+      })
+      .finally(() => {
+        if (token === teamRequestToken.current) {
+          setLoading(false);
+        }
+      });
   }, [teamId]);
+
+  useEffect(() => {
+    loadTeam();
+  }, [loadTeam]);
 
   const {
     items: matches,
@@ -64,6 +77,124 @@ const TeamDetail = () => {
     HISTORY_PAGE_SIZE
   );
 
+  const [myPlayer, setMyPlayer] = useState<PlayerDto | null>(null);
+  const [requests, setRequests] = useState<MembershipRequestDto[]>([]);
+
+  const isCaptain = Boolean(user && team?.captain?.id === user.id);
+  const isAdmin = user?.role === "Admin";
+
+  useEffect(() => {
+    playersApi
+      .getMe()
+      .then(setMyPlayer)
+      .catch(() => setMyPlayer(null)); // користувач без профілю гравця — це нормально
+  }, []);
+
+  const requestsToken = useRef(0);
+
+  const loadRequests = useCallback(() => {
+    if (Number.isNaN(teamId) || !(isCaptain || isAdmin)) {
+      setRequests([]);
+      return;
+    }
+
+    const token = ++requestsToken.current;
+
+    membershipRequestsApi
+      .getForTeam(teamId, "Pending")
+      .then((data) => {
+        if (token === requestsToken.current) {
+          setRequests(data);
+        }
+      })
+      .catch(() => {
+        if (token === requestsToken.current) {
+          setRequests([]);
+        }
+      });
+  }, [teamId, isCaptain, isAdmin]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  const applications = requests.filter((r) => r.direction === "Application");
+  const invitations = requests.filter((r) => r.direction === "Invite");
+
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Бекенд повертає зрозумілі повідомлення про помилки — показуємо їх як є
+  const runAction = async (action: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await action();
+    } catch (err: unknown) {
+      const response = (err as { response?: { data?: { message?: string } } }).response;
+      setActionError(response?.data?.message ?? "Не вдалося виконати дію");
+    }
+  };
+
+  const respond = (action: "accept" | "decline" | "cancel", requestId: number) =>
+    runAction(async () => {
+      await membershipRequestsApi[action](requestId);
+      loadRequests();
+      loadTeam(); // прийнята заявка змінює склад — перечитуємо команду
+    });
+
+  const [freeAgentSearch, setFreeAgentSearch] = useState("");
+  const [freeAgents, setFreeAgents] = useState<PlayerDto[]>([]);
+
+  useEffect(() => {
+    if (!(isCaptain || isAdmin)) {
+      return;
+    }
+
+    playersApi
+      .getPaged({ freeAgents: true, search: freeAgentSearch, page: 1, pageSize: 10 })
+      .then((response) => setFreeAgents(response.data))
+      .catch(() => setFreeAgents([]));
+  }, [freeAgentSearch, isCaptain, isAdmin]);
+
+  const invite = (playerId: number) =>
+    runAction(async () => {
+      await membershipRequestsApi.invite(teamId, playerId);
+      loadRequests();
+    });
+
+  const canApply =
+    Boolean(myPlayer) && !myPlayer?.team && !isCaptain && Boolean(team?.isActive);
+
+  // Заявка гравця на цю команду і запрошення від неї — різні напрямки,
+  // їх не можна плутати: скасувати можна лише те, що ти сам ініціював.
+  const [myPendingForTeam, setMyPendingForTeam] = useState<MembershipRequestDto | null>(null);
+
+  useEffect(() => {
+    if (!myPlayer) {
+      setMyPendingForTeam(null);
+      return;
+    }
+
+    membershipRequestsApi
+      .getForPlayer(myPlayer.id, "Pending")
+      .then((rows) => setMyPendingForTeam(rows.find((r) => r.teamId === teamId) ?? null))
+      .catch(() => setMyPendingForTeam(null));
+  }, [myPlayer, teamId]);
+
+  const myPendingApplication =
+    myPendingForTeam?.direction === "Application" ? myPendingForTeam : null;
+  const myPendingInvitation = myPendingForTeam?.direction === "Invite" ? myPendingForTeam : null;
+
+  const apply = () => {
+    if (!myPlayer) {
+      return Promise.resolve();
+    }
+
+    return runAction(async () => {
+      const created = await membershipRequestsApi.apply(myPlayer.id, teamId);
+      setMyPendingForTeam(created);
+    });
+  };
+
   if (missing) {
     return (
       <EmptyState
@@ -77,8 +208,6 @@ const TeamDetail = () => {
       />
     );
   }
-
-  const isCaptain = user?.id === team?.captain?.id;
 
   const resultFor = (match: MatchDto) => {
     if (match.status !== "Completed" || !match.winnerTeam) {
@@ -98,9 +227,39 @@ const TeamDetail = () => {
             <Link to={`/teams/${id}/edit`} className="btn btn-secondary">
               Редагувати
             </Link>
+          ) : myPendingApplication ? (
+            <div className="flex items-center gap-3">
+              <span className="pill">Заявку надіслано</span>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  runAction(async () => {
+                    await membershipRequestsApi.cancel(myPendingApplication.id);
+                    setMyPendingForTeam(null);
+                  })
+                }
+              >
+                Скасувати
+              </button>
+            </div>
+          ) : myPendingInvitation ? (
+            <Link to={`/players/${myPlayer?.id}`} className="pill hover:text-ember">
+              Вас запрошено
+            </Link>
+          ) : canApply ? (
+            <button className="btn btn-primary" onClick={apply}>
+              Подати заявку
+            </button>
           ) : undefined
         }
       />
+
+      {actionError && (
+        <div className="notice notice-error">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       <p className="text-body text-text-muted">
         Капітан{" "}
@@ -211,7 +370,7 @@ const TeamDetail = () => {
           {!loading && (team?.players?.length ?? 0) === 0 && (
             <EmptyState
               title="Склад порожній"
-              hint="Гравці зʼявляться тут, щойно капітан додасть їх до команди."
+              hint="Гравці зʼявляться тут, щойно капітан надішле запрошення або схвалить заявку."
             />
           )}
           {!loading && (team?.players?.length ?? 0) > 0 && (
@@ -232,6 +391,92 @@ const TeamDetail = () => {
           )}
         </div>
       </section>
+
+      {(isCaptain || isAdmin) && (
+        <section className="panel mt-6">
+          <div className="eyebrow">Заявки на вступ</div>
+
+          {applications.length === 0 && (
+            <p className="muted mt-3 text-micro">Немає нових заявок.</p>
+          )}
+
+          {applications.map((request) => (
+            <div
+              key={request.id}
+              className="surface-raised mt-3 flex items-center justify-between px-4 py-3.5"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-body font-medium text-text">
+                  {request.playerNickname}
+                </div>
+                <div className="muted mt-1 text-micro">
+                  {request.playerPosition || "Позиція не вказана"}
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button className="btn btn-primary btn-sm" onClick={() => respond("accept", request.id)}>
+                  Прийняти
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => respond("decline", request.id)}>
+                  Відхилити
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {(isCaptain || isAdmin) && invitations.length > 0 && (
+        <section className="panel mt-6">
+          <div className="eyebrow">Надіслані запрошення</div>
+
+          {invitations.map((request) => (
+            <div
+              key={request.id}
+              className="surface-raised mt-3 flex items-center justify-between px-4 py-3.5"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-body font-medium text-text">
+                  {request.playerNickname}
+                </div>
+                <span className="pill mt-1">Очікує відповіді</span>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => respond("cancel", request.id)}>
+                Скасувати
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {(isCaptain || isAdmin) && (
+        <section className="panel mt-6">
+          <div className="eyebrow">Запросити гравця</div>
+
+          <input
+            className="input mt-3 w-full"
+            placeholder="Пошук вільних гравців"
+            value={freeAgentSearch}
+            onChange={(event) => setFreeAgentSearch(event.target.value)}
+          />
+
+          {freeAgents.length === 0 && (
+            <p className="muted mt-3 text-micro">Вільних гравців не знайдено.</p>
+          )}
+
+          {freeAgents.map((player) => (
+            <div
+              key={player.id}
+              className="surface-raised mt-3 flex items-center justify-between px-4 py-3.5"
+            >
+              <span className="truncate text-body text-text">{player.nickname}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => invite(player.id)}>
+                Запросити
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
     </>
   );
 };

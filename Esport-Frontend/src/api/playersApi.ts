@@ -41,10 +41,11 @@ export const playersApi = {
   remove: async (id: number) => {
     await apiClient.delete(`${endpoints.players}/${id}`);
   },
-  joinTeam: async (playerId: number, teamId: number) => {
-    await apiClient.post(`${endpoints.players}/${playerId}/join-team/${teamId}`);
-  },
   leaveTeam: async (playerId: number) => {
     await apiClient.post(`${endpoints.players}/${playerId}/leave-team`);
+  },
+  getMe: async () => {
+    const response = await apiClient.get<PlayerDto>(endpoints.playersMe);
+    return response.data;
   }
 };

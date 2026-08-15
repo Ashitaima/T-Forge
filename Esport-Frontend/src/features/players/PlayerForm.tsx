@@ -4,15 +4,13 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { playersApi } from "../../api/playersApi";
-import { teamsApi } from "../../api/teamsApi";
-import type { CreatePlayerDto, TeamDto, UpdatePlayerDto } from "../../types";
+import type { CreatePlayerDto, UpdatePlayerDto } from "../../types";
 
 const schema = z.object({
   nickname: z.string().min(2, "Вкажіть нікнейм"),
   position: z.string().min(2, "Вкажіть позицію"),
   country: z.string().min(2, "Вкажіть країну"),
-  age: z.coerce.number().min(12, "Мінімум 12 років"),
-  teamId: z.coerce.number().optional()
+  age: z.coerce.number().min(12, "Мінімум 12 років")
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -21,30 +19,12 @@ const PlayerForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
-  const [teams, setTeams] = useState<TeamDto[]>([]);
   const {
     register,
     handleSubmit,
     setValue,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
-
-  // Команди підвантажуються списком, щоб не вводити ID вручну
-  useEffect(() => {
-    let isActive = true;
-    teamsApi
-      .getPaged({ page: 1, pageSize: 100 })
-      .then((response) => {
-        if (isActive) {
-          setTeams(response.data);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -59,7 +39,6 @@ const PlayerForm = () => {
         setValue("position", data.position);
         setValue("country", data.country);
         setValue("age", data.age);
-        setValue("teamId", data.team?.id ?? undefined);
       } finally {
         setLoading(false);
       }
@@ -73,8 +52,7 @@ const PlayerForm = () => {
       const payload: UpdatePlayerDto = {
         position: values.position,
         country: values.country,
-        age: values.age,
-        teamId: values.teamId ?? null
+        age: values.age
       };
       await playersApi.update(Number(id), payload);
     } else {
@@ -82,8 +60,7 @@ const PlayerForm = () => {
         nickname: values.nickname,
         position: values.position,
         country: values.country,
-        age: values.age,
-        teamId: values.teamId ? Number(values.teamId) : null
+        age: values.age
       };
       await playersApi.create(payload);
     }
@@ -141,20 +118,6 @@ const PlayerForm = () => {
             Профіль буде прив'язано до поточного користувача — вказувати ID вручну не потрібно.
           </p>
         )}
-        <label className="field">
-          Команда (необов'язково)
-          <select
-            {...register("teamId")}
-            className="input"
-          >
-            <option value="">Без команди</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name} ({team.tag})
-              </option>
-            ))}
-          </select>
-        </label>
         {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button

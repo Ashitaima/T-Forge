@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using TForge.Common;
 using TForge.Models;
 namespace TForge.Data.Context
 {
@@ -15,6 +16,7 @@ namespace TForge.Data.Context
         public DbSet<Tournament> Tournaments { get; set; }
         public DbSet<Match> Matches { get; set; }
         public DbSet<MatchPlayer> MatchPlayers { get; set; }
+        public DbSet<TeamMembershipRequest> TeamMembershipRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -27,6 +29,7 @@ namespace TForge.Data.Context
             ConfigureTournamentModel(modelBuilder);
             ConfigureMatchModel(modelBuilder);
             ConfigureMatchPlayerModel(modelBuilder);
+            ConfigureTeamMembershipRequestModel(modelBuilder);
         }
 
         private void ConfigureUserModel(ModelBuilder modelBuilder)
@@ -214,6 +217,35 @@ namespace TForge.Data.Context
 
                 // Один гравець може бути тільки раз в одному матчі
                 entity.HasIndex(new[] { "MatchId", "PlayerId" }).IsUnique();
+            });
+        }
+
+        private void ConfigureTeamMembershipRequestModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeamMembershipRequest>(entity =>
+            {
+                entity.ToTable("team_membership_requests");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Direction).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+
+                entity.HasOne(r => r.Team)
+                    .WithMany()
+                    .HasForeignKey(r => r.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Player)
+                    .WithMany()
+                    .HasForeignKey(r => r.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Лише один активний запит на пару (команда, гравець), незалежно від напряму.
+                // Термінальні запити до індексу не входять — саме тому після відмови
+                // можна подати заявку повторно.
+                entity.HasIndex(r => new { r.TeamId, r.PlayerId })
+                    .IsUnique()
+                    .HasFilter($"\"Status\" = '{MembershipRequestStatus.Pending}'");
             });
         }
     }

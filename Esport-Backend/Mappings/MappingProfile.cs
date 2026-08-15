@@ -77,6 +77,7 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
                 .ForMember(dest => dest.JoinedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
                 .ForMember(dest => dest.User, opt => opt.Ignore())
+                .ForMember(dest => dest.TeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.Team, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
             CreateMap<UpdatePlayerDto, Player>()
@@ -91,6 +92,7 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.IsActive, opt => opt.Ignore())
                 .ForMember(dest => dest.JoinedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.User, opt => opt.Ignore())
+                .ForMember(dest => dest.TeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.Team, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
 
@@ -124,6 +126,13 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
 
             CreateMap<MatchPlayer, MatchPlayerDto>();
+
+            CreateMap<TeamMembershipRequest, MembershipRequestDto>()
+                .ForMember(dest => dest.TeamName, opt => opt.MapFrom(src => src.Team.Name))
+                .ForMember(dest => dest.TeamTag, opt => opt.MapFrom(src => src.Team.Tag))
+                .ForMember(dest => dest.PlayerNickname, opt => opt.MapFrom(src => src.Player.Nickname))
+                .ForMember(dest => dest.PlayerPosition, opt => opt.MapFrom(src => src.Player.Position))
+                .ForMember(dest => dest.PlayerUserId, opt => opt.MapFrom(src => src.Player.UserId));
         }
     }
 }

@@ -128,14 +128,12 @@ export type CreatePlayerDto = {
   age: number;
   /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
   userId?: number | null;
-  teamId?: number | null;
 };
 
 export type UpdatePlayerDto = {
   position: string;
   country: string;
   age: number;
-  teamId?: number | null;
 };
 
 export type MatchPlayerDto = {
@@ -307,4 +305,23 @@ export type PlayerMatchDto = {
   deaths: number;
   assists: number;
   champion: string;
+};
+
+export type MembershipRequestDirection = "Invite" | "Application";
+
+export type MembershipRequestStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
+
+export type MembershipRequestDto = {
+  id: number;
+  teamId: number;
+  teamName: string;
+  teamTag: string;
+  playerId: number;
+  playerNickname: string;
+  playerPosition: string;
+  playerUserId: number;
+  direction: MembershipRequestDirection;
+  status: MembershipRequestStatus;
+  createdAt: string;
+  respondedAt: string | null;
 };

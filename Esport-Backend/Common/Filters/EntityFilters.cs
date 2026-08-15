@@ -32,6 +32,7 @@ namespace TForge.Common.Filters
         public int? TeamId { get; set; }
         public bool? IsActive { get; set; }
         public bool? FreeAgents { get; set; }
+        public int? UserId { get; set; }
     }
 
     public class MatchFilter : PagedRequest

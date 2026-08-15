@@ -72,6 +72,11 @@ namespace TForge.Services
                 {
                     query = query.Where(p => p.TeamId == null);
                 }
+
+                if (filter.UserId.HasValue)
+                {
+                    query = query.Where(p => p.UserId == filter.UserId.Value);
+                }
             }
 
             if (!string.IsNullOrEmpty(request.Search))
@@ -232,24 +237,6 @@ namespace TForge.Services
                 return false;
 
             _unitOfWork.Players.Remove(player);
-            await _unitOfWork.SaveChangesAsync();
-
-            return true;
-        }
-
-        public async Task<bool> JoinTeamAsync(int playerId, int teamId)
-        {
-            var player = await _unitOfWork.Players.GetByIdAsync(playerId);
-            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
-
-            if (player == null || team == null)
-                return false;
-
-            if (player.TeamId.HasValue)
-                return false;
-
-            player.TeamId = teamId;
-
             await _unitOfWork.SaveChangesAsync();
 
             return true;

@@ -19,10 +19,6 @@ namespace TForge.Validators
                 .GreaterThanOrEqualTo(13).WithMessage("Вік повинен бути мінімум 13 років")
                 .LessThanOrEqualTo(50).WithMessage("Вік не може перевищувати 50 років")
                 .When(x => x.Age > 0);
-
-            RuleFor(x => x.TeamId)
-                .GreaterThan(0).WithMessage("ID команди повинен бути більше 0")
-                .When(x => x.TeamId.HasValue);
         }
 
         private bool BeValidPosition(string position)
