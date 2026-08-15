@@ -121,24 +121,6 @@ namespace TForge.Controllers
             return NoContent();
         }
 
-        [HttpPost("{playerId}/join-team/{teamId}")]
-        [Authorize]
-        public async Task<ActionResult> JoinTeam(int playerId, int teamId)
-        {
-            if (!await IsOwnerOrAdminAsync(playerId))
-            {
-                return Forbid();
-            }
-
-            var result = await _playerService.JoinTeamAsync(playerId, teamId);
-            if (!result)
-            {
-                throw new BusinessLogicException("Не вдалося приєднатися до команди");
-            }
-
-            return Ok("Гравець успішно приєднався до команди");
-        }
-
         [HttpPost("{playerId}/leave-team")]
         [Authorize]
         public async Task<ActionResult> LeaveTeam(int playerId)

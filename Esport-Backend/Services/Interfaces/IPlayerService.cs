@@ -17,7 +17,6 @@ namespace TForge.Services.Interfaces
         Task<PlayerDto> CreateAsync(CreatePlayerDto createDto, int userId);
         Task<PlayerDto?> UpdateAsync(int id, UpdatePlayerDto updateDto);
         Task<bool> DeleteAsync(int id);
-        Task<bool> JoinTeamAsync(int playerId, int teamId);
         Task<bool> LeaveTeamAsync(int playerId);
     }
 }

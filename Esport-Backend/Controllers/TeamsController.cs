@@ -110,22 +110,14 @@ namespace TForge.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Примусове додавання гравця — лише для адміністрування.
+        /// Капітан додає гравців через запрошення, а не напряму.
+        /// </summary>
         [HttpPost("{teamId}/players/{playerId}")]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> AddPlayerToTeam(int teamId, int playerId)
         {
-            var userId = GetUserIdOrThrow();
-            var team = await _teamService.GetWithPlayersAsync(teamId);
-            if (team == null)
-            {
-                throw new EntityNotFoundException("Team", teamId);
-            }
-
-            if (team.Captain?.Id != userId)
-            {
-                return Forbid();
-            }
-
             var result = await _teamService.AddPlayerToTeamAsync(teamId, playerId);
             if (!result)
             {

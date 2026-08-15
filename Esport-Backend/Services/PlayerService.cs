@@ -242,24 +242,6 @@ namespace TForge.Services
             return true;
         }
 
-        public async Task<bool> JoinTeamAsync(int playerId, int teamId)
-        {
-            var player = await _unitOfWork.Players.GetByIdAsync(playerId);
-            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
-
-            if (player == null || team == null)
-                return false;
-
-            if (player.TeamId.HasValue)
-                return false;
-
-            player.TeamId = teamId;
-
-            await _unitOfWork.SaveChangesAsync();
-
-            return true;
-        }
-
         public async Task<bool> LeaveTeamAsync(int playerId)
         {
             var player = await _unitOfWork.Players.GetByIdAsync(playerId);

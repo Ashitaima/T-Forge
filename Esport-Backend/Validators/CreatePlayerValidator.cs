@@ -29,10 +29,6 @@ namespace TForge.Validators
             RuleFor(x => x.UserId)
                 .GreaterThan(0).WithMessage("ID користувача повинен бути більше 0")
                 .When(x => x.UserId.HasValue);
-
-            RuleFor(x => x.TeamId)
-                .GreaterThan(0).WithMessage("ID команди повинен бути більше 0")
-                .When(x => x.TeamId.HasValue);
         }
 
         private bool BeValidPosition(string position)
