@@ -233,10 +233,64 @@ namespace TForge.Services
                 : "Відповісти на заявку може лише капітан команди");
         }
 
-        public Task<IEnumerable<MembershipRequestDto>> GetForTeamAsync(int teamId, string? status, int requestingUserId, bool isAdmin) =>
-            throw new NotImplementedException();
+        public async Task<IEnumerable<MembershipRequestDto>> GetForTeamAsync(
+            int teamId, string? status, int requestingUserId, bool isAdmin)
+        {
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
 
-        public Task<IEnumerable<MembershipRequestDto>> GetForPlayerAsync(int playerId, string? status, int requestingUserId, bool isAdmin) =>
-            throw new NotImplementedException();
+            // Запити на членство бачить лише капітан цієї команди — це не публічні дані.
+            if (!isAdmin && team.CaptainId != requestingUserId)
+            {
+                throw new ForbiddenException("Переглядати запити команди може лише її капітан");
+            }
+
+            return await QueryAsync(r => r.TeamId == teamId, status);
+        }
+
+        public async Task<IEnumerable<MembershipRequestDto>> GetForPlayerAsync(
+            int playerId, string? status, int requestingUserId, bool isAdmin)
+        {
+            var player = await _unitOfWork.Players.GetByIdAsync(playerId)
+                ?? throw new EntityNotFoundException("Player", playerId);
+
+            if (!isAdmin && player.UserId != requestingUserId)
+            {
+                throw new ForbiddenException("Переглядати свої запити може лише сам гравець");
+            }
+
+            return await QueryAsync(r => r.PlayerId == playerId, status);
+        }
+
+        /// <summary>
+        /// Повертає запити обох напрямів — сторінка показує і вхідні, і вихідні,
+        /// а розділяє їх клієнт за полем Direction.
+        /// </summary>
+        private async Task<IEnumerable<MembershipRequestDto>> QueryAsync(
+            System.Linq.Expressions.Expression<Func<TeamMembershipRequest, bool>> predicate,
+            string? status)
+        {
+            var query = _unitOfWork.MembershipRequests.GetQueryable()
+                .Include(r => r.Team)
+                .Include(r => r.Player)
+                .Where(predicate);
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (!MembershipRequestStatus.IsValid(status))
+                {
+                    throw new BusinessLogicException($"Невідомий статус запиту: {status}");
+                }
+
+                query = query.Where(r => r.Status == status);
+            }
+
+            var rows = await query
+                .OrderByDescending(r => r.CreatedAt)
+                .ThenByDescending(r => r.Id)
+                .ToListAsync();
+
+            return _mapper.Map<IEnumerable<MembershipRequestDto>>(rows);
+        }
     }
 }
