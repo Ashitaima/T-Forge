@@ -103,14 +103,136 @@ namespace TForge.Services
             return _mapper.Map<MembershipRequestDto>(loaded);
         }
 
-        public Task<MembershipRequestDto> AcceptAsync(int requestId, int requestingUserId, bool isAdmin) =>
-            throw new NotImplementedException();
+        /// <summary>Читає запит разом із командою та гравцем — потрібні id капітана й користувача.</summary>
+        private async Task<TeamMembershipRequest> GetWithRelationsAsync(int requestId)
+        {
+            return await _unitOfWork.MembershipRequests.GetQueryable()
+                .Include(r => r.Team)
+                .Include(r => r.Player)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new EntityNotFoundException("MembershipRequest", requestId);
+        }
 
-        public Task<MembershipRequestDto> DeclineAsync(int requestId, int requestingUserId, bool isAdmin) =>
-            throw new NotImplementedException();
+        private static MembershipRequestPolicy.Context ToPolicyContext(TeamMembershipRequest request) =>
+            new(request.Direction,
+                request.Status,
+                request.InitiatedByUserId,
+                request.Team.CaptainId,
+                request.Player.UserId);
 
-        public Task<MembershipRequestDto> CancelAsync(int requestId, int requestingUserId, bool isAdmin) =>
-            throw new NotImplementedException();
+        public async Task<MembershipRequestDto> AcceptAsync(int requestId, int requestingUserId, bool isAdmin)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                var request = await GetWithRelationsAsync(requestId);
+
+                if (!MembershipRequestPolicy.CanRespond(ToPolicyContext(request), requestingUserId, isAdmin))
+                {
+                    throw MakeRespondError(request, requestingUserId, isAdmin);
+                }
+
+                // Перечитуємо команду гравця вже всередині транзакції: унікальний індекс
+                // захищає лише від двох запитів на ту саму пару, а не від двох запрошень
+                // від різних команд, прийнятих одночасно.
+                var player = await _unitOfWork.Players.GetByIdAsync(request.PlayerId)
+                    ?? throw new EntityNotFoundException("Player", request.PlayerId);
+
+                if (player.TeamId.HasValue)
+                {
+                    throw new BusinessLogicException(
+                        "Спочатку потрібно покинути поточну команду");
+                }
+
+                player.TeamId = request.TeamId;
+
+                request.Status = MembershipRequestStatus.Accepted;
+                request.RespondedAt = DateTime.UtcNow;
+                request.RespondedByUserId = requestingUserId;
+
+                // Інші відкриті запити цього гравця вже неможливо прийняти,
+                // тож закриваємо їх, щоб капітани не бачили мертвих заявок.
+                var otherPending = await _unitOfWork.MembershipRequests.FindAsync(r =>
+                    r.PlayerId == request.PlayerId
+                    && r.Id != request.Id
+                    && r.Status == MembershipRequestStatus.Pending);
+
+                foreach (var other in otherPending)
+                {
+                    other.Status = MembershipRequestStatus.Cancelled;
+                    other.RespondedAt = DateTime.UtcNow;
+                    other.RespondedByUserId = requestingUserId;
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                return await LoadDtoAsync(request.Id);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
+        }
+
+        public async Task<MembershipRequestDto> DeclineAsync(int requestId, int requestingUserId, bool isAdmin)
+        {
+            var request = await GetWithRelationsAsync(requestId);
+
+            if (!MembershipRequestPolicy.CanRespond(ToPolicyContext(request), requestingUserId, isAdmin))
+            {
+                throw MakeRespondError(request, requestingUserId, isAdmin);
+            }
+
+            request.Status = MembershipRequestStatus.Declined;
+            request.RespondedAt = DateTime.UtcNow;
+            request.RespondedByUserId = requestingUserId;
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return await LoadDtoAsync(request.Id);
+        }
+
+        public async Task<MembershipRequestDto> CancelAsync(int requestId, int requestingUserId, bool isAdmin)
+        {
+            var request = await GetWithRelationsAsync(requestId);
+
+            if (!MembershipRequestPolicy.CanCancel(ToPolicyContext(request), requestingUserId, isAdmin))
+            {
+                if (!MembershipRequestPolicy.IsPending(ToPolicyContext(request)))
+                {
+                    throw new BusinessLogicException("Запит уже закрито");
+                }
+
+                throw new ForbiddenException("Скасувати запит може лише той, хто його створив");
+            }
+
+            request.Status = MembershipRequestStatus.Cancelled;
+            request.RespondedAt = DateTime.UtcNow;
+            request.RespondedByUserId = requestingUserId;
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return await LoadDtoAsync(request.Id);
+        }
+
+        /// <summary>
+        /// Розрізняє «запит уже закрито» (400) і «ви не та сторона» (403),
+        /// бо CanRespond повертає false в обох випадках.
+        /// </summary>
+        private static Exception MakeRespondError(TeamMembershipRequest request, int requestingUserId, bool isAdmin)
+        {
+            if (!MembershipRequestPolicy.IsPending(ToPolicyContext(request)))
+            {
+                return new BusinessLogicException("Запит уже закрито");
+            }
+
+            return new ForbiddenException(request.Direction == MembershipRequestDirection.Invite
+                ? "Відповісти на запрошення може лише запрошений гравець"
+                : "Відповісти на заявку може лише капітан команди");
+        }
 
         public Task<IEnumerable<MembershipRequestDto>> GetForTeamAsync(int teamId, string? status, int requestingUserId, bool isAdmin) =>
             throw new NotImplementedException();
