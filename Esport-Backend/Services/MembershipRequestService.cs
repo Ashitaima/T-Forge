@@ -133,19 +133,18 @@ namespace TForge.Services
                     throw MakeRespondError(request, requestingUserId, isAdmin);
                 }
 
-                // Перечитуємо команду гравця вже всередині транзакції: унікальний індекс
-                // захищає лише від двох запитів на ту саму пару, а не від двох запрошень
-                // від різних команд, прийнятих одночасно.
-                var player = await _unitOfWork.Players.GetByIdAsync(request.PlayerId)
-                    ?? throw new EntityNotFoundException("Player", request.PlayerId);
+                // Умову перевіряє сама БД: оновлюємо лише той рядок, де команда ще порожня.
+                // Транзакція під Read Committed не блокує рядок під час читання, тому
+                // перевірка "до" і запис "після" — це різні миті, між якими інша транзакція
+                // встигає прийняти свій запит. Умовний UPDATE закриває цей проміжок.
+                var claimed = await _unitOfWork.Players.GetQueryable()
+                    .Where(p => p.Id == request.PlayerId && p.TeamId == null)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.TeamId, request.TeamId));
 
-                if (player.TeamId.HasValue)
+                if (claimed == 0)
                 {
-                    throw new BusinessLogicException(
-                        "Спочатку потрібно покинути поточну команду");
+                    throw new BusinessLogicException("Спочатку потрібно покинути поточну команду");
                 }
-
-                player.TeamId = request.TeamId;
 
                 request.Status = MembershipRequestStatus.Accepted;
                 request.RespondedAt = DateTime.UtcNow;
