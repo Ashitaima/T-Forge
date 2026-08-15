@@ -1,7 +1,7 @@
 # T-Forge — esports tournament manager
 
 Coursework project. ASP.NET Core 8 + EF Core 9 (PostgreSQL) API with a React 18 + TypeScript + Vite + Tailwind frontend. UI copy is Ukrainian.
-
+Don't mark yourself as co-author and do not commit any changes by yourself
 ## Layout
 
 | Path | What |
