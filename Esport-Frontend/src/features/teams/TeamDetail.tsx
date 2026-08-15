@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { membershipRequestsApi } from "../../api/membershipRequestsApi";
 import { playersApi } from "../../api/playersApi";
@@ -23,6 +24,8 @@ const TeamDetail = () => {
   const [missing, setMissing] = useState(false);
 
   // Профіль і підсумок не залежать від сторінки історії
+  const teamRequestToken = useRef(0);
+
   const loadTeam = useCallback(() => {
     if (Number.isNaN(teamId)) {
       setMissing(true);
@@ -30,6 +33,7 @@ const TeamDetail = () => {
       return;
     }
 
+    const token = ++teamRequestToken.current;
     setLoading(true);
 
     Promise.all([
@@ -37,11 +41,22 @@ const TeamDetail = () => {
       teamsApi.getSummary(teamId).catch(() => null)
     ])
       .then(([teamData, summaryData]) => {
+        if (token !== teamRequestToken.current) {
+          return; // застаріла відповідь — команду вже змінили
+        }
         setTeam(teamData);
         setSummary(summaryData);
       })
-      .catch(() => setMissing(true))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (token === teamRequestToken.current) {
+          setMissing(true);
+        }
+      })
+      .finally(() => {
+        if (token === teamRequestToken.current) {
+          setLoading(false);
+        }
+      });
   }, [teamId]);
 
   useEffect(() => {
@@ -75,16 +90,28 @@ const TeamDetail = () => {
       .catch(() => setMyPlayer(null)); // користувач без профілю гравця — це нормально
   }, []);
 
+  const requestsToken = useRef(0);
+
   const loadRequests = useCallback(() => {
     if (Number.isNaN(teamId) || !(isCaptain || isAdmin)) {
       setRequests([]);
       return;
     }
 
+    const token = ++requestsToken.current;
+
     membershipRequestsApi
       .getForTeam(teamId, "Pending")
-      .then(setRequests)
-      .catch(() => setRequests([]));
+      .then((data) => {
+        if (token === requestsToken.current) {
+          setRequests(data);
+        }
+      })
+      .catch(() => {
+        if (token === requestsToken.current) {
+          setRequests([]);
+        }
+      });
   }, [teamId, isCaptain, isAdmin]);
 
   useEffect(() => {
@@ -94,11 +121,25 @@ const TeamDetail = () => {
   const applications = requests.filter((r) => r.direction === "Application");
   const invitations = requests.filter((r) => r.direction === "Invite");
 
-  const respond = async (action: "accept" | "decline" | "cancel", requestId: number) => {
-    await membershipRequestsApi[action](requestId);
-    loadRequests();
-    loadTeam(); // прийнята заявка змінює склад — перечитуємо команду
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Бекенд повертає зрозумілі повідомлення про помилки — показуємо їх як є
+  const runAction = async (action: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await action();
+    } catch (err: unknown) {
+      const response = (err as { response?: { data?: { message?: string } } }).response;
+      setActionError(response?.data?.message ?? "Не вдалося виконати дію");
+    }
   };
+
+  const respond = (action: "accept" | "decline" | "cancel", requestId: number) =>
+    runAction(async () => {
+      await membershipRequestsApi[action](requestId);
+      loadRequests();
+      loadTeam(); // прийнята заявка змінює склад — перечитуємо команду
+    });
 
   const [freeAgentSearch, setFreeAgentSearch] = useState("");
   const [freeAgents, setFreeAgents] = useState<PlayerDto[]>([]);
@@ -114,35 +155,44 @@ const TeamDetail = () => {
       .catch(() => setFreeAgents([]));
   }, [freeAgentSearch, isCaptain, isAdmin]);
 
-  const invite = async (playerId: number) => {
-    await membershipRequestsApi.invite(teamId, playerId);
-    loadRequests();
-  };
+  const invite = (playerId: number) =>
+    runAction(async () => {
+      await membershipRequestsApi.invite(teamId, playerId);
+      loadRequests();
+    });
 
   const canApply =
     Boolean(myPlayer) && !myPlayer?.team && !isCaptain && Boolean(team?.isActive);
 
-  const [myPendingApplication, setMyPendingApplication] = useState<MembershipRequestDto | null>(null);
+  // Заявка гравця на цю команду і запрошення від неї — різні напрямки,
+  // їх не можна плутати: скасувати можна лише те, що ти сам ініціював.
+  const [myPendingForTeam, setMyPendingForTeam] = useState<MembershipRequestDto | null>(null);
 
   useEffect(() => {
     if (!myPlayer) {
-      setMyPendingApplication(null);
+      setMyPendingForTeam(null);
       return;
     }
 
     membershipRequestsApi
       .getForPlayer(myPlayer.id, "Pending")
-      .then((rows) => setMyPendingApplication(rows.find((r) => r.teamId === teamId) ?? null))
-      .catch(() => setMyPendingApplication(null));
+      .then((rows) => setMyPendingForTeam(rows.find((r) => r.teamId === teamId) ?? null))
+      .catch(() => setMyPendingForTeam(null));
   }, [myPlayer, teamId]);
 
-  const apply = async () => {
+  const myPendingApplication =
+    myPendingForTeam?.direction === "Application" ? myPendingForTeam : null;
+  const myPendingInvitation = myPendingForTeam?.direction === "Invite" ? myPendingForTeam : null;
+
+  const apply = () => {
     if (!myPlayer) {
-      return;
+      return Promise.resolve();
     }
 
-    const created = await membershipRequestsApi.apply(myPlayer.id, teamId);
-    setMyPendingApplication(created);
+    return runAction(async () => {
+      const created = await membershipRequestsApi.apply(myPlayer.id, teamId);
+      setMyPendingForTeam(created);
+    });
   };
 
   if (missing) {
@@ -182,14 +232,20 @@ const TeamDetail = () => {
               <span className="pill">Заявку надіслано</span>
               <button
                 className="btn btn-ghost btn-sm"
-                onClick={async () => {
-                  await membershipRequestsApi.cancel(myPendingApplication.id);
-                  setMyPendingApplication(null);
-                }}
+                onClick={() =>
+                  runAction(async () => {
+                    await membershipRequestsApi.cancel(myPendingApplication.id);
+                    setMyPendingForTeam(null);
+                  })
+                }
               >
                 Скасувати
               </button>
             </div>
+          ) : myPendingInvitation ? (
+            <Link to={`/players/${myPlayer?.id}`} className="pill hover:text-ember">
+              Вас запрошено
+            </Link>
           ) : canApply ? (
             <button className="btn btn-primary" onClick={apply}>
               Подати заявку
@@ -197,6 +253,13 @@ const TeamDetail = () => {
           ) : undefined
         }
       />
+
+      {actionError && (
+        <div className="notice notice-error">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       <p className="text-body text-text-muted">
         Капітан{" "}

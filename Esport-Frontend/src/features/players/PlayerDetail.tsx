@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { membershipRequestsApi } from "../../api/membershipRequestsApi";
 import { playersApi } from "../../api/playersApi";
 import { useAuthStore } from "../../store/authStore";
@@ -19,6 +20,8 @@ const PlayerDetail = () => {
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
 
+  const profileToken = useRef(0);
+
   const loadProfile = useCallback(() => {
     if (Number.isNaN(playerId)) {
       setMissing(true);
@@ -26,13 +29,26 @@ const PlayerDetail = () => {
       return;
     }
 
+    const token = ++profileToken.current;
     setLoading(true);
 
     playersApi
       .getProfile(playerId)
-      .then(setProfile)
-      .catch(() => setMissing(true))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (token === profileToken.current) {
+          setProfile(data);
+        }
+      })
+      .catch(() => {
+        if (token === profileToken.current) {
+          setMissing(true);
+        }
+      })
+      .finally(() => {
+        if (token === profileToken.current) {
+          setLoading(false);
+        }
+      });
   }, [playerId]);
 
   useEffect(() => {
@@ -56,16 +72,28 @@ const PlayerDetail = () => {
 
   const isOwnProfile = Boolean(user && profile?.player?.userId === user.id);
 
+  const requestsToken = useRef(0);
+
   const loadRequests = useCallback(() => {
     if (Number.isNaN(playerId) || !isOwnProfile) {
       setRequests([]);
       return;
     }
 
+    const token = ++requestsToken.current;
+
     membershipRequestsApi
       .getForPlayer(playerId, "Pending")
-      .then(setRequests)
-      .catch(() => setRequests([]));
+      .then((data) => {
+        if (token === requestsToken.current) {
+          setRequests(data);
+        }
+      })
+      .catch(() => {
+        if (token === requestsToken.current) {
+          setRequests([]);
+        }
+      });
   }, [playerId, isOwnProfile]);
 
   useEffect(() => {
@@ -75,11 +103,32 @@ const PlayerDetail = () => {
   const invitations = requests.filter((r) => r.direction === "Invite");
   const applications = requests.filter((r) => r.direction === "Application");
 
-  const respond = async (action: "accept" | "decline" | "cancel", requestId: number) => {
-    await membershipRequestsApi[action](requestId);
-    loadRequests();
-    loadProfile(); // прийняте запрошення змінює команду гравця
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Бекенд повертає зрозумілі повідомлення про помилки — показуємо їх як є
+  const runAction = async (action: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await action();
+    } catch (err: unknown) {
+      const response = (err as { response?: { data?: { message?: string } } }).response;
+      setActionError(response?.data?.message ?? "Не вдалося виконати дію");
+    }
   };
+
+  const respond = (action: "accept" | "decline" | "cancel", requestId: number) =>
+    runAction(async () => {
+      await membershipRequestsApi[action](requestId);
+      loadRequests();
+      loadProfile(); // прийняте запрошення змінює команду гравця
+    });
+
+  const leaveTeam = () =>
+    runAction(async () => {
+      await playersApi.leaveTeam(playerId);
+      loadRequests();
+      loadProfile(); // вихід із команди звільняє профіль для нових запрошень
+    });
 
   if (missing) {
     return (
@@ -105,13 +154,29 @@ const PlayerDetail = () => {
         title={player?.nickname ?? `Гравець #${id}`}
         description={player?.team ? `${player.team.name} (${player.team.tag})` : "Вільний агент"}
         action={
-          canEdit ? (
-            <Link to={`/players/${id}/edit`} className="btn btn-secondary">
-              Редагувати
-            </Link>
+          canEdit || (isOwnProfile && player?.team) ? (
+            <div className="flex items-center gap-3">
+              {canEdit && (
+                <Link to={`/players/${id}/edit`} className="btn btn-secondary">
+                  Редагувати
+                </Link>
+              )}
+              {isOwnProfile && player?.team && (
+                <button type="button" className="btn btn-danger" onClick={leaveTeam}>
+                  Покинути команду
+                </button>
+              )}
+            </div>
           ) : undefined
         }
       />
+
+      {actionError && (
+        <div className="notice notice-error">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       {loading && <Skeleton rows={2} />}
 
