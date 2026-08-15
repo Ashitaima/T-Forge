@@ -124,6 +124,13 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
 
             CreateMap<MatchPlayer, MatchPlayerDto>();
+
+            CreateMap<TeamMembershipRequest, MembershipRequestDto>()
+                .ForMember(dest => dest.TeamName, opt => opt.MapFrom(src => src.Team.Name))
+                .ForMember(dest => dest.TeamTag, opt => opt.MapFrom(src => src.Team.Tag))
+                .ForMember(dest => dest.PlayerNickname, opt => opt.MapFrom(src => src.Player.Nickname))
+                .ForMember(dest => dest.PlayerPosition, opt => opt.MapFrom(src => src.Player.Position))
+                .ForMember(dest => dest.PlayerUserId, opt => opt.MapFrom(src => src.Player.UserId));
         }
     }
 }
