@@ -26,9 +26,6 @@ export const teamsApi = {
   remove: async (id: number) => {
     await apiClient.delete(`${endpoints.teams}/${id}`);
   },
-  addPlayer: async (teamId: number, playerId: number) => {
-    await apiClient.post(`${endpoints.teams}/${teamId}/players/${playerId}`);
-  },
   removePlayer: async (teamId: number, playerId: number) => {
     await apiClient.delete(`${endpoints.teams}/${teamId}/players/${playerId}`);
   },

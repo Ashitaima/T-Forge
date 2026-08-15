@@ -308,3 +308,22 @@ export type PlayerMatchDto = {
   assists: number;
   champion: string;
 };
+
+export type MembershipRequestDirection = "Invite" | "Application";
+
+export type MembershipRequestStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
+
+export type MembershipRequestDto = {
+  id: number;
+  teamId: number;
+  teamName: string;
+  teamTag: string;
+  playerId: number;
+  playerNickname: string;
+  playerPosition: string;
+  playerUserId: number;
+  direction: MembershipRequestDirection;
+  status: MembershipRequestStatus;
+  createdAt: string;
+  respondedAt: string | null;
+};

@@ -30,5 +30,17 @@ export const endpoints = {
   matchesLive: "/api/matches/live",
   matchesCompleted: "/api/matches/completed",
   users: "/api/users",
-  usersPaged: "/api/users/paged"
+  usersPaged: "/api/users/paged",
+  playersMe: "/api/players/me",
+  playerApplications: (playerId: number, teamId: number) =>
+    `/api/players/${playerId}/applications/${teamId}`,
+  playerMembershipRequests: (playerId: number) =>
+    `/api/players/${playerId}/membership-requests`,
+  teamInvitations: (teamId: number, playerId: number) =>
+    `/api/teams/${teamId}/invitations/${playerId}`,
+  teamMembershipRequests: (teamId: number) =>
+    `/api/teams/${teamId}/membership-requests`,
+  membershipRequestAccept: (id: number) => `/api/membership-requests/${id}/accept`,
+  membershipRequestDecline: (id: number) => `/api/membership-requests/${id}/decline`,
+  membershipRequestCancel: (id: number) => `/api/membership-requests/${id}/cancel`
 };
