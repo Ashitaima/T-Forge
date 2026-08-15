@@ -14,15 +14,18 @@ namespace TForge.Controllers
     {
         private readonly ITeamService _teamService;
         private readonly IStandingsService _standingsService;
+        private readonly IMembershipRequestService _membershipRequestService;
         private readonly ILogger<TeamsController> _logger;
 
         public TeamsController(
             ITeamService teamService,
             IStandingsService standingsService,
+            IMembershipRequestService membershipRequestService,
             ILogger<TeamsController> logger)
         {
             _teamService = teamService;
             _standingsService = standingsService;
+            _membershipRequestService = membershipRequestService;
             _logger = logger;
         }
 
@@ -155,6 +158,29 @@ namespace TForge.Controllers
             }
 
             return Ok("Гравця успішно видалено з команди");
+        }
+
+        /// <summary>Капітан запрошує гравця до команди.</summary>
+        [HttpPost("{teamId}/invitations/{playerId}")]
+        [Authorize]
+        public async Task<ActionResult<MembershipRequestDto>> InvitePlayer(int teamId, int playerId)
+        {
+            var request = await _membershipRequestService.InviteAsync(
+                teamId, playerId, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(request);
+        }
+
+        /// <summary>Запити команди — і вхідні заявки, і надіслані запрошення.</summary>
+        [HttpGet("{teamId}/membership-requests")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<MembershipRequestDto>>> GetMembershipRequests(
+            int teamId, [FromQuery] string? status)
+        {
+            var requests = await _membershipRequestService.GetForTeamAsync(
+                teamId, status, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(requests);
         }
 
     }

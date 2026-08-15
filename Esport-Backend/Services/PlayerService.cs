@@ -72,6 +72,11 @@ namespace TForge.Services
                 {
                     query = query.Where(p => p.TeamId == null);
                 }
+
+                if (filter.UserId.HasValue)
+                {
+                    query = query.Where(p => p.UserId == filter.UserId.Value);
+                }
             }
 
             if (!string.IsNullOrEmpty(request.Search))
