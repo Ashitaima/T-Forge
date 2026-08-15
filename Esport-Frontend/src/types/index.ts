@@ -128,14 +128,12 @@ export type CreatePlayerDto = {
   age: number;
   /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
   userId?: number | null;
-  teamId?: number | null;
 };
 
 export type UpdatePlayerDto = {
   position: string;
   country: string;
   age: number;
-  teamId?: number | null;
 };
 
 export type MatchPlayerDto = {
