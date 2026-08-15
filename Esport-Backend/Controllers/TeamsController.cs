@@ -118,6 +118,9 @@ namespace TForge.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> AddPlayerToTeam(int teamId, int playerId)
         {
+            _ = await _teamService.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
+
             var result = await _teamService.AddPlayerToTeamAsync(teamId, playerId);
             if (!result)
             {
