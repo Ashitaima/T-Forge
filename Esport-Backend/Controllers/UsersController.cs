@@ -10,15 +10,51 @@ namespace TForge.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class UsersController : ControllerBase
+    public class UsersController : ApiControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IAvatarService _avatarService;
         private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IUserService userService, ILogger<UsersController> logger)
+        public UsersController(
+            IUserService userService,
+            IAvatarService avatarService,
+            ILogger<UsersController> logger)
         {
             _userService = userService;
+            _avatarService = avatarService;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Завантаження аватара. Дозволено власникові акаунта або адміністратору —
+        /// решта дій цього контролера адмінські, ці дві навмисно ні.
+        /// </summary>
+        [HttpPost("{id}/avatar")]
+        [Authorize]
+        [RequestSizeLimit(AvatarRules.MaxBytes + 4096)]
+        public async Task<ActionResult<UserDto>> UploadAvatar(int id, IFormFile file)
+        {
+            if (!IsAdmin && id != GetUserIdOrThrow())
+            {
+                return Forbid();
+            }
+
+            await _avatarService.SaveAsync(id, file);
+            return Ok(await _userService.GetByIdAsync(id));
+        }
+
+        [HttpDelete("{id}/avatar")]
+        [Authorize]
+        public async Task<ActionResult> DeleteAvatar(int id)
+        {
+            if (!IsAdmin && id != GetUserIdOrThrow())
+            {
+                return Forbid();
+            }
+
+            await _avatarService.ClearAsync(id);
+            return NoContent();
         }
 
         [HttpGet("paged")]

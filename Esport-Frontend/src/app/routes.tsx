@@ -54,19 +54,16 @@ export const router = createBrowserRouter([
         ]
       },
       {
-        element: <ProtectedRoute roles={["Admin", "Organizer"]} />,
+        element: <ProtectedRoute />,
         children: [
           {
+            // Команду може створити будь-який авторизований користувач —
+            // він стає її капітаном (власника сервер бере з токена).
             path: "teams/new",
             lazy: async () => ({
               Component: (await import("../features/teams/TeamForm")).default
             })
-          }
-        ]
-      },
-      {
-        element: <ProtectedRoute />,
-        children: [
+          },
           {
             path: "teams/:id/edit",
             lazy: async () => ({
@@ -74,9 +71,9 @@ export const router = createBrowserRouter([
             })
           },
           {
-            path: "players/new",
+            path: "profile",
             lazy: async () => ({
-              Component: (await import("../features/players/PlayerForm")).default
+              Component: (await import("../features/profile/ProfilePage")).default
             })
           },
           {
@@ -90,6 +87,13 @@ export const router = createBrowserRouter([
       {
         element: <ProtectedRoute roles={["Admin"]} />,
         children: [
+          {
+            // Створення профілю гравця = створення облікового запису, тож лише адмін.
+            path: "players/new",
+            lazy: async () => ({
+              Component: (await import("../features/players/PlayerForm")).default
+            })
+          },
           {
             path: "users/new",
             lazy: async () => ({
@@ -132,12 +136,6 @@ export const router = createBrowserRouter([
         path: "teams/:id",
         lazy: async () => ({
           Component: (await import("../features/teams/TeamDetail")).default
-        })
-      },
-      {
-        path: "standings",
-        lazy: async () => ({
-          Component: (await import("../features/standings/StandingsPage")).default
         })
       },
       {

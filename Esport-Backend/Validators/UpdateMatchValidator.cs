@@ -35,6 +35,18 @@ namespace TForge.Validators
             RuleFor(x => x.EndedAt)
                 .GreaterThan(x => x.StartedAt).WithMessage("Час завершення повинен бути пізніше часу початку")
                 .When(x => x.StartedAt.HasValue && x.EndedAt.HasValue);
+
+            // Порожнє поле означає «трансляції немає» — перевіряємо лише заповнене.
+            RuleFor(x => x.StreamUrl)
+                .Must(StreamUrlRules.IsValid)
+                .WithMessage("Посилання має вести на Twitch або YouTube і починатися з https://")
+                .When(x => !string.IsNullOrWhiteSpace(x.StreamUrl));
+
+            // Трекер статистики: будь-який https-URL, список хостів не обмежуємо.
+            RuleFor(x => x.TrackerUrl)
+                .Must(TrackerUrlRules.IsValid)
+                .WithMessage("Посилання на трекер має починатися з https:// і бути не довшим за 300 символів")
+                .When(x => !string.IsNullOrWhiteSpace(x.TrackerUrl));
         }
 
         private bool BeValidStatus(string status) => MatchStatus.IsValid(status);

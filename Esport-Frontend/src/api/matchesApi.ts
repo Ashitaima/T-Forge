@@ -50,7 +50,10 @@ export const matchesApi = {
   start: async (id: number) => {
     await apiClient.post(`${endpoints.matches}/${id}/start`);
   },
-  complete: async (id: number, payload: { winnerTeamId?: number | null; result?: string | null }) => {
+  complete: async (
+    id: number,
+    payload: { winnerTeamId?: number | null; result?: string | null; trackerUrl?: string | null }
+  ) => {
     await apiClient.post(`${endpoints.matches}/${id}/complete`, payload);
   },
   cancel: async (id: number, payload: { reason?: string | null }) => {
@@ -58,6 +61,10 @@ export const matchesApi = {
   },
   updateScore: async (id: number, payload: UpdateScoreDto) => {
     const response = await apiClient.put<MatchDto>(endpoints.matchScore(id), payload);
+    return response.data;
+  },
+  updateLinks: async (id: number, links: { streamUrl: string | null; trackerUrl: string | null }) => {
+    const response = await apiClient.put<MatchDto>(endpoints.matchLinks(id), links);
     return response.data;
   },
   getRoster: async (id: number) => {

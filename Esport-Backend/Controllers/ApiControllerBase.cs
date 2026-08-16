@@ -10,6 +10,8 @@ namespace TForge.Controllers
     {
         protected bool IsAdmin => User.IsInRole("Admin");
 
+        protected bool IsOrganizer => User.IsInRole("Organizer");
+
         protected int GetUserIdOrThrow()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;

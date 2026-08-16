@@ -1,4 +1,5 @@
 using FluentValidation;
+using TForge.Common;
 using TForge.DTOs;
 
 namespace TForge.Validators
@@ -35,10 +36,6 @@ namespace TForge.Validators
                 .Must(BeValidRole).WithMessage("Некоректна роль користувача");
         }
 
-        private bool BeValidRole(string role)
-        {
-            var validRoles = new[] { "Admin", "Organizer", "Player", "User" };
-            return validRoles.Contains(role);
-        }
+        private bool BeValidRole(string role) => UserRoles.IsValid(role);
     }
 }

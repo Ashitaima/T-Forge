@@ -4,14 +4,19 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { teamsApi } from "../../api/teamsApi";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { SortableTh, useSortState } from "../../components/ui/SortableTh";
 import { usePagedList } from "../../hooks/usePagedList";
-import type { TeamDto } from "../../types";
+import type { TeamRowDto } from "../../types";
 
 const TeamsList = () => {
   const [search, setSearch] = useState("");
-  const { user } = useAuthStore();
-  const canCreate = user?.role === "Admin" || user?.role === "Organizer";
+  const { user, isAuthenticated } = useAuthStore();
+  // Команду може створити будь-який авторизований користувач — він стає її
+  // капітаном (id власника сервер бере з токена).
+  const canCreate = isAuthenticated;
   const pageSize = 20;
+
+  const { sortBy, sortDirection, onSort } = useSortState("titles");
 
   const {
     items: teams,
@@ -21,9 +26,10 @@ const TeamsList = () => {
     totalPages,
     loading,
     reload
-  } = usePagedList<TeamDto>(
-    (page, pageSize) => teamsApi.getPaged({ page, pageSize, search }),
-    search,
+  } = usePagedList<TeamRowDto>(
+    (page, pageSize) => teamsApi.getPaged({ page, pageSize, search, sortBy, sortDirection }),
+    // Кожне значення, яке замикає в собі запит, має бути в ключі.
+    `${search}|${sortBy}|${sortDirection}`,
     pageSize
   );
 
@@ -35,12 +41,14 @@ const TeamsList = () => {
     reload();
   };
 
+  const sortProps = { activeKey: sortBy, direction: sortDirection, onSort };
+
   return (
     <>
       <PageHeader
         eyebrow="Склади"
         title="Команди"
-        description="Усі зареєстровані команди, їхні капітани та регіони."
+        description="Усі зареєстровані команди, їхні капітани та підсумки за зіграними матчами."
         action={
           canCreate && (
             <Link to="/teams/new" className="btn btn-primary">
@@ -51,7 +59,7 @@ const TeamsList = () => {
         }
       />
 
-      <SearchField value={search} onChange={setSearch} placeholder="Пошук за назвою команди" />
+      <SearchField value={search} onChange={setSearch} placeholder="Пошук за назвою або тегом" />
 
       {loading && <Skeleton rows={4} />}
 
@@ -74,16 +82,25 @@ const TeamsList = () => {
           <table className="table">
             <thead>
               <tr>
-                <th>Команда</th>
-                <th>Тег</th>
-                <th>Регіон</th>
+                <th className="w-px text-right">#</th>
+                <SortableTh label="Команда" sortKey="name" {...sortProps} />
+                <SortableTh label="Тег" sortKey="tag" {...sortProps} />
+                <SortableTh label="Регіон" sortKey="region" {...sortProps} />
                 <th>Капітан</th>
+                <SortableTh label="Зіграно" sortKey="played" align="right" {...sortProps} />
+                <SortableTh label="Перемоги" sortKey="wins" align="right" {...sortProps} />
+                <SortableTh label="%" sortKey="winRate" align="right" {...sortProps} />
+                <SortableTh label="Титули" sortKey="titles" align="right" {...sortProps} />
                 <th className="w-px" />
               </tr>
             </thead>
             <tbody>
-              {teams.map((team) => (
+              {teams.map((team, index) => (
                 <tr key={team.id}>
+                  {/* Порядковий номер у поточному сортуванні, а не збережений ранг */}
+                  <td className="tabular text-right font-mono text-micro text-text-faint">
+                    {(page - 1) * pageSize + index + 1}
+                  </td>
                   <td className="cell-primary">
                     <Link to={`/teams/${team.id}`} className="hover:text-ember">
                       {team.name}
@@ -91,13 +108,19 @@ const TeamsList = () => {
                   </td>
                   <td className="font-mono text-micro">{team.tag}</td>
                   <td>{team.region || "—"}</td>
-                  <td>{team.captain ? `@${team.captain.username}` : "Не призначено"}</td>
+                  <td>{team.captainUsername ? `@${team.captainUsername}` : "Не призначено"}</td>
+                  <td className="tabular text-right font-mono text-micro">{team.played}</td>
+                  <td className="tabular text-right font-mono text-micro">{team.wins}</td>
+                  <td className="tabular text-right font-mono text-micro">{team.winRate}</td>
+                  <td className="tabular text-right font-mono text-micro">
+                    {team.titles > 0 ? <span className="text-ember">{team.titles}</span> : team.titles}
+                  </td>
                   <td>
                     <div className="row-actions">
                       <Link to={`/teams/${team.id}`} className="btn btn-ghost btn-sm">
                         Деталі
                       </Link>
-                      {user?.id === team.captain?.id && (
+                      {user?.id === team.captainId && (
                         <>
                           <Link to={`/teams/${team.id}/edit`} className="btn btn-ghost btn-sm">
                             Редагувати

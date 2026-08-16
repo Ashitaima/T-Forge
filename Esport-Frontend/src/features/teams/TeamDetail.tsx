@@ -6,10 +6,13 @@ import { membershipRequestsApi } from "../../api/membershipRequestsApi";
 import { playersApi } from "../../api/playersApi";
 import { teamsApi } from "../../api/teamsApi";
 import { useAuthStore } from "../../store/authStore";
+import { useIsRole } from "../../hooks/useEffectiveRole";
+import { ChallengePanel } from "./ChallengePanel";
 import { EmptyState, PageHeader, Pager, Skeleton } from "../../components/ui/Primitives";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
-import type { MatchDto, MembershipRequestDto, PlayerDto, TeamDto, TeamSummaryStatsDto } from "../../types";
+import type { MatchDto, MembershipRequestDto, PlayerDto,
+  PlayerRowDto, TeamDto, TeamSummaryStatsDto } from "../../types";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -81,7 +84,7 @@ const TeamDetail = () => {
   const [requests, setRequests] = useState<MembershipRequestDto[]>([]);
 
   const isCaptain = Boolean(user && team?.captain?.id === user.id);
-  const isAdmin = user?.role === "Admin";
+  const isAdmin = useIsRole("Admin");
 
   useEffect(() => {
     playersApi
@@ -142,7 +145,7 @@ const TeamDetail = () => {
     });
 
   const [freeAgentSearch, setFreeAgentSearch] = useState("");
-  const [freeAgents, setFreeAgents] = useState<PlayerDto[]>([]);
+  const [freeAgents, setFreeAgents] = useState<PlayerRowDto[]>([]);
 
   useEffect(() => {
     if (!(isCaptain || isAdmin)) {
@@ -477,6 +480,8 @@ const TeamDetail = () => {
           ))}
         </section>
       )}
+
+      {team && <ChallengePanel teamId={team.id} isCaptain={isCaptain} isAdmin={isAdmin} />}
     </>
   );
 };

@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSubmitError } from "../../hooks/useSubmitError";
 import { teamsApi } from "../../api/teamsApi";
 import type { CreateTeamDto, UpdateTeamDto } from "../../types";
 
@@ -23,8 +24,11 @@ const TeamForm = () => {
     register,
     handleSubmit,
     setValue,
+    setError,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  const submitError = useSubmitError<FormValues>(setError);
 
   useEffect(() => {
     if (!id) {
@@ -47,7 +51,8 @@ const TeamForm = () => {
     load();
   }, [id, setValue]);
 
-  const onSubmit = async (values: FormValues) => {
+  /** Сам запит. Помилку показує onSubmit нижче. */
+  const save = async (values: FormValues) => {
     if (id) {
       const payload: UpdateTeamDto = {
         name: values.name,
@@ -65,8 +70,16 @@ const TeamForm = () => {
       };
       await teamsApi.create(payload);
     }
+  };
 
-    navigate("/teams");
+  const onSubmit = async (values: FormValues) => {
+    submitError.clear();
+    try {
+      await save(values);
+      navigate("/teams");
+    } catch (caught) {
+      submitError.capture(caught);
+    }
   };
 
   return (
@@ -118,6 +131,7 @@ const TeamForm = () => {
           </p>
         )}
         {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        {submitError.error && <div className="notice notice-error">{submitError.error}</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"

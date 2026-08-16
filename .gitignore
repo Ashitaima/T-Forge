@@ -364,3 +364,6 @@ FodyWeavers.xsd
 # Node / Vite build output
 node_modules/
 dist/
+
+# Завантажені аватари — файли користувачів, не код
+Esport-Backend/wwwroot/uploads/

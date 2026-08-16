@@ -1,4 +1,5 @@
 using FluentValidation;
+using TForge.Common;
 using TForge.DTOs;
 
 namespace TForge.Validators
@@ -16,7 +17,7 @@ namespace TForge.Validators
 
             RuleFor(x => x.Game)
                 .NotEmpty().WithMessage("Гра є обов'язковою")
-                .Length(2, 50).WithMessage("Назва гри повинна містити від 2 до 50 символів");
+                .Must(Games.IsValid).WithMessage("Оберіть одну з підтримуваних дисциплін");
 
             RuleFor(x => x.MaxTeams)
                 .GreaterThan(1).WithMessage("Максимальна кількість команд повинна бути більше 1")

@@ -62,6 +62,7 @@ namespace TForge.Services
                 ScheduledAt = tournament.StartDate.AddHours(index),
                 Status = MatchStatus.Scheduled,
                 MatchType = roundType,
+                Game = tournament.Game,
                 Format = "BO3",
                 Round = 1,
                 CreatedAt = DateTime.UtcNow
@@ -107,12 +108,16 @@ namespace TForge.Services
         /// </summary>
         public async Task AdvanceAsync(Match completedMatch)
         {
-            if (completedMatch.Round <= 0)
+            // Товариський матч створюється з Round = 0 і без турніру, тож обидві
+            // умови його відсікають — сітки він не стосується.
+            if (completedMatch.Round <= 0 || completedMatch.TournamentId == null)
             {
-                return; // матч поза сіткою
+                return; // матч поза сіткою або товариський
             }
 
-            var all = (await _unitOfWork.Matches.GetByTournamentAsync(completedMatch.TournamentId)).ToList();
+            var tournamentId = completedMatch.TournamentId.Value;
+
+            var all = (await _unitOfWork.Matches.GetByTournamentAsync(tournamentId)).ToList();
             var currentRound = all.Where(m => m.Round == completedMatch.Round).ToList();
 
             if (currentRound.Any(m => m.Status != MatchStatus.Completed))
@@ -126,7 +131,7 @@ namespace TForge.Services
                     "У матчі сітки потрібно вказати команду-переможця");
             }
 
-            var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(completedMatch.TournamentId);
+            var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(tournamentId);
             if (tournament == null)
             {
                 return;
@@ -179,6 +184,7 @@ namespace TForge.Services
                     ScheduledAt = scheduleFrom.AddHours(i),
                     Status = MatchStatus.Scheduled,
                     MatchType = roundType,
+                    Game = tournament.Game,
                     Format = "BO3",
                     Round = nextRound,
                     CreatedAt = DateTime.UtcNow

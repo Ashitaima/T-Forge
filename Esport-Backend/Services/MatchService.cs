@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using TForge.Data.Interfaces;
 using TForge.DTOs;
@@ -114,6 +115,11 @@ namespace TForge.Services
                 {
                     query = query.Where(m => m.MatchType == filter.MatchType);
                 }
+
+                if (!string.IsNullOrEmpty(filter.Game))
+                {
+                    query = query.Where(m => m.Game == filter.Game);
+                }
             }
 
             if (!string.IsNullOrEmpty(request.Search))
@@ -173,9 +179,14 @@ namespace TForge.Services
 
         public async Task<MatchDto> CreateAsync(CreateMatchDto createDto)
         {
+            var tournament = await _unitOfWork.Tournaments.GetByIdAsync(createDto.TournamentId)
+                ?? throw new EntityNotFoundException("Tournament", createDto.TournamentId);
+
             var match = _mapper.Map<Match>(createDto);
             match.CreatedAt = DateTime.UtcNow;
             match.Status = MatchStatus.Scheduled;
+            // Дисципліна успадковується від турніру, а не приходить від клієнта.
+            match.Game = tournament.Game;
 
             await _unitOfWork.Matches.AddAsync(match);
             await _unitOfWork.SaveChangesAsync();
@@ -194,6 +205,74 @@ namespace TForge.Services
             await _unitOfWork.SaveChangesAsync();
 
             return _mapper.Map<MatchDto>(match);
+        }
+
+        /// <summary>
+        /// Читає лише те, що потрібно політиці: чи це турнірний матч і хто
+        /// капітани обох команд.
+        /// </summary>
+        public async Task<FriendlyMatchPolicy.Context> GetManageContextAsync(int id)
+        {
+            var context = await _unitOfWork.Matches.GetQueryable()
+                .Where(m => m.Id == id)
+                .Select(m => new FriendlyMatchPolicy.Context(
+                    m.TournamentId,
+                    m.HomeTeam.CaptainId,
+                    m.AwayTeam.CaptainId))
+                .FirstOrDefaultAsync();
+
+            return context ?? throw new EntityNotFoundException("Match", id);
+        }
+
+        public async Task<MatchDto> UpdateLinksAsync(int id, string? streamUrl, string? trackerUrl)
+        {
+            var match = await _unitOfWork.Matches.GetByIdAsync(id)
+                ?? throw new EntityNotFoundException("Match", id);
+
+            match.StreamUrl = NormalizeStreamUrl(streamUrl);
+            match.TrackerUrl = NormalizeTrackerUrl(trackerUrl);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<MatchDto>(match);
+        }
+
+        /// <summary>Порожнє поле означає «трансляції немає».</summary>
+        private static string? NormalizeStreamUrl(string? streamUrl)
+        {
+            var trimmed = streamUrl?.Trim();
+
+            if (string.IsNullOrEmpty(trimmed))
+            {
+                return null;
+            }
+
+            if (!StreamUrlRules.IsValid(trimmed))
+            {
+                throw new BusinessLogicException(
+                    "Посилання має вести на Twitch або YouTube і починатися з https://");
+            }
+
+            return trimmed;
+        }
+
+        /// <summary>Порожнє поле означає «трекера немає».</summary>
+        private static string? NormalizeTrackerUrl(string? trackerUrl)
+        {
+            var trimmed = trackerUrl?.Trim();
+
+            if (string.IsNullOrEmpty(trimmed))
+            {
+                return null;
+            }
+
+            if (!TrackerUrlRules.IsValid(trimmed))
+            {
+                throw new BusinessLogicException(
+                    "Посилання на трекер має починатися з https:// і бути не довшим за 300 символів");
+            }
+
+            return trimmed;
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -223,7 +302,7 @@ namespace TForge.Services
             return true;
         }
 
-        public async Task<bool> CompleteMatchAsync(int id, int? winnerTeamId, string? result)
+        public async Task<bool> CompleteMatchAsync(int id, int? winnerTeamId, string? result, string? trackerUrl)
         {
             var match = await _unitOfWork.Matches.GetByIdAsync(id);
             if (match == null || match.Status == MatchStatus.Completed)
@@ -248,6 +327,13 @@ namespace TForge.Services
             match.WinnerTeamId = winnerTeamId;
             match.Notes = result ?? match.Notes;
             match.EndedAt = DateTime.UtcNow;
+
+            // Посилання на трекер зазвичай зʼявляється саме в момент завершення.
+            // Порожнє поле лишає наявне значення, а не стирає його.
+            if (!string.IsNullOrWhiteSpace(trackerUrl))
+            {
+                match.TrackerUrl = NormalizeTrackerUrl(trackerUrl);
+            }
 
             await _unitOfWork.SaveChangesAsync();
 

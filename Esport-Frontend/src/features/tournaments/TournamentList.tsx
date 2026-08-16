@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { tournamentsApi } from "../../api/tournamentsApi";
-import { useAuthStore } from "../../store/authStore";
+import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import type { TournamentDto } from "../../types";
 
@@ -10,8 +10,7 @@ const TournamentList = () => {
   const [data, setData] = useState<TournamentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuthStore();
-  const canCreate = user?.role === "Organizer" || user?.role === "Admin";
+  const canCreate = useIsRole("Organizer", "Admin");
 
   useEffect(() => {
     let isActive = true;

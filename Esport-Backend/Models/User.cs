@@ -26,6 +26,10 @@ namespace TForge.Models
         [StringLength(20)]
         public string Role { get; set; } = "Player"; // Player, Organizer, Admin
 
+        /// <summary>Шлях до файлу аватара відносно wwwroot. Null — аватара немає.</summary>
+        [StringLength(200)]
+        public string? AvatarPath { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

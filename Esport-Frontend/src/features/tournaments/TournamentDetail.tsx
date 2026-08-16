@@ -5,9 +5,11 @@ import { matchesApi } from "../../api/matchesApi";
 import { teamsApi } from "../../api/teamsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { useAuthStore } from "../../store/authStore";
+import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import { BracketView } from "./BracketView";
-import type { MatchDto, TeamDto, TeamSummaryDto, TournamentDto, TournamentStandingDto } from "../../types";
+import type { MatchDto,
+  TeamRowDto, TeamSummaryDto, TournamentDto, TournamentStandingDto } from "../../types";
 
 const TournamentDetail = () => {
   const { id } = useParams();
@@ -17,7 +19,7 @@ const TournamentDetail = () => {
   const [tournament, setTournament] = useState<TournamentDto | null>(null);
   const [matches, setMatches] = useState<MatchDto[]>([]);
   const [registered, setRegistered] = useState<TeamSummaryDto[]>([]);
-  const [allTeams, setAllTeams] = useState<TeamDto[]>([]);
+  const [allTeams, setAllTeams] = useState<TeamRowDto[]>([]);
   const [standings, setStandings] = useState<TournamentStandingDto[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(true);
@@ -25,8 +27,11 @@ const TournamentDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const canManage =
-    user?.role === "Admin" || (user?.role === "Organizer" && tournament?.organizer?.id === user?.id);
+  // Роль читаємо через хук (щоб діяв режим розробника), а власника турніру —
+  // за справжнім id: підміна ролі не повинна робити вас чужим організатором.
+  const isAdmin = useIsRole("Admin");
+  const isOrganizer = useIsRole("Organizer");
+  const canManage = isAdmin || (isOrganizer && tournament?.organizer?.id === user?.id);
   const isRegistrationOpen = tournament?.status === "Registration";
 
   const load = useCallback(async () => {
@@ -40,7 +45,7 @@ const TournamentDetail = () => {
         tournamentsApi.getById(tournamentId),
         matchesApi.getPaged({ page: 1, pageSize: 64, tournamentId }),
         tournamentsApi.getRegisteredTeams(tournamentId).catch(() => [] as TeamSummaryDto[]),
-        teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamDto[]),
+        teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamRowDto[]),
         tournamentsApi.getStandings(tournamentId).catch(() => [] as TournamentStandingDto[])
       ]);
       setTournament(tournamentData);

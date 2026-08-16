@@ -6,7 +6,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { matchesApi } from "../../api/matchesApi";
 import { teamsApi } from "../../api/teamsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
-import type { CreateMatchDto, MatchDto, TeamDto, TournamentDto, UpdateMatchDto } from "../../types";
+import { gameLabel } from "../../constants/games";
+import { useSubmitError } from "../../hooks/useSubmitError";
+import type { CreateMatchDto, MatchDto, TeamRowDto, TournamentDto, UpdateMatchDto } from "../../types";
 
 const schema = z.object({
   tournamentId: z.coerce.number().optional(),
@@ -16,6 +18,8 @@ const schema = z.object({
   matchType: z.string().optional(),
   format: z.string().optional(),
   notes: z.string().optional(),
+  streamUrl: z.string().optional(),
+  trackerUrl: z.string().optional(),
   status: z.string().optional(),
   homeTeamScore: z.coerce.number().optional(),
   awayTeamScore: z.coerce.number().optional(),
@@ -31,15 +35,23 @@ const MatchForm = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [tournaments, setTournaments] = useState<TournamentDto[]>([]);
-  const [teams, setTeams] = useState<TeamDto[]>([]);
+  const [teams, setTeams] = useState<TeamRowDto[]>([]);
   const [match, setMatch] = useState<MatchDto | null>(null);
   const {
     register,
     handleSubmit,
     setValue,
     setError,
+    watch,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  // Дисципліну визначає турнір — показуємо її лише для читання, щоб було видно,
+  // під яку гру створюється матч.
+  const selectedTournamentId = watch("tournamentId");
+  const selectedTournament = tournaments.find(
+    (tournament) => tournament.id === Number(selectedTournamentId)
+  );
 
   // Турніри й команди підвантажуються списками, щоб не вводити ID вручну
   useEffect(() => {
@@ -47,7 +59,7 @@ const MatchForm = () => {
 
     Promise.all([
       tournamentsApi.getAllActive().catch(() => [] as TournamentDto[]),
-      teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamDto[])
+      teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamRowDto[])
     ]).then(([tournamentList, teamList]) => {
       if (isActive) {
         setTournaments(tournamentList);
@@ -76,6 +88,8 @@ const MatchForm = () => {
         setValue("awayTeamScore", data.awayTeamScore);
         setValue("winnerTeamId", data.winnerTeam?.id ?? undefined);
         setValue("notes", data.notes);
+        setValue("streamUrl", data.streamUrl ?? "");
+        setValue("trackerUrl", data.trackerUrl ?? "");
         setValue("startedAt", data.startedAt?.slice(0, 16));
         setValue("endedAt", data.endedAt?.slice(0, 16));
       } finally {
@@ -86,7 +100,11 @@ const MatchForm = () => {
     load();
   }, [id, setValue]);
 
+  const submitError = useSubmitError<FormValues>(setError);
+
   const onSubmit = async (values: FormValues) => {
+    submitError.clear();
+    try {
     if (!id) {
       if (!values.tournamentId || !values.homeTeamId || !values.awayTeamId) {
         setError("tournamentId", { message: "Вкажіть турнір та команди" });
@@ -99,7 +117,9 @@ const MatchForm = () => {
         scheduledAt: values.scheduledAt,
         matchType: values.matchType ?? "GroupStage",
         format: values.format ?? "BO1",
-        notes: values.notes ?? ""
+        notes: values.notes ?? "",
+        streamUrl: values.streamUrl?.trim() || null,
+        trackerUrl: values.trackerUrl?.trim() || null
       };
       await matchesApi.create(payload);
     } else {
@@ -110,13 +130,18 @@ const MatchForm = () => {
         awayTeamScore: values.awayTeamScore ?? 0,
         winnerTeamId: values.winnerTeamId ? Number(values.winnerTeamId) : null,
         notes: values.notes ?? "",
+        streamUrl: values.streamUrl?.trim() || null,
+        trackerUrl: values.trackerUrl?.trim() || null,
         startedAt: values.startedAt ?? null,
         endedAt: values.endedAt ?? null
       };
       await matchesApi.update(Number(id), payload);
     }
 
-    navigate("/matches");
+      navigate("/matches");
+    } catch (caught) {
+      submitError.capture(caught);
+    }
   };
 
   return (
@@ -145,6 +170,13 @@ const MatchForm = () => {
                 <p className="field-error">{errors.tournamentId.message}</p>
               )}
             </label>
+            <div className="field">
+              Дисципліна
+              <div className="input flex items-center text-text-muted">
+                {selectedTournament ? gameLabel(selectedTournament.game) : "Залежить від турніру"}
+              </div>
+              <p className="field-hint">Дисципліну визначає турнір — окремо її не обирають.</p>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="field">
                 Домашня команда
@@ -210,6 +242,29 @@ const MatchForm = () => {
           </>
         )}
         <label className="field">
+          Посилання на трансляцію
+          <input type="url" placeholder="https://twitch.tv/..." {...register("streamUrl")} className="input" />
+          {errors.streamUrl ? (
+            <p className="field-error">{errors.streamUrl.message}</p>
+          ) : (
+            <p className="field-hint">Twitch або YouTube, обовʼязково через https://</p>
+          )}
+        </label>
+        <label className="field">
+          Матч у трекері статистики
+          <input
+            type="url"
+            placeholder="https://tracker.gg/valorant/match/..."
+            {...register("trackerUrl")}
+            className="input"
+          />
+          {errors.trackerUrl ? (
+            <p className="field-error">{errors.trackerUrl.message}</p>
+          ) : (
+            <p className="field-hint">Необовʼязково. Будь-яке https-посилання на сторінку матчу.</p>
+          )}
+        </label>
+        <label className="field">
           Примітки
           <textarea
             rows={3}
@@ -219,6 +274,12 @@ const MatchForm = () => {
         </label>
         {id && (
           <>
+            <div className="field">
+              Дисципліна
+              <div className="input flex items-center text-text-muted">
+                {match ? gameLabel(match.game) : "—"}
+              </div>
+            </div>
             <label className="field">
               Статус
               <select
@@ -281,6 +342,7 @@ const MatchForm = () => {
           </>
         )}
         {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        {submitError.error && <div className="notice notice-error">{submitError.error}</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"

@@ -8,6 +8,10 @@ namespace TForge.DTOs
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
+
+        /// <summary>Шлях до аватара відносно кореня API, або null.</summary>
+        public string? AvatarUrl { get; set; }
+
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastLoginAt { get; set; }

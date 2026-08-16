@@ -14,6 +14,7 @@ using TForge.Hubs;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using TForge.Validators;
+using Microsoft.Extensions.FileProviders;
 
 namespace TForge
 {
@@ -22,6 +23,13 @@ namespace TForge
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            // wwwroot має існувати ще до побудови хоста: інакше WebRootPath
+            // лишається null, і UseStaticFiles не віддає нічого — завантажений
+            // аватар зберігався б на диск, але повертав 404.
+            var webRoot = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+            Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "avatars"));
+            builder.Environment.WebRootPath = webRoot;
 
             builder.Services.AddDbContext<EsportsDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -37,6 +45,8 @@ namespace TForge
             builder.Services.AddScoped<IStandingsService, StandingsService>();
             builder.Services.AddScoped<IMatchRosterService, MatchRosterService>();
             builder.Services.AddScoped<IMembershipRequestService, MembershipRequestService>();
+            builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
+            builder.Services.AddScoped<IAvatarService, AvatarService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
@@ -117,6 +127,14 @@ namespace TForge
             {
                 app.UseHttpsRedirection();
             }
+
+            // Аватари лежать файлами на диску, а не в базі — віддає їх статика.
+            // Провайдер задаємо явно: покладатися на WebRootPath ризиковано,
+            // бо на чистій машині теки ще немає в момент старту.
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(webRoot)
+            });
 
             app.UseAuthentication();
             app.UseAuthorization();

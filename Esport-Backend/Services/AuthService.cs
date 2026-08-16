@@ -4,6 +4,7 @@ using TForge.DTOs;
 using TForge.Models;
 using TForge.Services.Interfaces;
 using TForge.Exceptions;
+using TForge.Common;
 
 namespace TForge.Services
 {
@@ -79,8 +80,35 @@ namespace TForge.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _unitOfWork.Users.AddAsync(user);
-            await _unitOfWork.SaveChangesAsync();
+            // Роль «гравець» без профілю нічого не дає — користувач не зміг би навіть
+            // подати заявку до команди. Створюємо обидва записи або жоден.
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                await _unitOfWork.Users.AddAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                if (user.Role == UserRoles.Player)
+                {
+                    await _unitOfWork.Players.AddAsync(new Player
+                    {
+                        UserId = user.Id,
+                        Nickname = registerDto.Nickname,
+                        Ranking = 9999,
+                        IsActive = true,
+                        JoinedAt = DateTime.UtcNow
+                    });
+
+                    await _unitOfWork.SaveChangesAsync();
+                }
+
+                await _unitOfWork.CommitTransactionAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
 
             var userDto = _mapper.Map<UserDto>(user);
             var token = _tokenService.GenerateToken(userDto);
@@ -97,6 +125,27 @@ namespace TForge.Services
         {
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             return user != null ? _mapper.Map<UserDto>(user) : null;
+        }
+
+        public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileDto updateDto)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId)
+                ?? throw new EntityNotFoundException("User", userId);
+
+            // Пошта унікальна: дозволяємо залишити власну, але не зайняти чужу.
+            var emailOwner = await _unitOfWork.Users.GetByEmailAsync(updateDto.Email);
+            if (emailOwner != null && emailOwner.Id != userId)
+            {
+                throw new BusinessLogicException("Користувач з такою поштою вже існує");
+            }
+
+            user.FirstName = updateDto.FirstName;
+            user.LastName = updateDto.LastName;
+            user.Email = updateDto.Email;
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<UserDto>(user);
         }
 
         public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)

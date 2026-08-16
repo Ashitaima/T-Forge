@@ -11,6 +11,7 @@ namespace TForge.Data.Interfaces
         IMatchRepository Matches { get; }
         IGenericRepository<MatchPlayer> MatchPlayers { get; }
         IGenericRepository<TeamMembershipRequest> MembershipRequests { get; }
+        IGenericRepository<MatchChallenge> MatchChallenges { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

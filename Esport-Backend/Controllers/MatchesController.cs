@@ -10,7 +10,7 @@ namespace TForge.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class MatchesController : ControllerBase
+    public class MatchesController : ApiControllerBase
     {
         private readonly IMatchService _matchService;
         private readonly IMatchRosterService _rosterService;
@@ -98,9 +98,11 @@ namespace TForge.Controllers
         }
 
         [HttpPost("{id}/start")]
-        [Authorize(Roles = "Organizer")]
+        [Authorize]
         public async Task<ActionResult> StartMatch(int id)
         {
+            await EnsureCanManageAsync(id);
+
             var result = await _matchService.StartMatchAsync(id);
             if (!result)
             {
@@ -111,10 +113,13 @@ namespace TForge.Controllers
         }
 
         [HttpPost("{id}/complete")]
-        [Authorize(Roles = "Organizer")]
+        [Authorize]
         public async Task<ActionResult> CompleteMatch(int id, [FromBody] CompleteMatchRequest request)
         {
-            var result = await _matchService.CompleteMatchAsync(id, request.WinnerTeamId, request.Result);
+            await EnsureCanManageAsync(id);
+
+            var result = await _matchService.CompleteMatchAsync(
+                id, request.WinnerTeamId, request.Result, request.TrackerUrl);
             if (!result)
             {
                 throw new BusinessLogicException("Не вдалося завершити матч");
@@ -125,10 +130,41 @@ namespace TForge.Controllers
 
         /// <summary>Живий рахунок. Зміни розсилаються підписникам через SignalR.</summary>
         [HttpPut("{id}/score")]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize]
         public async Task<ActionResult<MatchDto>> UpdateScore(int id, [FromBody] UpdateScoreDto dto)
         {
+            await EnsureCanManageAsync(id);
+
             return Ok(await _matchService.UpdateScoreAsync(id, dto));
+        }
+
+        /// <summary>
+        /// Зовнішні посилання матчу: трансляція та сторінка в трекері статистики.
+        /// Для товариського матчу їх задає капітан — організатора в ньому немає.
+        /// </summary>
+        [HttpPut("{id}/links")]
+        [Authorize]
+        public async Task<ActionResult<MatchDto>> UpdateLinks(int id, [FromBody] UpdateLinksRequest request)
+        {
+            await EnsureCanManageAsync(id);
+
+            return Ok(await _matchService.UpdateLinksAsync(id, request.StreamUrl, request.TrackerUrl));
+        }
+
+        /// <summary>
+        /// Турнірний матч ведуть організатор і адміністратор; товариський —
+        /// ще й капітани обох команд. Рішення ухвалює FriendlyMatchPolicy.
+        /// </summary>
+        private async Task EnsureCanManageAsync(int matchId)
+        {
+            var context = await _matchService.GetManageContextAsync(matchId);
+
+            if (!FriendlyMatchPolicy.CanManage(context, GetUserIdOrThrow(), IsAdmin, IsOrganizer))
+            {
+                throw new ForbiddenException(FriendlyMatchPolicy.IsFriendly(context)
+                    ? "Вести товариський матч можуть лише капітани команд-учасниць"
+                    : "Вести турнірний матч може лише організатор");
+            }
         }
 
         // ---- Ростер матчу ----
@@ -188,6 +224,15 @@ namespace TForge.Controllers
     {
         public int? WinnerTeamId { get; set; }
         public string? Result { get; set; }
+
+        /// <summary>Необовʼязкове посилання на матч у трекері статистики.</summary>
+        public string? TrackerUrl { get; set; }
+    }
+
+    public class UpdateLinksRequest
+    {
+        public string? StreamUrl { get; set; }
+        public string? TrackerUrl { get; set; }
     }
 
     public class CancelMatchRequest

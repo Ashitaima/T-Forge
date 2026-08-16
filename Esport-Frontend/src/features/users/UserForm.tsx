@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSubmitError } from "../../hooks/useSubmitError";
 import { usersApi } from "../../api/usersApi";
 
 const schema = z.object({
@@ -28,6 +29,8 @@ const UserForm = () => {
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  const submitError = useSubmitError<FormValues>(setError);
+
   useEffect(() => {
     if (!id) {
       return;
@@ -50,7 +53,8 @@ const UserForm = () => {
     load();
   }, [id, setValue]);
 
-  const onSubmit = async (values: FormValues) => {
+  /** Сам запит. Помилку показує onSubmit нижче. */
+  const save = async (values: FormValues) => {
     if (id) {
       await usersApi.update(Number(id), {
         firstName: values.firstName,
@@ -71,8 +75,16 @@ const UserForm = () => {
         role: values.role
       });
     }
+  };
 
-    navigate("/users");
+  const onSubmit = async (values: FormValues) => {
+    submitError.clear();
+    try {
+      await save(values);
+      navigate("/users");
+    } catch (caught) {
+      submitError.capture(caught);
+    }
   };
 
   return (
@@ -147,6 +159,7 @@ const UserForm = () => {
           </label>
         )}
         {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        {submitError.error && <div className="notice notice-error">{submitError.error}</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"

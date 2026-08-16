@@ -27,10 +27,9 @@ namespace TForge.Controllers
         }
 
         [HttpGet("paged")]
-        public async Task<ActionResult<PagedResponse<PlayerDto>>> GetPagedPlayers([FromQuery] PlayerFilter filter)
+        public async Task<ActionResult<PagedResponse<PlayerRowDto>>> GetPagedPlayers([FromQuery] PlayerFilter filter)
         {
-            var players = await _playerService.GetPagedAsync(filter, filter);
-            return Ok(players);
+            return Ok(await _playerService.GetPagedRowsAsync(filter, filter));
         }
 
         /// <summary>
@@ -41,13 +40,7 @@ namespace TForge.Controllers
         [Authorize]
         public async Task<ActionResult<PlayerDto>> GetMyPlayer()
         {
-            var userId = GetUserIdOrThrow();
-
-            var players = await _playerService.GetPagedAsync(
-                new PagedRequest { Page = 1, PageSize = 1 },
-                new PlayerFilter { UserId = userId });
-
-            var player = players.Data.FirstOrDefault()
+            var player = await _playerService.GetByUserIdAsync(GetUserIdOrThrow())
                 ?? throw new EntityNotFoundException("Гравця для цього користувача не знайдено");
 
             return Ok(player);
@@ -87,6 +80,18 @@ namespace TForge.Controllers
         public async Task<ActionResult<PlayerDto>> CreatePlayer([FromBody] CreatePlayerDto createDto)
         {
             var player = await _playerService.CreateAsync(createDto, ResolveOwnerId(createDto.UserId));
+            return CreatedAtAction(nameof(GetPlayer), new { id = player.Id }, player);
+        }
+
+        /// <summary>
+        /// Адміністратор створює повноцінний акаунт гравця: користувач + профіль.
+        /// Звичайний користувач отримує профіль автоматично під час реєстрації.
+        /// </summary>
+        [HttpPost("full")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PlayerDto>> CreateFullPlayer([FromBody] CreateFullPlayerDto createDto)
+        {
+            var player = await _playerService.CreateFullAsync(createDto);
             return CreatedAtAction(nameof(GetPlayer), new { id = player.Id }, player);
         }
 

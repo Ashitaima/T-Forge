@@ -1,10 +1,11 @@
 import { apiClient } from "./apiClient";
 import { endpoints } from "./endpoints";
-import type { CreateTeamDto, PagedResponse, TeamDto, TeamSummaryStatsDto, UpdateTeamDto } from "../types";
+import type {
+  TeamRowDto, CreateTeamDto, PagedResponse, TeamDto, TeamSummaryStatsDto, UpdateTeamDto } from "../types";
 
 export const teamsApi = {
   getPaged: async (params: Record<string, string | number | boolean | undefined>) => {
-    const response = await apiClient.get<PagedResponse<TeamDto>>(endpoints.teamsPaged, { params });
+    const response = await apiClient.get<PagedResponse<TeamRowDto>>(endpoints.teamsPaged, { params });
     return response.data;
   },
   getById: async (id: number) => {

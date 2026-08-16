@@ -1,4 +1,5 @@
 using AutoMapper;
+using TForge.Common;
 using TForge.Models;
 using TForge.DTOs;
 
@@ -8,7 +9,8 @@ namespace TForge.Mappings
     {
         public MappingProfile()
         {
-            CreateMap<User, UserDto>();
+            CreateMap<User, UserDto>()
+                .ForMember(dest => dest.AvatarUrl, opt => opt.MapFrom(src => src.AvatarPath));
             CreateMap<CreateUserDto, User>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.PasswordHash, opt => opt.MapFrom(src => src.Password))
@@ -83,7 +85,6 @@ namespace TForge.Mappings
             CreateMap<UpdatePlayerDto, Player>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.UserId, opt => opt.Ignore())
-                .ForMember(dest => dest.Nickname, opt => opt.Ignore())
                 .ForMember(dest => dest.TotalMatches, opt => opt.Ignore())
                 .ForMember(dest => dest.Wins, opt => opt.Ignore())
                 .ForMember(dest => dest.Losses, opt => opt.Ignore())
@@ -96,12 +97,19 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.Team, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
 
-            CreateMap<Match, MatchDto>();
+            CreateMap<Match, MatchDto>()
+                .ForMember(dest => dest.HomeTeamCaptainId,
+                    opt => opt.MapFrom(src => src.HomeTeam.CaptainId))
+                .ForMember(dest => dest.AwayTeamCaptainId,
+                    opt => opt.MapFrom(src => src.AwayTeam.CaptainId));
             CreateMap<CreateMatchDto, Match>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.HomeTeamScore, opt => opt.MapFrom(src => 0))
                 .ForMember(dest => dest.AwayTeamScore, opt => opt.MapFrom(src => 0))
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Scheduled"))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => MatchStatus.Scheduled))
+                // Дисципліну визначає сервер за турніром. Без цього Ignore додавання
+                // поля Game до CreateMatchDto почало б мовчки приймати її від клієнта.
+                .ForMember(dest => dest.Game, opt => opt.Ignore())
                 .ForMember(dest => dest.WinnerTeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.StartedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.EndedAt, opt => opt.Ignore())
@@ -133,6 +141,12 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.PlayerNickname, opt => opt.MapFrom(src => src.Player.Nickname))
                 .ForMember(dest => dest.PlayerPosition, opt => opt.MapFrom(src => src.Player.Position))
                 .ForMember(dest => dest.PlayerUserId, opt => opt.MapFrom(src => src.Player.UserId));
+
+            CreateMap<MatchChallenge, MatchChallengeDto>()
+                .ForMember(dest => dest.ChallengerTeamName, opt => opt.MapFrom(src => src.ChallengerTeam.Name))
+                .ForMember(dest => dest.ChallengerTeamTag, opt => opt.MapFrom(src => src.ChallengerTeam.Tag))
+                .ForMember(dest => dest.OpponentTeamName, opt => opt.MapFrom(src => src.OpponentTeam.Name))
+                .ForMember(dest => dest.OpponentTeamTag, opt => opt.MapFrom(src => src.OpponentTeam.Tag));
         }
     }
 }

@@ -4,25 +4,59 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { playersApi } from "../../api/playersApi";
-import type { CreatePlayerDto, UpdatePlayerDto } from "../../types";
+import {
+  NICKNAME_MAX_LENGTH,
+  NICKNAME_MIN_LENGTH,
+  NICKNAME_PATTERN,
+  PLAYER_MAX_AGE,
+  PLAYER_MIN_AGE,
+  PLAYER_POSITIONS
+} from "../../constants/playerPositions";
+import type { UpdatePlayerDto } from "../../types";
 
 const schema = z.object({
-  nickname: z.string().min(2, "Вкажіть нікнейм"),
-  position: z.string().min(2, "Вкажіть позицію"),
-  country: z.string().min(2, "Вкажіть країну"),
-  age: z.coerce.number().min(12, "Мінімум 12 років")
+  nickname: z
+    .string()
+    .min(NICKNAME_MIN_LENGTH, `Мінімум ${NICKNAME_MIN_LENGTH} символи`)
+    .max(NICKNAME_MAX_LENGTH, `Максимум ${NICKNAME_MAX_LENGTH} символів`)
+    .regex(NICKNAME_PATTERN, "Лише літери, цифри та підкреслення"),
+  position: z.enum(PLAYER_POSITIONS, { required_error: "Оберіть позицію" }),
+  country: z.string().min(2, "Вкажіть країну").max(100, "Максимум 100 символів"),
+  age: z.coerce
+    .number()
+    .min(PLAYER_MIN_AGE, `Мінімум ${PLAYER_MIN_AGE} років`)
+    .max(PLAYER_MAX_AGE, `Максимум ${PLAYER_MAX_AGE} років`),
+  username: z.string().optional(),
+  email: z.string().optional(),
+  password: z.string().optional()
 });
 
 type FormValues = z.infer<typeof schema>;
+
+/** Дістає читабельне повідомлення з відповіді API. */
+const readApiError = (error: unknown, fallback: string) => {
+  const response = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+    ?.response?.data;
+  const validationErrors = response?.errors ? Object.values(response.errors).flat().join(" ") : null;
+  return validationErrors ?? response?.message ?? fallback;
+};
 
 const PlayerForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Створення профілю доступне лише адміністраторові (маршрут закритий роллю),
+  // і воно завжди створює повний обліковий запис — звичайний користувач
+  // отримує профіль автоматично під час реєстрації.
+  const isCreatingAccount = !id;
+
   const {
     register,
     handleSubmit,
     setValue,
+    setError,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
@@ -36,7 +70,7 @@ const PlayerForm = () => {
       try {
         const data = await playersApi.getById(Number(id));
         setValue("nickname", data.nickname);
-        setValue("position", data.position);
+        setValue("position", data.position as FormValues["position"]);
         setValue("country", data.country);
         setValue("age", data.age);
       } finally {
@@ -48,90 +82,127 @@ const PlayerForm = () => {
   }, [id, setValue]);
 
   const onSubmit = async (values: FormValues) => {
-    if (id) {
-      const payload: UpdatePlayerDto = {
-        position: values.position,
-        country: values.country,
-        age: values.age
-      };
-      await playersApi.update(Number(id), payload);
-    } else {
-      const payload: CreatePlayerDto = {
-        nickname: values.nickname,
-        position: values.position,
-        country: values.country,
-        age: values.age
-      };
-      await playersApi.create(payload);
-    }
+    setSubmitError(null);
 
-    navigate("/players");
+    try {
+      if (isCreatingAccount) {
+        const username = values.username?.trim() ?? "";
+        const email = values.email?.trim() ?? "";
+        const password = values.password ?? "";
+
+        if (username.length < 3 || !NICKNAME_PATTERN.test(username)) {
+          setError("username", { message: "Лише літери, цифри та підкреслення, від 3 символів" });
+          return;
+        }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+          setError("email", { message: "Вкажіть коректну електронну пошту" });
+          return;
+        }
+        if (password.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(password)) {
+          setError("password", { message: "Мінімум 8 символів, великі/малі літери та цифра" });
+          return;
+        }
+
+        await playersApi.createFull({
+          username,
+          email,
+          password,
+          // Бекенд вимагає імені та прізвища. Форма їх не збирає, щоб не рости —
+          // власник акаунта виправить їх у себе в профілі.
+          firstName: username,
+          lastName: username,
+          nickname: values.nickname,
+          position: values.position,
+          country: values.country,
+          age: values.age
+        });
+      } else {
+        const payload: UpdatePlayerDto = {
+          nickname: values.nickname,
+          position: values.position,
+          country: values.country,
+          age: values.age
+        };
+        await playersApi.update(Number(id), payload);
+      }
+
+      navigate("/players");
+    } catch (error) {
+      setSubmitError(readApiError(error, "Не вдалося зберегти. Перевірте дані або спробуйте пізніше."));
+    }
   };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <header className="border-b border-line-soft pb-5">
-        <h1 className="page-title">{id ? "Редагування гравця" : "Новий гравець"}</h1>
-        <p className="muted mt-2 text-body">Заповніть персональні дані та склад.</p>
+        <h1 className="page-title">{id ? "Редагування гравця" : "Новий акаунт гравця"}</h1>
+        <p className="muted mt-2 text-body">
+          {id ? "Оновіть персональні дані гравця." : "Буде створено обліковий запис і профіль гравця."}
+        </p>
       </header>
       <form onSubmit={handleSubmit(onSubmit)} className="panel panel-body space-y-5">
-        {!id && (
-          <label className="field">
-            Нікнейм
-            <input
-              type="text"
-              {...register("nickname")}
-              className="input"
-            />
-            {errors.nickname && <p className="field-error">{errors.nickname.message}</p>}
-          </label>
+        {isCreatingAccount && (
+          <>
+            <label className="field">
+              Логін
+              <input type="text" autoComplete="off" {...register("username")} className="input" />
+              {errors.username && <p className="field-error">{errors.username.message}</p>}
+            </label>
+            <label className="field">
+              Електронна пошта
+              <input type="email" autoComplete="off" {...register("email")} className="input" />
+              {errors.email && <p className="field-error">{errors.email.message}</p>}
+            </label>
+            <label className="field">
+              Пароль
+              <input type="password" autoComplete="new-password" {...register("password")} className="input" />
+              {errors.password ? (
+                <p className="field-error">{errors.password.message}</p>
+              ) : (
+                <p className="field-hint">Мінімум 8 символів, велика й мала літери та цифра.</p>
+              )}
+            </label>
+          </>
         )}
         <label className="field">
+          Нікнейм
+          <input type="text" {...register("nickname")} className="input" />
+          {errors.nickname && <p className="field-error">{errors.nickname.message}</p>}
+        </label>
+        <label className="field">
           Позиція
-          <input
-            type="text"
-            {...register("position")}
-            className="input"
-          />
+          <select {...register("position")} className="input">
+            <option value="">Оберіть позицію</option>
+            {PLAYER_POSITIONS.map((position) => (
+              <option key={position} value={position}>
+                {position}
+              </option>
+            ))}
+          </select>
           {errors.position && <p className="field-error">{errors.position.message}</p>}
         </label>
         <label className="field">
           Країна
-          <input
-            type="text"
-            {...register("country")}
-            className="input"
-          />
+          <input type="text" {...register("country")} className="input" />
           {errors.country && <p className="field-error">{errors.country.message}</p>}
         </label>
         <label className="field">
           Вік
-          <input
-            type="number"
-            {...register("age")}
-            className="input"
-          />
+          <input type="number" {...register("age")} className="input" />
           {errors.age && <p className="field-error">{errors.age.message}</p>}
         </label>
-        {!id && (
+        {isCreatingAccount && (
           <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
-            Профіль буде прив'язано до поточного користувача — вказувати ID вручну не потрібно.
+            Буде створено обліковий запис із роллю «Гравець» і привʼязаний до нього профіль.
           </p>
         )}
+        {submitError && <div className="notice notice-error">{submitError}</div>}
         {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn btn-primary"
-          >
+          <button type="submit" disabled={isSubmitting} className="btn btn-primary">
             {isSubmitting ? "Збереження..." : "Зберегти"}
           </button>
-          <button
-            type="button"
-            onClick={() => navigate("/players")}
-            className="btn btn-secondary"
-          >
+          <button type="button" onClick={() => navigate("/players")} className="btn btn-secondary">
             Скасувати
           </button>
         </div>

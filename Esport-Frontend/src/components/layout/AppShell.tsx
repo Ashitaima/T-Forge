@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Anvil, CalendarClock, LayoutGrid, ListOrdered, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
+import { Anvil, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
+import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
+import { ChallengeIndicator } from "./ChallengeIndicator";
+import { Avatar } from "../ui/Avatar";
 
 const navItems = [
   { to: "/", label: "Огляд", icon: LayoutGrid, end: true },
@@ -9,7 +12,6 @@ const navItems = [
   { to: "/teams", label: "Команди", icon: UsersRound },
   { to: "/players", label: "Гравці", icon: UserRound },
   { to: "/matches", label: "Матчі", icon: CalendarClock },
-  { to: "/standings", label: "Таблиця", icon: ListOrdered },
   { to: "/users", label: "Користувачі", icon: Shield, adminOnly: true }
 ];
 
@@ -22,10 +24,11 @@ const roleLabels: Record<string, string> = {
 };
 
 export const AppShell = () => {
-  const { user, logout, hydrate } = useAuthStore();
-  const [previewRole, setPreviewRole] = useState<string>("");
-
-  const effectiveRole = useMemo(() => previewRole || user?.role || "Guest", [previewRole, user?.role]);
+  const { user, logout, hydrate, previewRole, setPreviewRole } = useAuthStore();
+  const effectiveRole = useEffectiveRole();
+  const isPreviewing = useIsPreviewing();
+  // Навмисно читаємо справжню роль: показувати сам перемикач можна лише адміну.
+  const isRealAdmin = user?.role === "Admin";
 
   useEffect(() => {
     hydrate();
@@ -76,41 +79,44 @@ export const AppShell = () => {
         </nav>
 
         <div className="mt-auto hidden space-y-3 p-3 lg:block">
-          {/* Інструмент розробки — унизу й підписаний, щоб не читався як частина продукту */}
-          <div className="surface px-3 py-3">
-            <label className="eyebrow mb-2 block" htmlFor="role-preview">
-              Режим розробника
-            </label>
-            <select
-              id="role-preview"
-              value={previewRole}
-              onChange={(event) => setPreviewRole(event.target.value)}
-              className="input text-micro"
-              style={{ height: "2rem" }}
-            >
-              <option value="">Моя роль</option>
-              {Object.entries(roleLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  Показати як: {label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {user && <ChallengeIndicator />}
+
+          {/* Інструмент розробки — лише для адміністратора, унизу й підписаний,
+              щоб не читався як частина продукту */}
+          {isRealAdmin && (
+            <div className="surface px-3 py-3">
+              <label className="eyebrow mb-2 block" htmlFor="role-preview">
+                Режим розробника
+              </label>
+              <select
+                id="role-preview"
+                value={previewRole}
+                onChange={(event) => setPreviewRole(event.target.value)}
+                className="input text-micro"
+                style={{ height: "2rem" }}
+              >
+                <option value="">Моя роль</option>
+                {Object.entries(roleLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    Показати як: {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="surface px-3 py-3">
             {user ? (
               <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-700 text-micro font-semibold uppercase text-text">
-                  {initials}
-                </span>
-                <div className="min-w-0 flex-1">
+                <Avatar url={user.avatarUrl} fallback={initials} size="md" />
+                <NavLink to="/profile" className="min-w-0 flex-1 hover:text-ember" title="Мій профіль">
                   <div className="truncate text-micro font-medium text-text">
                     {user.firstName} {user.lastName}
                   </div>
                   <div className="truncate text-micro text-text-faint">
                     {roleLabels[effectiveRole] ?? effectiveRole}
                   </div>
-                </div>
+                </NavLink>
                 <button onClick={logout} className="btn btn-ghost btn-sm px-2" title="Вийти" aria-label="Вийти">
                   <LogOut className="h-4 w-4" />
                 </button>
@@ -126,6 +132,18 @@ export const AppShell = () => {
 
       <main className="min-w-0 px-5 py-7 lg:px-10 lg:py-9">
         <div className="mx-auto max-w-6xl space-y-7">
+          {isPreviewing && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2.5">
+              <span className="text-micro text-text">
+                Режим розробника: інтерфейс показано як{" "}
+                <strong className="font-semibold">{roleLabels[effectiveRole] ?? effectiveRole}</strong>. Запити
+                до сервера й далі йдуть від вашого акаунта.
+              </span>
+              <button type="button" onClick={() => setPreviewRole("")} className="btn btn-ghost btn-sm">
+                Вимкнути
+              </button>
+            </div>
+          )}
           <Outlet />
         </div>
       </main>

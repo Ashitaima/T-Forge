@@ -8,6 +8,8 @@ namespace TForge.Services.Interfaces
     {
         Task<IEnumerable<PlayerDto>> GetAllAsync();
         Task<PagedResponse<PlayerDto>> GetPagedAsync(PagedRequest request, PlayerFilter? filter = null);
+        Task<PagedResponse<PlayerRowDto>> GetPagedRowsAsync(PagedRequest request, PlayerFilter? filter = null);
+        Task<PlayerDto?> GetByUserIdAsync(int userId);
         Task<PlayerDto?> GetByIdAsync(int id);
         Task<PlayerProfileDto> GetProfileAsync(int id);
         Task<PlayerDto?> GetWithTeamAsync(int id);
@@ -15,6 +17,7 @@ namespace TForge.Services.Interfaces
         Task<IEnumerable<PlayerDto>> GetByTeamAsync(int teamId);
         Task<IEnumerable<PlayerDto>> GetFreeAgentsAsync();
         Task<PlayerDto> CreateAsync(CreatePlayerDto createDto, int userId);
+        Task<PlayerDto> CreateFullAsync(CreateFullPlayerDto createDto);
         Task<PlayerDto?> UpdateAsync(int id, UpdatePlayerDto updateDto);
         Task<bool> DeleteAsync(int id);
         Task<bool> LeaveTeamAsync(int playerId);
