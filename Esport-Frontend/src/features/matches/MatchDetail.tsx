@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertCircle, Minus, Plus, Radio, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, BarChart3, Minus, Plus, Radio, Trash2, UserPlus } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { subscribeToMatch } from "../../api/matchHub";
+import { useIsRole } from "../../hooks/useEffectiveRole";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import type { MatchDto, MatchPlayerDto } from "../../types";
@@ -10,8 +11,8 @@ import type { MatchDto, MatchPlayerDto } from "../../types";
 const MatchDetail = () => {
   const { id } = useParams();
   const matchId = Number(id);
+  const isStaff = useIsRole("Admin", "Organizer");
   const { user } = useAuthStore();
-  const canScore = user?.role === "Admin" || user?.role === "Organizer";
 
   const [match, setMatch] = useState<MatchDto | null>(null);
   const [roster, setRoster] = useState<MatchPlayerDto[]>([]);
@@ -19,6 +20,11 @@ const MatchDetail = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveConnected, setLiveConnected] = useState(false);
+  const [streamDraft, setStreamDraft] = useState("");
+  const [trackerDraft, setTrackerDraft] = useState("");
+  const [linksSaved, setLinksSaved] = useState(false);
+  const [winnerChoice, setWinnerChoice] = useState<string>("");
+  const [finishTracker, setFinishTracker] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,6 +34,8 @@ const MatchDetail = () => {
         matchesApi.getRoster(matchId).catch(() => [] as MatchPlayerDto[])
       ]);
       setMatch(matchData);
+      setStreamDraft(matchData.streamUrl ?? "");
+      setTrackerDraft(matchData.trackerUrl ?? "");
       setRoster(rosterData);
     } finally {
       setLoading(false);
@@ -99,6 +107,15 @@ const MatchDetail = () => {
     setMatch({ ...match, homeTeamScore: home, awayTeamScore: away });
     run(() => matchesApi.updateScore(matchId, { homeTeamScore: home, awayTeamScore: away }));
   };
+
+  // Товариський матч народжується з виклику двох капітанів, організатора в
+  // ньому немає — тож вести його можуть самі капітани. Дзеркалить серверний
+  // FriendlyMatchPolicy; сервер усе одно перевіряє це сам.
+  const isFriendly = match?.tournamentId === null;
+  const isCaptainHere =
+    Boolean(user) &&
+    (user?.id === match?.homeTeamCaptainId || user?.id === match?.awayTeamCaptainId);
+  const canScore = isStaff || (isFriendly && isCaptainHere);
 
   const isLive = match?.status === "InProgress";
 
@@ -212,15 +229,41 @@ const MatchDetail = () => {
   return (
     <>
       <PageHeader
-        eyebrow={match?.tournament?.name ?? "Матч"}
+        eyebrow={
+          match?.tournamentId === null ? "Товариський матч" : (match?.tournament?.name ?? "Матч")
+        }
         title={`${match?.homeTeam?.name ?? "Очікується"} — ${match?.awayTeam?.name ?? "Очікується"}`}
         description={match ? `${match.matchType} · ${match.format}` : undefined}
         action={
-          canScore ? (
-            <Link to={`/matches/${matchId}/edit`} className="btn btn-secondary">
-              Редагувати
-            </Link>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {match?.streamUrl && (
+              <a
+                href={match.streamUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`btn ${isLive ? "btn-primary" : "btn-secondary"}`}
+              >
+                <Radio className="h-4 w-4" />
+                Дивитися
+              </a>
+            )}
+            {match?.trackerUrl && (
+              <a
+                href={match.trackerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Статистика матчу
+              </a>
+            )}
+            {canScore && (
+              <Link to={`/matches/${matchId}/edit`} className="btn btn-secondary">
+                Редагувати
+              </Link>
+            )}
+          </div>
         }
       />
 
@@ -308,6 +351,60 @@ const MatchDetail = () => {
                 </div>
               )}
 
+              {canScore && isLive && (
+                <div className="mt-6 space-y-4 border-t border-line-soft pt-5">
+                  <div className="eyebrow">Завершення матчу</div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="field">
+                      Переможець
+                      <select
+                        value={winnerChoice}
+                        onChange={(event) => setWinnerChoice(event.target.value)}
+                        className="input"
+                      >
+                        <option value="">Нічия</option>
+                        {match.homeTeam && <option value={match.homeTeam.id}>{match.homeTeam.name}</option>}
+                        {match.awayTeam && <option value={match.awayTeam.id}>{match.awayTeam.name}</option>}
+                      </select>
+                      {match.round > 0 && (
+                        <p className="field-hint">Матч сітки не може завершитися внічию.</p>
+                      )}
+                    </label>
+
+                    <label className="field">
+                      Матч у трекері статистики
+                      <input
+                        type="url"
+                        value={finishTracker}
+                        onChange={(event) => setFinishTracker(event.target.value)}
+                        placeholder="https://tracker.gg/valorant/match/..."
+                        className="input"
+                      />
+                      <p className="field-hint">Необовʼязково — можна додати й пізніше.</p>
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await matchesApi.complete(matchId, {
+                          winnerTeamId: winnerChoice ? Number(winnerChoice) : null,
+                          trackerUrl: finishTracker.trim() || null
+                        });
+                        setFinishTracker("");
+                        await load();
+                      })
+                    }
+                    className="btn btn-primary"
+                  >
+                    Завершити матч
+                  </button>
+                </div>
+              )}
+
               {canScore && match.status === "Scheduled" && (
                 <div className="mt-6 border-t border-line-soft pt-5">
                   <button
@@ -322,6 +419,74 @@ const MatchDetail = () => {
               )}
             </div>
           </section>
+
+          {canScore && (
+            <section className="panel">
+              <div className="panel-header">
+                <h2 className="section-title">Посилання</h2>
+              </div>
+              <div className="panel-body space-y-4">
+                <label className="field">
+                  Трансляція
+                  <input
+                    type="url"
+                    value={streamDraft}
+                    onChange={(event) => {
+                      setStreamDraft(event.target.value);
+                      setLinksSaved(false);
+                    }}
+                    placeholder="https://twitch.tv/..."
+                    className="input"
+                  />
+                  <p className="field-hint">Twitch або YouTube, через https://.</p>
+                </label>
+
+                <label className="field">
+                  Матч у трекері статистики
+                  <input
+                    type="url"
+                    value={trackerDraft}
+                    onChange={(event) => {
+                      setTrackerDraft(event.target.value);
+                      setLinksSaved(false);
+                    }}
+                    placeholder="https://tracker.gg/valorant/match/..."
+                    className="input"
+                  />
+                  <p className="field-hint">
+                    Необовʼязково. Будь-яке https-посилання: tracker.gg, HLTV, Dotabuff, OP.GG.
+                  </p>
+                </label>
+
+                <div className="flex items-center gap-3 border-t border-line-soft pt-4">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        const updated = await matchesApi.updateLinks(matchId, {
+                          streamUrl: streamDraft.trim() || null,
+                          trackerUrl: trackerDraft.trim() || null
+                        });
+                        setMatch((prev) =>
+                          prev
+                            ? { ...prev, streamUrl: updated.streamUrl, trackerUrl: updated.trackerUrl }
+                            : prev
+                        );
+                        setStreamDraft(updated.streamUrl ?? "");
+                        setTrackerDraft(updated.trackerUrl ?? "");
+                        setLinksSaved(true);
+                      })
+                    }
+                    className="btn btn-primary btn-sm"
+                  >
+                    Зберегти посилання
+                  </button>
+                  {linksSaved && <span className="text-micro text-win">Збережено.</span>}
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="panel">
             <div className="panel-header">

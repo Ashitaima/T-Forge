@@ -48,6 +48,19 @@ namespace TForge.Controllers
             return Ok(user);
         }
 
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<ActionResult<UserDto>> UpdateProfile([FromBody] UpdateProfileDto updateDto)
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+            {
+                throw new BusinessLogicException("Некоректний токен");
+            }
+
+            return Ok(await _authService.UpdateProfileAsync(userId, updateDto));
+        }
+
         [HttpPost("change-password")]
         [Authorize]
         public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordDto changePasswordDto)

@@ -15,25 +15,27 @@ namespace TForge.Controllers
         private readonly ITeamService _teamService;
         private readonly IStandingsService _standingsService;
         private readonly IMembershipRequestService _membershipRequestService;
+        private readonly IMatchChallengeService _matchChallengeService;
         private readonly ILogger<TeamsController> _logger;
 
         public TeamsController(
             ITeamService teamService,
             IStandingsService standingsService,
             IMembershipRequestService membershipRequestService,
+            IMatchChallengeService matchChallengeService,
             ILogger<TeamsController> logger)
         {
             _teamService = teamService;
             _standingsService = standingsService;
             _membershipRequestService = membershipRequestService;
+            _matchChallengeService = matchChallengeService;
             _logger = logger;
         }
 
         [HttpGet("paged")]
-        public async Task<ActionResult<PagedResponse<TeamDto>>> GetPagedTeams([FromQuery] TeamFilter filter)
+        public async Task<ActionResult<PagedResponse<TeamRowDto>>> GetPagedTeams([FromQuery] TeamFilter filter)
         {
-            var teams = await _teamService.GetPagedAsync(filter, filter);
-            return Ok(teams);
+            return Ok(await _teamService.GetPagedRowsAsync(filter, filter));
         }
 
         [HttpGet("{id}")]
@@ -57,8 +59,13 @@ namespace TForge.Controllers
             return Ok(await _standingsService.GetTeamSummaryAsync(id));
         }
 
+        /// <summary>
+        /// Команду може створити будь-який авторизований користувач — він стає
+        /// її капітаном. Капітана визначає ResolveOwnerId за токеном, тож чужий
+        /// id може підставити лише адміністратор.
+        /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize]
         public async Task<ActionResult<TeamDto>> CreateTeam([FromBody] CreateTeamDto createDto)
         {
             var team = await _teamService.CreateAsync(createDto, ResolveOwnerId(createDto.CaptainId));
@@ -178,5 +185,15 @@ namespace TForge.Controllers
             return Ok(requests);
         }
 
+        /// <summary>
+        /// Виклики команди — і надіслані, і отримані. Читання публічне, як і решта
+        /// даних про матчі: сам факт виклику не є приватною інформацією.
+        /// </summary>
+        [HttpGet("{teamId}/match-challenges")]
+        public async Task<ActionResult<IEnumerable<MatchChallengeDto>>> GetMatchChallenges(
+            int teamId, [FromQuery] string? status)
+        {
+            return Ok(await _matchChallengeService.GetForTeamAsync(teamId, status));
+        }
     }
 }

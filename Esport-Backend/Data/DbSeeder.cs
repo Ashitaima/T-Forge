@@ -1,3 +1,4 @@
+using TForge.Common;
 using TForge.Data.Context;
 using TForge.Models;
 using TForge.Services;
@@ -34,7 +35,7 @@ namespace TForge.Data
                     PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Admin",
                     LastName = "User",
-                    Role = "Admin",
+                    Role = UserRoles.Admin,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
@@ -46,7 +47,7 @@ namespace TForge.Data
                     PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "John",
                     LastName = "Organizer",
-                    Role = "Organizer",
+                    Role = UserRoles.Organizer,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
@@ -58,7 +59,7 @@ namespace TForge.Data
                     PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Alex",
                     LastName = "Gamer",
-                    Role = "Player",
+                    Role = UserRoles.Player,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
@@ -70,7 +71,7 @@ namespace TForge.Data
                     PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Sarah",
                     LastName = "Pro",
-                    Role = "Player",
+                    Role = UserRoles.Player,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
@@ -82,7 +83,7 @@ namespace TForge.Data
                     PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Mike",
                     LastName = "Elite",
-                    Role = "Player",
+                    Role = UserRoles.Player,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
@@ -94,7 +95,7 @@ namespace TForge.Data
                     PasswordHash = passwordHasher.Hash(DevPassword),
                     FirstName = "Emma",
                     LastName = "Champion",
-                    Role = "Player",
+                    Role = UserRoles.Player,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
@@ -139,7 +140,7 @@ namespace TForge.Data
                 {
                     UserId = users[2].Id, // player1
                     Nickname = "AlexPro",
-                    Position = "Rifler",
+                    Position = PlayerPositions.Rifler,
                     Country = "Ukraine",
                     Age = 22,
                     TeamId = teams[0].Id, // Phoenix Warriors
@@ -157,7 +158,7 @@ namespace TForge.Data
                 {
                     UserId = users[3].Id, // player2
                     Nickname = "SarahSniper",
-                    Position = "AWPer",
+                    Position = PlayerPositions.AWPer,
                     Country = "USA",
                     Age = 24,
                     TeamId = teams[1].Id, // Dragon Slayers
@@ -175,7 +176,7 @@ namespace TForge.Data
                 {
                     UserId = users[4].Id, // player3
                     Nickname = "MikeElite",
-                    Position = "Entry Fragger",
+                    Position = PlayerPositions.Entry,
                     Country = "Canada",
                     Age = 21,
                     TeamId = teams[0].Id, // Phoenix Warriors
@@ -193,7 +194,7 @@ namespace TForge.Data
                 {
                     UserId = users[5].Id, // player4
                     Nickname = "EmmaChamp",
-                    Position = "Support",
+                    Position = PlayerPositions.Support,
                     Country = "Germany",
                     Age = 23,
                     TeamId = teams[1].Id, // Dragon Slayers
@@ -219,12 +220,12 @@ namespace TForge.Data
                 {
                     Name = "Winter Championship 2024",
                     Description = "Annual winter tournament featuring top teams from around the world",
-                    Game = "CS2",
+                    Game = Games.CS2,
                     StartDate = DateTime.UtcNow.AddDays(7),
                     EndDate = DateTime.UtcNow.AddDays(14),
                     MaxTeams = 16,
                     CurrentTeams = 2,
-                    Status = "Registration",
+                    Status = TournamentStatus.Registration,
                     PrizePool = 50000m,
                     OrganizerId = users[1].Id, // organizer1
                     IsActive = true,
@@ -235,12 +236,12 @@ namespace TForge.Data
                 {
                     Name = "Spring Showdown 2024",
                     Description = "Competitive tournament for emerging teams",
-                    Game = "Valorant",
+                    Game = Games.Valorant,
                     StartDate = DateTime.UtcNow.AddDays(21),
                     EndDate = DateTime.UtcNow.AddDays(28),
                     MaxTeams = 8,
                     CurrentTeams = 1,
-                    Status = "Registration",
+                    Status = TournamentStatus.Registration,
                     PrizePool = 25000m,
                     OrganizerId = users[1].Id, // organizer1
                     IsActive = true,
@@ -251,17 +252,53 @@ namespace TForge.Data
                 {
                     Name = "Autumn Cup 2023",
                     Description = "Completed tournament from last season",
-                    Game = "CS2",
+                    Game = Games.CS2,
                     StartDate = DateTime.UtcNow.AddDays(-60),
                     EndDate = DateTime.UtcNow.AddDays(-53),
                     MaxTeams = 12,
                     CurrentTeams = 12,
-                    Status = "Completed",
+                    Status = TournamentStatus.Completed,
                     PrizePool = 35000m,
                     OrganizerId = users[1].Id, // organizer1
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow.AddDays(-70),
                     UpdatedAt = DateTime.UtcNow.AddDays(-53)
+                },
+                // Ці два турніри існують, щоб у демо-даних були присутні всі
+                // чотири дисципліни — інакше фільтр за грою нічим перевірити.
+                // Додавати їх треба в кінець списку: матчі нижче посилаються
+                // на tournaments[2] за індексом.
+                new Tournament
+                {
+                    Name = "Dota Masters 2024",
+                    Description = "Invitational tournament for the region's strongest rosters",
+                    Game = Games.Dota2,
+                    StartDate = DateTime.UtcNow.AddDays(30),
+                    EndDate = DateTime.UtcNow.AddDays(37),
+                    MaxTeams = 8,
+                    CurrentTeams = 0,
+                    Status = TournamentStatus.Registration,
+                    PrizePool = 40000m,
+                    OrganizerId = users[1].Id, // organizer1
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                },
+                new Tournament
+                {
+                    Name = "Rift Open 2024",
+                    Description = "Open qualifier ladder with a single-elimination finals bracket",
+                    Game = Games.LeagueOfLegends,
+                    StartDate = DateTime.UtcNow.AddDays(45),
+                    EndDate = DateTime.UtcNow.AddDays(52),
+                    MaxTeams = 16,
+                    CurrentTeams = 0,
+                    Status = TournamentStatus.Registration,
+                    PrizePool = 30000m,
+                    OrganizerId = users[1].Id, // organizer1
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 }
             };
 
@@ -274,16 +311,17 @@ namespace TForge.Data
                 new Match
                 {
                     TournamentId = tournaments[2].Id, // Autumn Cup 2023
+                    Game = tournaments[2].Game,
                     HomeTeamId = teams[0].Id, // Phoenix Warriors
                     AwayTeamId = teams[1].Id, // Dragon Slayers
                     ScheduledAt = DateTime.UtcNow.AddDays(-55),
                     StartedAt = DateTime.UtcNow.AddDays(-55),
                     EndedAt = DateTime.UtcNow.AddDays(-55).AddHours(1),
-                    Status = "Completed",
+                    Status = TournamentStatus.Completed,
                     HomeTeamScore = 16,
                     AwayTeamScore = 12,
                     WinnerTeamId = teams[0].Id, // Phoenix Warriors won
-                    MatchType = "Final",
+                    MatchType = MatchTypes.Final,
                     Format = "BO1",
                     Notes = "Exciting final match with great plays from both teams",
                     CreatedAt = DateTime.UtcNow.AddDays(-60)
@@ -352,7 +390,7 @@ namespace TForge.Data
 
         private static async Task EnsureScheduledMatchesAsync(EsportsDbContext context)
         {
-            if (await context.Matches.AnyAsync(match => match.Status == "Scheduled"))
+            if (await context.Matches.AnyAsync(match => match.Status == MatchStatus.Scheduled))
             {
                 return;
             }
@@ -365,43 +403,48 @@ namespace TForge.Data
                 return;
             }
 
-            var firstTournamentId = tournaments[0].Id;
-            var secondTournamentId = tournaments.Count > 1 ? tournaments[1].Id : tournaments[0].Id;
+            // Тримаємо самі турніри, а не лише їхні Id: матч успадковує дисципліну
+            // турніру, тож без об'єкта її нема звідки взяти.
+            var firstTournament = tournaments[0];
+            var secondTournament = tournaments.Count > 1 ? tournaments[1] : tournaments[0];
 
             var scheduledMatches = new List<Match>
             {
                 new Match
                 {
-                    TournamentId = firstTournamentId,
+                    TournamentId = firstTournament.Id,
+                    Game = firstTournament.Game,
                     HomeTeamId = teams[0].Id,
                     AwayTeamId = teams[1].Id,
                     ScheduledAt = DateTime.UtcNow.AddDays(2).AddHours(3),
-                    Status = "Scheduled",
-                    MatchType = "GroupStage",
+                    Status = MatchStatus.Scheduled,
+                    MatchType = MatchTypes.GroupStage,
                     Format = "BO3",
                     Notes = "Upcoming group stage opener",
                     CreatedAt = DateTime.UtcNow
                 },
                 new Match
                 {
-                    TournamentId = firstTournamentId,
+                    TournamentId = firstTournament.Id,
+                    Game = firstTournament.Game,
                     HomeTeamId = teams[1].Id,
                     AwayTeamId = teams[0].Id,
                     ScheduledAt = DateTime.UtcNow.AddDays(3).AddHours(1),
-                    Status = "Scheduled",
-                    MatchType = "GroupStage",
+                    Status = MatchStatus.Scheduled,
+                    MatchType = MatchTypes.GroupStage,
                     Format = "BO1",
                     Notes = "Second round test match",
                     CreatedAt = DateTime.UtcNow
                 },
                 new Match
                 {
-                    TournamentId = secondTournamentId,
+                    TournamentId = secondTournament.Id,
+                    Game = secondTournament.Game,
                     HomeTeamId = teams[0].Id,
                     AwayTeamId = teams[1].Id,
                     ScheduledAt = DateTime.UtcNow.AddDays(5).AddHours(2),
-                    Status = "Scheduled",
-                    MatchType = "QuarterFinal",
+                    Status = MatchStatus.Scheduled,
+                    MatchType = MatchTypes.QuarterFinal,
                     Format = "BO3",
                     Notes = "Quarter-final preview",
                     CreatedAt = DateTime.UtcNow

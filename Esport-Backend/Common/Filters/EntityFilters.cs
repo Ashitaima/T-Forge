@@ -44,6 +44,7 @@ namespace TForge.Common.Filters
         public DateTime? ScheduledFrom { get; set; }
         public DateTime? ScheduledTo { get; set; }
         public string? MatchType { get; set; }
+        public string? Game { get; set; }
     }
 
     public class UserFilter : PagedRequest

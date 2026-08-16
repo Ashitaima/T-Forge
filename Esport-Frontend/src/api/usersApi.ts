@@ -27,5 +27,15 @@ export const usersApi = {
   },
   deactivate: async (id: number) => {
     await apiClient.post(`${endpoints.users}/${id}/deactivate`);
+  },
+  /** multipart: Content-Type ставить браузер сам, разом із boundary. */
+  uploadAvatar: async (id: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await apiClient.post<UserDto>(`${endpoints.users}/${id}/avatar`, form);
+    return response.data;
+  },
+  deleteAvatar: async (id: number) => {
+    await apiClient.delete(`${endpoints.users}/${id}/avatar`);
   }
 };

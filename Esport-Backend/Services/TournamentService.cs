@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using TForge.Data.Interfaces;
 using TForge.DTOs;
@@ -213,7 +214,12 @@ namespace TForge.Services
 
         public async Task<PagedResponse<TournamentDto>> GetPagedAsync(TournamentFilter filter)
         {
-            var query = (await _unitOfWork.Tournaments.GetAllAsync()).AsQueryable();
+            // GetQueryable, а не GetAllAsync().AsQueryable(): другий варіант витягує
+            // всю таблицю в памʼять і робить запит LINQ-to-Objects, у якому
+            // ApplyPaging падає на EF.Property («may only be used within EF LINQ
+            // queries»). Через це ендпоінт віддавав 400 на кожен виклик.
+            IQueryable<Tournament> query = _unitOfWork.Tournaments.GetQueryable()
+                .Include(t => t.Organizer);
 
             // Застосовуємо фільтри
             if (!string.IsNullOrEmpty(filter.Status))
@@ -247,10 +253,10 @@ namespace TForge.Services
             query = query.ApplySorting(filter.SortBy, filter.SortDirection);
 
             // Отримуємо загальну кількість
-            var totalCount = query.Count();
+            var totalCount = await query.CountAsync();
 
             // Застосовуємо пагінацію
-            var data = query.ApplyPaging(filter).ToList();
+            var data = await query.ApplyPaging(filter).ToListAsync();
 
             var tournamentDtos = _mapper.Map<IEnumerable<TournamentDto>>(data);
 

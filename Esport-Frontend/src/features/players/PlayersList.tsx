@@ -3,14 +3,21 @@ import { Link } from "react-router-dom";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { playersApi } from "../../api/playersApi";
 import { useAuthStore } from "../../store/authStore";
+import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
+import { SortableTh, useSortState } from "../../components/ui/SortableTh";
+import { Avatar } from "../../components/ui/Avatar";
 import { usePagedList } from "../../hooks/usePagedList";
-import type { PlayerDto } from "../../types";
+import type { PlayerRowDto } from "../../types";
 
 const PlayersList = () => {
   const [search, setSearch] = useState("");
-  const { user, isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
+  // Створювати профілі може лише адміністратор — решта отримує свій під час реєстрації.
+  const isAdmin = useIsRole("Admin");
   const pageSize = 20;
+
+  const { sortBy, sortDirection, onSort } = useSortState("kda");
 
   const {
     items: players,
@@ -20,9 +27,11 @@ const PlayersList = () => {
     totalPages,
     loading,
     reload
-  } = usePagedList<PlayerDto>(
-    (page, pageSize) => playersApi.getPaged({ page, pageSize, search }),
-    search,
+  } = usePagedList<PlayerRowDto>(
+    (page, pageSize) => playersApi.getPaged({ page, pageSize, search, sortBy, sortDirection }),
+    // Кожне значення, яке замикає в собі запит, має бути в ключі — інакше
+    // список мовчки перестане оновлюватися при зміні сортування.
+    `${search}|${sortBy}|${sortDirection}`,
     pageSize
   );
 
@@ -34,14 +43,16 @@ const PlayersList = () => {
     reload();
   };
 
+  const sortProps = { activeKey: sortBy, direction: sortDirection, onSort };
+
   return (
     <>
       <PageHeader
         eyebrow="Ростер"
         title="Гравці"
-        description="Каталог гравців, їхні позиції та поточні команди."
+        description="Каталог гравців, їхні команди та підсумкова статистика за всіма матчами."
         action={
-          isAuthenticated && (
+          isAdmin && (
             <Link to="/players/new" className="btn btn-primary">
               <PlusCircle className="h-4 w-4" />
               Додати гравця
@@ -57,7 +68,7 @@ const PlayersList = () => {
       {!loading && players.length === 0 && (
         <EmptyState
           title={search ? "Гравців не знайдено" : "Гравців ще немає"}
-          hint={search ? "Спробуйте інший нікнейм." : "Створіть профіль гравця, щоб приєднатись до команди."}
+          hint={search ? "Спробуйте інший нікнейм." : "Гравці зʼявляються тут після реєстрації."}
         />
       )}
 
@@ -66,39 +77,56 @@ const PlayersList = () => {
           <table className="table">
             <thead>
               <tr>
-                <th>Нікнейм</th>
-                <th>Позиція</th>
-                <th>Країна</th>
-                <th>Команда</th>
-                <th className="text-right">Матчі</th>
-                <th className="text-right">Перемоги</th>
+                <th className="w-px text-right">#</th>
+                <SortableTh label="Нікнейм" sortKey="nickname" {...sortProps} />
+                <SortableTh label="Позиція" sortKey="position" {...sortProps} />
+                <SortableTh label="Країна" sortKey="country" {...sortProps} />
+                <SortableTh label="Команда" sortKey="team" {...sortProps} />
+                <SortableTh label="Матчі" sortKey="matches" align="right" {...sortProps} />
+                <SortableTh label="Перемоги" sortKey="wins" align="right" {...sortProps} />
+                <SortableTh label="%" sortKey="winRate" align="right" {...sortProps} />
+                <SortableTh label="KDA" sortKey="kda" align="right" {...sortProps} />
                 <th className="w-px" />
               </tr>
             </thead>
             <tbody>
-              {players.map((player) => {
-                const canEdit = user?.role === "Admin" || user?.id === player.userId;
+              {players.map((player, index) => {
+                const canEdit = isAdmin || user?.id === player.userId;
 
                 return (
                   <tr key={player.id}>
+                    {/* Порядковий номер у поточному сортуванні, а не збережений ранг */}
+                    <td className="tabular text-right font-mono text-micro text-text-faint">
+                      {(page - 1) * pageSize + index + 1}
+                    </td>
                     <td className="cell-primary">
-                      <Link to={`/players/${player.id}`} className="hover:text-ember">
+                      <Link
+                        to={`/players/${player.id}`}
+                        className="flex items-center gap-2.5 hover:text-ember"
+                      >
+                        <Avatar
+                          url={player.avatarUrl}
+                          fallback={player.nickname.slice(0, 2)}
+                          size="sm"
+                        />
                         {player.nickname}
                       </Link>
                     </td>
                     <td>{player.position || "—"}</td>
                     <td>{player.country || "—"}</td>
                     <td>
-                      {player.team ? (
-                        <Link to={`/teams/${player.team.id}`} className="hover:text-ember">
-                          {player.team.name}
+                      {player.teamId ? (
+                        <Link to={`/teams/${player.teamId}`} className="hover:text-ember">
+                          {player.teamName}
                         </Link>
                       ) : (
                         <span className="text-text-faint">Вільний агент</span>
                       )}
                     </td>
-                    <td className="tabular text-right font-mono text-micro">{player.totalMatches}</td>
+                    <td className="tabular text-right font-mono text-micro">{player.matches}</td>
                     <td className="tabular text-right font-mono text-micro">{player.wins}</td>
+                    <td className="tabular text-right font-mono text-micro">{player.winRate}</td>
+                    <td className="tabular text-right font-mono text-micro">{player.kda}</td>
                     <td>
                       {canEdit && (
                         <div className="row-actions">

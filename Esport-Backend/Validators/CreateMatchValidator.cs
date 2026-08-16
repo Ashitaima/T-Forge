@@ -32,6 +32,18 @@ namespace TForge.Validators
 
             RuleFor(x => x.Notes)
                 .MaximumLength(500).WithMessage("Примітки не можуть перевищувати 500 символів");
+
+            // Порожнє поле означає «трансляції немає» — перевіряємо лише заповнене.
+            RuleFor(x => x.StreamUrl)
+                .Must(StreamUrlRules.IsValid)
+                .WithMessage("Посилання має вести на Twitch або YouTube і починатися з https://")
+                .When(x => !string.IsNullOrWhiteSpace(x.StreamUrl));
+
+            // Трекер статистики: будь-який https-URL, список хостів не обмежуємо.
+            RuleFor(x => x.TrackerUrl)
+                .Must(TrackerUrlRules.IsValid)
+                .WithMessage("Посилання на трекер має починатися з https:// і бути не довшим за 300 символів")
+                .When(x => !string.IsNullOrWhiteSpace(x.TrackerUrl));
         }
 
         private bool BeValidMatchType(string matchType) => MatchTypes.IsValid(matchType);

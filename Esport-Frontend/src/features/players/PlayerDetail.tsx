@@ -4,6 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { membershipRequestsApi } from "../../api/membershipRequestsApi";
 import { playersApi } from "../../api/playersApi";
 import { useAuthStore } from "../../store/authStore";
+import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, Skeleton, StatCard } from "../../components/ui/Primitives";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
@@ -15,6 +16,8 @@ const PlayerDetail = () => {
   const { id } = useParams();
   const playerId = Number(id);
   const { user } = useAuthStore();
+  // Роль — через хук; належність профілю — за справжнім id користувача.
+  const isAdmin = useIsRole("Admin");
 
   const [profile, setProfile] = useState<PlayerProfileDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,7 +148,7 @@ const PlayerDetail = () => {
   }
 
   const player = profile?.player;
-  const canEdit = user?.role === "Admin" || user?.id === player?.userId;
+  const canEdit = isAdmin || user?.id === player?.userId;
 
   return (
     <>

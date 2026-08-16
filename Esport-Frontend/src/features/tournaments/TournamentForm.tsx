@@ -3,13 +3,15 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSubmitError } from "../../hooks/useSubmitError";
 import { tournamentsApi } from "../../api/tournamentsApi";
+import { GAMES, GAME_LABELS } from "../../constants/games";
 import type { CreateTournamentDto, UpdateTournamentDto } from "../../types";
 
 const schema = z.object({
   name: z.string().min(3, "Вкажіть назву турніру"),
   description: z.string().min(10, "Додайте короткий опис"),
-  game: z.string().min(2, "Вкажіть дисципліну"),
+  game: z.enum(GAMES, { required_error: "Оберіть дисципліну" }),
   startDate: z.string().min(1, "Оберіть дату старту"),
   endDate: z.string().min(1, "Оберіть дату завершення"),
   maxTeams: z.coerce.number().min(2, "Мінімум 2 команди"),
@@ -27,6 +29,7 @@ const TournamentForm = () => {
     register,
     handleSubmit,
     setValue,
+    setError,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -34,6 +37,8 @@ const TournamentForm = () => {
       status: "Registration"
     }
   });
+
+  const submitError = useSubmitError<FormValues>(setError);
 
   useEffect(() => {
     if (!id) {
@@ -46,7 +51,9 @@ const TournamentForm = () => {
         const data = await tournamentsApi.getById(Number(id));
         setValue("name", data.name);
         setValue("description", data.description);
-        setValue("game", data.game);
+        // Бекенд може повернути й невідоме значення (старі дані) — форма
+        // редагування дисципліну не надсилає, тож це лише для показу.
+        setValue("game", data.game as FormValues["game"]);
         setValue("startDate", data.startDate.slice(0, 10));
         setValue("endDate", data.endDate.slice(0, 10));
         setValue("maxTeams", data.maxTeams);
@@ -60,7 +67,8 @@ const TournamentForm = () => {
     loadTournament();
   }, [id, setValue]);
 
-  const onSubmit = async (values: FormValues) => {
+  /** Сам запит. Помилку показує onSubmit нижче. */
+  const save = async (values: FormValues) => {
     if (id) {
       const payload: UpdateTournamentDto = {
         name: values.name,
@@ -84,7 +92,16 @@ const TournamentForm = () => {
       };
       await tournamentsApi.create(payload);
     }
-    navigate("/tournaments");
+  };
+
+  const onSubmit = async (values: FormValues) => {
+    submitError.clear();
+    try {
+      await save(values);
+      navigate("/tournaments");
+    } catch (caught) {
+      submitError.capture(caught);
+    }
   };
 
   return (
@@ -115,12 +132,19 @@ const TournamentForm = () => {
         {!id && (
           <label className="field">
             Дисципліна
-            <input
-              type="text"
-              {...register("game")}
-              className="input"
-            />
-            {errors.game && <p className="field-error">{errors.game.message}</p>}
+            <select {...register("game")} className="input">
+              <option value="">Оберіть дисципліну</option>
+              {GAMES.map((game) => (
+                <option key={game} value={game}>
+                  {GAME_LABELS[game]}
+                </option>
+              ))}
+            </select>
+            {errors.game ? (
+              <p className="field-error">{errors.game.message}</p>
+            ) : (
+              <p className="field-hint">Після створення турніру дисципліну змінити не можна.</p>
+            )}
           </label>
         )}
         <div className="grid gap-4 md:grid-cols-2">
@@ -179,6 +203,7 @@ const TournamentForm = () => {
           </select>
         </label>
         {isLoading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
+        {submitError.error && <div className="notice notice-error">{submitError.error}</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">
           <button
             type="submit"

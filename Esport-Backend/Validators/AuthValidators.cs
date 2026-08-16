@@ -1,4 +1,5 @@
 using FluentValidation;
+using TForge.Common;
 using TForge.DTOs;
 
 namespace TForge.Validators
@@ -49,13 +50,14 @@ namespace TForge.Validators
 
             RuleFor(x => x.Role)
                 .NotEmpty().WithMessage("Роль є обов'язковою")
-                .Must(BeValidRole).WithMessage("Некоректна роль");
-        }
+                .Must(UserRoles.IsSelfService)
+                .WithMessage("Зареєструватися можна лише як гравець або організатор");
 
-        private bool BeValidRole(string role)
-        {
-            var validRoles = new[] { "User", "Admin", "Moderator", "Player", "Organizer" };
-            return validRoles.Contains(role);
+            // Профіль гравця створюється одразу під час реєстрації, тож нікнейм
+            // потрібен тільки для цієї ролі.
+            RuleFor(x => x.Nickname)
+                .PlayerNickname()
+                .When(x => x.Role == UserRoles.Player);
         }
     }
 }

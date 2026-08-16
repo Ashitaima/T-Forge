@@ -15,6 +15,8 @@ export type UserDto = {
   firstName: string;
   lastName: string;
   role: string;
+  /** Шлях відносно кореня API, або null. */
+  avatarUrl: string | null;
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string;
@@ -121,6 +123,42 @@ export type PlayerSummaryDto = {
   isActive: boolean;
 };
 
+export type PlayerRowDto = {
+  id: number;
+  userId: number;
+  nickname: string;
+  position: string;
+  country: string;
+  isActive: boolean;
+  avatarUrl: string | null;
+  teamId: number | null;
+  teamName: string | null;
+  matches: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kda: number;
+};
+
+export type TeamRowDto = {
+  id: number;
+  name: string;
+  tag: string;
+  region: string;
+  isActive: boolean;
+  captainId: number;
+  captainUsername: string | null;
+  playerCount: number;
+  played: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  titles: number;
+};
+
 export type CreatePlayerDto = {
   nickname: string;
   position: string;
@@ -131,6 +169,25 @@ export type CreatePlayerDto = {
 };
 
 export type UpdatePlayerDto = {
+  nickname: string;
+  position: string;
+  country: string;
+  age: number;
+};
+
+export type UpdateProfileDto = {
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+
+export type CreateFullPlayerDto = {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  nickname: string;
   position: string;
   country: string;
   age: number;
@@ -150,6 +207,8 @@ export type MatchPlayerDto = {
 
 export type MatchDto = {
   id: number;
+  /** Null — товариський матч із виклику капітана. */
+  tournamentId: number | null;
   scheduledAt: string;
   startedAt?: string | null;
   endedAt?: string | null;
@@ -157,12 +216,20 @@ export type MatchDto = {
   homeTeamScore: number;
   awayTeamScore: number;
   matchType: string;
+  /** Дисципліна, успадкована від турніру. Клієнт її не задає. */
+  game: string;
   round: number;
   format: string;
   notes: string;
+  streamUrl: string | null;
+  /** Сторінка матчу в зовнішньому трекері статистики. Необовʼязкове. */
+  trackerUrl: string | null;
   createdAt: string;
   homeTeam?: TeamSummaryDto | null;
   awayTeam?: TeamSummaryDto | null;
+  /** Капітани команд — ними визначається, хто веде товариський матч. */
+  homeTeamCaptainId: number;
+  awayTeamCaptainId: number;
   winnerTeam?: TeamSummaryDto | null;
   tournament?: TournamentDto | null;
   matchPlayers: MatchPlayerDto[];
@@ -176,6 +243,8 @@ export type CreateMatchDto = {
   matchType?: string;
   format?: string;
   notes?: string;
+  streamUrl?: string | null;
+  trackerUrl?: string | null;
 };
 
 export type UpdateMatchDto = {
@@ -185,6 +254,8 @@ export type UpdateMatchDto = {
   awayTeamScore: number;
   winnerTeamId?: number | null;
   notes: string;
+  streamUrl?: string | null;
+  trackerUrl?: string | null;
   startedAt?: string | null;
   endedAt?: string | null;
 };
@@ -219,30 +290,6 @@ export type TournamentStandingDto = {
   wins: number;
   losses: number;
   stillPlaying: boolean;
-};
-
-export type TeamStandingDto = {
-  rank: number;
-  team?: TeamSummaryDto | null;
-  played: number;
-  wins: number;
-  losses: number;
-  winRate: number;
-  titles: number;
-};
-
-export type PlayerStandingDto = {
-  rank: number;
-  player?: PlayerSummaryDto | null;
-  teamName?: string | null;
-  matches: number;
-  kills: number;
-  deaths: number;
-  assists: number;
-  kda: number;
-  wins: number;
-  losses: number;
-  winRate: number;
 };
 
 export type AuthResponseDto = {
@@ -305,6 +352,35 @@ export type PlayerMatchDto = {
   deaths: number;
   assists: number;
   champion: string;
+};
+
+export type MatchChallengeStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
+
+export type MatchChallengeDto = {
+  id: number;
+  challengerTeamId: number;
+  challengerTeamName: string;
+  challengerTeamTag: string;
+  opponentTeamId: number;
+  opponentTeamName: string;
+  opponentTeamTag: string;
+  game: string;
+  proposedAt: string;
+  format: string;
+  message: string;
+  status: MatchChallengeStatus;
+  createdAt: string;
+  respondedAt: string | null;
+  matchId: number | null;
+};
+
+export type CreateMatchChallengeDto = {
+  challengerTeamId: number;
+  opponentTeamId: number;
+  game: string;
+  proposedAt: string;
+  format: string;
+  message: string;
 };
 
 export type MembershipRequestDirection = "Invite" | "Application";

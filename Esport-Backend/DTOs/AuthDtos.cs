@@ -14,6 +14,20 @@ namespace TForge.DTOs
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Role { get; set; } = "User";
+
+        /// <summary>Обов'язковий лише для ролі Player — з нього створюється профіль гравця.</summary>
+        public string Nickname { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Користувач редагує власні дані. Username незмінний — це логін,
+    /// на нього посилається виданий токен.
+    /// </summary>
+    public class UpdateProfileDto
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 
     public class AuthResponseDto

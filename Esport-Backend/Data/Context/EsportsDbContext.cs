@@ -17,6 +17,7 @@ namespace TForge.Data.Context
         public DbSet<Match> Matches { get; set; }
         public DbSet<MatchPlayer> MatchPlayers { get; set; }
         public DbSet<TeamMembershipRequest> TeamMembershipRequests { get; set; }
+        public DbSet<MatchChallenge> MatchChallenges { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -44,6 +45,7 @@ namespace TForge.Data.Context
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.PasswordHash).IsRequired();
                 entity.Property(e => e.Role).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.AvatarPath).HasMaxLength(200);
 
                 // Значення по замовчуванню
                 entity.Property(e => e.Role).HasDefaultValue("Player");
@@ -73,8 +75,11 @@ namespace TForge.Data.Context
                 entity.Property(e => e.JoinedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 // Зв'язок One-to-One з User
+                // WithOne(u => u.PlayerProfile), а не WithOne(): без імені навігації
+                // EF не бачить User.PlayerProfile, вважає її окремим звʼязком
+                // і створює тіньову колонку players.UserId1.
                 entity.HasOne(p => p.User)
-                    .WithOne()
+                    .WithOne(u => u.PlayerProfile)
                     .HasForeignKey<Player>(p => p.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
@@ -105,9 +110,10 @@ namespace TForge.Data.Context
                 entity.Property(e => e.IsActive).HasDefaultValue(true);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                // Зв'язок з капітаном (User)
+                // Зв'язок з капітаном (User). Іменована навігація прибирає
+                // тіньову колонку teams.UserId, яку EF створював для CaptainedTeams.
                 entity.HasOne(t => t.Captain)
-                    .WithMany()
+                    .WithMany(u => u.CaptainedTeams)
                     .HasForeignKey(t => t.CaptainId)
                     .OnDelete(DeleteBehavior.Restrict);
 
@@ -136,8 +142,9 @@ namespace TForge.Data.Context
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 // Зв'язок з організатором
+                // Іменована навігація прибирає тіньову колонку tournaments.UserId.
                 entity.HasOne(t => t.Organizer)
-                    .WithMany()
+                    .WithMany(u => u.OrganizedTournaments)
                     .HasForeignKey(t => t.OrganizerId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
@@ -154,6 +161,9 @@ namespace TForge.Data.Context
                 entity.Property(e => e.MatchType).HasMaxLength(20);
                 entity.Property(e => e.Format).HasMaxLength(10);
                 entity.Property(e => e.Notes).HasMaxLength(500);
+                entity.Property(e => e.StreamUrl).HasMaxLength(300);
+                entity.Property(e => e.TrackerUrl).HasMaxLength(300);
+                entity.Property(e => e.Game).HasMaxLength(50).IsRequired().HasDefaultValue("");
 
                 // Значення по замовчуванню
                 entity.Property(e => e.Status).HasDefaultValue("Scheduled");
@@ -168,13 +178,16 @@ namespace TForge.Data.Context
                     .OnDelete(DeleteBehavior.Cascade);
 
                 // Зв'язки з командами
+                // Іменовані навігації прибирають тіньову колонку matches.TeamId1
+                // і роблять Team.HomeMatches/AwayMatches придатними для запитів:
+                // доти вони читали не ту колонку й давали хибні підсумки.
                 entity.HasOne(m => m.HomeTeam)
-                    .WithMany()
+                    .WithMany(t => t.HomeMatches)
                     .HasForeignKey(m => m.HomeTeamId)
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(m => m.AwayTeam)
-                    .WithMany()
+                    .WithMany(t => t.AwayMatches)
                     .HasForeignKey(m => m.AwayTeamId)
                     .OnDelete(DeleteBehavior.Restrict);
 
@@ -246,6 +259,41 @@ namespace TForge.Data.Context
                 entity.HasIndex(r => new { r.TeamId, r.PlayerId })
                     .IsUnique()
                     .HasFilter($"\"Status\" = '{MembershipRequestStatus.Pending}'");
+            });
+
+            modelBuilder.Entity<MatchChallenge>(entity =>
+            {
+                entity.ToTable("match_challenges");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Format).HasMaxLength(10).HasDefaultValue("BO1");
+                entity.Property(e => e.Message).HasMaxLength(300);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(MatchChallengeStatus.Pending);
+
+                entity.HasOne(c => c.ChallengerTeam)
+                    .WithMany()
+                    .HasForeignKey(c => c.ChallengerTeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(c => c.OpponentTeam)
+                    .WithMany()
+                    .HasForeignKey(c => c.OpponentTeamId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Матч лишається, навіть якщо виклик колись видалять.
+                entity.HasOne(c => c.Match)
+                    .WithMany()
+                    .HasForeignKey(c => c.MatchId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Лише один відкритий виклик у цьому напрямі. Зустрічний виклик
+                // (суперник викликає у відповідь) відсіює сервіс — індекс його
+                // не бачить, бо пара колонок там у зворотному порядку.
+                entity.HasIndex(c => new { c.ChallengerTeamId, c.OpponentTeamId })
+                    .IsUnique()
+                    .HasFilter($"\"Status\" = '{MatchChallengeStatus.Pending}'");
             });
         }
     }

@@ -1,17 +1,19 @@
 import { apiClient } from "./apiClient";
 import { endpoints } from "./endpoints";
 import type {
+  CreateFullPlayerDto,
   CreatePlayerDto,
   PagedResponse,
   PlayerDto,
   PlayerMatchDto,
   PlayerProfileDto,
+  PlayerRowDto,
   UpdatePlayerDto
 } from "../types";
 
 export const playersApi = {
   getPaged: async (params: Record<string, string | number | boolean | undefined>) => {
-    const response = await apiClient.get<PagedResponse<PlayerDto>>(endpoints.playersPaged, { params });
+    const response = await apiClient.get<PagedResponse<PlayerRowDto>>(endpoints.playersPaged, { params });
     return response.data;
   },
   getById: async (id: number) => {
@@ -32,6 +34,11 @@ export const playersApi = {
   },
   create: async (payload: CreatePlayerDto) => {
     const response = await apiClient.post<PlayerDto>(endpoints.players, payload);
+    return response.data;
+  },
+  /** Створення облікового запису разом із профілем. Лише для адміністратора. */
+  createFull: async (payload: CreateFullPlayerDto) => {
+    const response = await apiClient.post<PlayerDto>(endpoints.playersFull, payload);
     return response.data;
   },
   update: async (id: number, payload: UpdatePlayerDto) => {

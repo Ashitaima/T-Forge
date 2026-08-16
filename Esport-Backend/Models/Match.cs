@@ -8,8 +8,11 @@ namespace TForge.Models
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        public int TournamentId { get; set; }
+        /// <summary>
+        /// Турнір, якому належить матч. Null — товариський матч, створений
+        /// із виклику одного капітана до іншого.
+        /// </summary>
+        public int? TournamentId { get; set; }
 
         [Required]
         public int HomeTeamId { get; set; }
@@ -37,6 +40,14 @@ namespace TForge.Models
         public string MatchType { get; set; } = MatchTypes.GroupStage; // див. Common/StatusConstants.cs
 
         /// <summary>
+        /// Дисципліна матчу. Заповнює сервер із турніру — клієнт її не задає.
+        /// Для товариських матчів (без турніру) її обирає капітан.
+        /// </summary>
+        [Required]
+        [StringLength(50)]
+        public string Game { get; set; } = string.Empty; // див. Common/Games.cs
+
+        /// <summary>
         /// Раунд у турнірній сітці: 0 — матч поза сіткою, 1..n — раунди single elimination.
         /// </summary>
         public int Round { get; set; } = 0;
@@ -47,10 +58,21 @@ namespace TForge.Models
         [StringLength(500)]
         public string Notes { get; set; } = string.Empty;
 
+        /// <summary>Посилання на трансляцію. Дозволені хости — див. Common/StreamUrlRules.cs.</summary>
+        [StringLength(300)]
+        public string? StreamUrl { get; set; }
+
+        /// <summary>
+        /// Сторінка матчу в зовнішньому трекері статистики (tracker.gg, HLTV,
+        /// Dotabuff…). Заповнюється зазвичай після завершення матчу.
+        /// </summary>
+        [StringLength(300)]
+        public string? TrackerUrl { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation Properties
-        public virtual Tournament Tournament { get; set; } = null!;
+        public virtual Tournament? Tournament { get; set; }
         public virtual Team HomeTeam { get; set; } = null!;
         public virtual Team AwayTeam { get; set; } = null!;
         public virtual Team? WinnerTeam { get; set; }

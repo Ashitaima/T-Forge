@@ -8,6 +8,7 @@ namespace TForge.Services.Interfaces
     {
         Task<IEnumerable<TeamDto>> GetAllAsync();
         Task<PagedResponse<TeamDto>> GetPagedAsync(PagedRequest request, TeamFilter? filter = null);
+        Task<PagedResponse<TeamRowDto>> GetPagedRowsAsync(PagedRequest request, TeamFilter? filter = null);
         Task<TeamDto?> GetByIdAsync(int id);
         Task<TeamDto?> GetWithPlayersAsync(int id);
         Task<IEnumerable<TeamDto>> GetByTournamentAsync(int tournamentId);

@@ -3,6 +3,13 @@ namespace TForge.DTOs
     public class MatchDto
     {
         public int Id { get; set; }
+
+        /// <summary>
+        /// Null — товариський матч. Читається з самої колонки, а не з навігації
+        /// Tournament: та буває null і просто тому, що її не підвантажили.
+        /// </summary>
+        public int? TournamentId { get; set; }
+
         public DateTime ScheduledAt { get; set; }
         public DateTime? StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }
@@ -10,12 +17,26 @@ namespace TForge.DTOs
         public int HomeTeamScore { get; set; }
         public int AwayTeamScore { get; set; }
         public string MatchType { get; set; } = string.Empty;
+        /// <summary>Дисципліна, успадкована від турніру. Клієнт її не задає.</summary>
+        public string Game { get; set; } = string.Empty;
         public int Round { get; set; }
         public string Format { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
+        public string? StreamUrl { get; set; }
+
+        /// <summary>Сторінка матчу в зовнішньому трекері статистики. Необовʼязкове.</summary>
+        public string? TrackerUrl { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public TeamSummaryDto? HomeTeam { get; set; }
         public TeamSummaryDto? AwayTeam { get; set; }
+
+        /// <summary>
+        /// Капітани команд. Потрібні клієнту, щоб показати керування товариським
+        /// матчем: TeamSummaryDto.Captain у відповідях матчу не підвантажується.
+        /// </summary>
+        public int HomeTeamCaptainId { get; set; }
+        public int AwayTeamCaptainId { get; set; }
         public TeamSummaryDto? WinnerTeam { get; set; }
         public TournamentDto? Tournament { get; set; }
         public List<MatchPlayerDto> MatchPlayers { get; set; } = new();
@@ -30,6 +51,8 @@ namespace TForge.DTOs
         public string MatchType { get; set; } = "GroupStage";
         public string Format { get; set; } = "BO1";
         public string Notes { get; set; } = string.Empty;
+        public string? StreamUrl { get; set; }
+        public string? TrackerUrl { get; set; }
     }
 
     public class UpdateMatchDto
@@ -40,6 +63,8 @@ namespace TForge.DTOs
         public int AwayTeamScore { get; set; }
         public int? WinnerTeamId { get; set; }
         public string Notes { get; set; } = string.Empty;
+        public string? StreamUrl { get; set; }
+        public string? TrackerUrl { get; set; }
         public DateTime? StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }
     }

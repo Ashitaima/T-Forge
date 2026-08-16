@@ -11,9 +11,8 @@ export const endpoints = {
   tournamentTeam: (id: number, teamId: number) => `/api/tournaments/${id}/teams/${teamId}`,
   tournamentBracket: (id: number) => `/api/tournaments/${id}/bracket/generate`,
   tournamentStandings: (id: number) => `/api/tournaments/${id}/standings`,
-  standingsTeams: "/api/standings/teams",
-  standingsPlayers: "/api/standings/players",
   matchScore: (id: number) => `/api/matches/${id}/score`,
+  matchLinks: (id: number) => `/api/matches/${id}/links`,
   matchPlayers: (id: number) => `/api/matches/${id}/players`,
   matchPlayersAutofill: (id: number) => `/api/matches/${id}/players/autofill`,
   matchPlayer: (id: number, entryId: number) => `/api/matches/${id}/players/${entryId}`,
@@ -22,6 +21,7 @@ export const endpoints = {
   teamSummary: (id: number) => `/api/teams/${id}/summary`,
   players: "/api/players",
   playersPaged: "/api/players/paged",
+  playersFull: "/api/players/full",
   playerProfile: (id: number) => `/api/players/${id}/profile`,
   playerMatches: (id: number) => `/api/players/${id}/matches`,
   matches: "/api/matches",
@@ -42,5 +42,11 @@ export const endpoints = {
     `/api/teams/${teamId}/membership-requests`,
   membershipRequestAccept: (id: number) => `/api/membership-requests/${id}/accept`,
   membershipRequestDecline: (id: number) => `/api/membership-requests/${id}/decline`,
-  membershipRequestCancel: (id: number) => `/api/membership-requests/${id}/cancel`
+  membershipRequestCancel: (id: number) => `/api/membership-requests/${id}/cancel`,
+  matchChallenges: "/api/match-challenges",
+  matchChallengesPending: "/api/match-challenges/pending",
+  matchChallengeAccept: (id: number) => `/api/match-challenges/${id}/accept`,
+  matchChallengeDecline: (id: number) => `/api/match-challenges/${id}/decline`,
+  matchChallengeCancel: (id: number) => `/api/match-challenges/${id}/cancel`,
+  teamMatchChallenges: (teamId: number) => `/api/teams/${teamId}/match-challenges`
 };

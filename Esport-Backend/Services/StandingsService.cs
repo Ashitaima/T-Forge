@@ -127,44 +127,6 @@ namespace TForge.Services
             };
         }
 
-        public async Task<IEnumerable<TeamStandingDto>> GetTeamStandingsAsync()
-        {
-            var matches = await _unitOfWork.Matches.GetQueryable()
-                .Where(m => m.Status == MatchStatus.Completed && m.WinnerTeamId != null)
-                .Select(m => new { m.HomeTeamId, m.AwayTeamId, m.WinnerTeamId, m.MatchType, m.TournamentId })
-                .ToListAsync();
-
-            var teams = await _unitOfWork.Teams.GetActiveAsync();
-
-            var rows = teams.Select(team =>
-            {
-                var played = matches.Where(m => m.HomeTeamId == team.Id || m.AwayTeamId == team.Id).ToList();
-                var wins = played.Count(m => m.WinnerTeamId == team.Id);
-                var titles = played.Count(m => m.WinnerTeamId == team.Id && m.MatchType == MatchTypes.Final);
-
-                return new TeamStandingDto
-                {
-                    Team = _mapper.Map<TeamSummaryDto>(team),
-                    Played = played.Count,
-                    Wins = wins,
-                    Losses = played.Count - wins,
-                    WinRate = played.Count == 0 ? 0 : Math.Round((decimal)wins / played.Count * 100, 1),
-                    Titles = titles
-                };
-            })
-            .OrderByDescending(r => r.Titles)
-            .ThenByDescending(r => r.Wins)
-            .ThenByDescending(r => r.WinRate)
-            .ThenBy(r => r.Team!.Name)
-            .ToList();
-
-            for (var i = 0; i < rows.Count; i++)
-            {
-                rows[i].Rank = i + 1;
-            }
-
-            return rows;
-        }
 
         public async Task<TeamSummaryStatsDto> GetTeamSummaryAsync(int teamId)
         {
@@ -198,52 +160,5 @@ namespace TForge.Services
             return PlayerRecordCalculator.Calculate(rows);
         }
 
-        public async Task<IEnumerable<PlayerStandingDto>> GetPlayerStandingsAsync()
-        {
-            // Рахуємо лише матчі, що дійсно мають переможця — так само, як PlayerRecordCalculator,
-            // щоб таблиця лідерів не розходилась із профілем гравця для нічиїх/незавершених матчів.
-            var stats = await _unitOfWork.MatchPlayers.GetQueryable()
-                .Include(mp => mp.Match)
-                .Include(mp => mp.Player)
-                .ThenInclude(p => p.Team)
-                .Where(mp => mp.Match.Status == MatchStatus.Completed && mp.Match.WinnerTeamId != null)
-                .ToListAsync();
-
-            var rows = stats
-                .GroupBy(mp => mp.Player)
-                .Select(group =>
-                {
-                    var kills = group.Sum(mp => mp.Kills);
-                    var deaths = group.Sum(mp => mp.Deaths);
-                    var assists = group.Sum(mp => mp.Assists);
-
-                    var wins = group.Count(mp =>
-                        mp.Match.WinnerTeamId != null && mp.Match.WinnerTeamId == mp.TeamId);
-
-                    return new PlayerStandingDto
-                    {
-                        Player = _mapper.Map<PlayerSummaryDto>(group.Key),
-                        TeamName = group.Key.Team?.Name,
-                        Matches = group.Count(),
-                        Kills = kills,
-                        Deaths = deaths,
-                        Assists = assists,
-                        Kda = Math.Round((kills + assists) / (double)Math.Max(1, deaths), 2),
-                        Wins = wins,
-                        Losses = group.Count() - wins,
-                        WinRate = group.Count() == 0 ? 0 : Math.Round((decimal)wins / group.Count() * 100, 1)
-                    };
-                })
-                .OrderByDescending(r => r.Kda)
-                .ThenByDescending(r => r.Kills)
-                .ToList();
-
-            for (var i = 0; i < rows.Count; i++)
-            {
-                rows[i].Rank = i + 1;
-            }
-
-            return rows;
-        }
     }
 }
