@@ -50,7 +50,13 @@ const MatchRow = ({
 
       <div className="flex shrink-0 items-center gap-3">
         <span className="pill">{gameLabel(match.game)}</span>
-        {match.tournamentId === null && <span className="pill">Товариський</span>}
+        {/* Усередині вкладки тип матчу вже відомий, тож замість підпису
+            «Товариський» корисніше показати, який це турнір. */}
+        {match.tournament?.name && (
+          <span className="max-w-[10rem] truncate text-micro text-text-faint" title={match.tournament.name}>
+            {match.tournament.name}
+          </span>
+        )}
         <span className="font-mono text-micro text-text-faint">{match.format}</span>
         <StatusPill status={match.status} />
         {match.streamUrl && (
@@ -105,6 +111,10 @@ const MatchesSchedule = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [game, setGame] = useState("");
+  // Дві незалежні осі: тип матчу — це різні змагання, статус — різні погляди
+  // на той самий розклад. Тому тип нагорі вкладками, статус — перемикачем
+  // усередині кожної.
+  const [kind, setKind] = useState<"tournament" | "friendly">("tournament");
   const [tab, setTab] = useState<"scheduled" | "completed">("scheduled");
   const canEdit = useIsRole("Organizer", "Admin");
 
@@ -178,21 +188,51 @@ const MatchesSchedule = () => {
   };
 
   const term = search.trim().toLowerCase();
+
+  /** Товариський матч — це матч без турніру (Match.TournamentId == null). */
+  const isFriendly = (match: MatchDto) => match.tournamentId === null;
+
   const matchesFilters = (match: MatchDto) => {
+    const matchesKind = kind === "friendly" ? isFriendly(match) : !isFriendly(match);
     const matchesGame = !game || match.game === game;
     const matchesTerm =
       !term ||
-      [match.homeTeam?.name, match.awayTeam?.name, match.matchType, match.format, gameLabel(match.game)]
+      [
+        match.homeTeam?.name,
+        match.awayTeam?.name,
+        match.matchType,
+        match.format,
+        match.tournament?.name,
+        gameLabel(match.game)
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(term);
 
-    return matchesGame && matchesTerm;
+    return matchesKind && matchesGame && matchesTerm;
   };
 
-  const visibleScheduled = useMemo(() => scheduled.filter(matchesFilters), [scheduled, term, game]);
-  const visibleCompleted = useMemo(() => completed.filter(matchesFilters), [completed, term, game]);
+  const visibleScheduled = useMemo(
+    () => scheduled.filter(matchesFilters),
+    [scheduled, term, game, kind]
+  );
+  const visibleCompleted = useMemo(
+    () => completed.filter(matchesFilters),
+    [completed, term, game, kind]
+  );
+
+  // Лічильники в назвах вкладок рахуються без фільтра за типом — інакше
+  // неактивна вкладка завжди показувала б нуль.
+  const countFor = (target: "tournament" | "friendly") =>
+    [...scheduled, ...completed].filter((match) =>
+      target === "friendly" ? isFriendly(match) : !isFriendly(match)
+    ).length;
+
+  const kinds = [
+    { id: "tournament" as const, label: "Турніри", count: countFor("tournament") },
+    { id: "friendly" as const, label: "Практичні", count: countFor("friendly") }
+  ];
 
   const tabs = [
     { id: "scheduled" as const, label: "Заплановані", count: visibleScheduled.length },
@@ -206,7 +246,11 @@ const MatchesSchedule = () => {
       <PageHeader
         eyebrow="Розклад"
         title="Матчі"
-        description="Найближчі ігри та зіграні результати всіх турнірів."
+        description={
+          kind === "friendly"
+            ? "Практичні матчі між командами. Рахунок і KDA враховуються, але титулів і рейтингу вони не дають."
+            : "Найближчі ігри та зіграні результати всіх турнірів."
+        }
         action={
           canEdit && (
             <Link to="/matches/new" className="btn btn-primary">
@@ -240,23 +284,45 @@ const MatchesSchedule = () => {
 
       {!loading && (
         <>
-          {/* Заплановані та зіграні — це два погляди на один розклад,
-              тож вкладки, а не дві секції одна під одною. */}
+          {/* Турнірні та практичні — це різні змагання з різними правилами
+              (практичні не дають титулів і не рухають рейтинг), тож вони
+              стоять першою віссю. */}
           <div className="flex gap-1 border-b border-line-soft">
+            {kinds.map(({ id, label, count }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setKind(id)}
+                className={`relative px-4 py-2.5 text-lead transition ${
+                  kind === id ? "text-text" : "text-text-muted hover:text-text"
+                }`}
+              >
+                {label}
+                <span className="tabular ml-2 font-mono text-micro text-text-faint">{count}</span>
+                {kind === id && (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-t bg-ember" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Заплановані та зіграні — це два погляди на той самий розклад,
+              тож вони другою віссю, всередині обраного типу. */}
+          <div className="flex gap-1.5">
             {tabs.map(({ id, label, count }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`relative px-4 py-2.5 text-body transition ${
-                  tab === id ? "text-text" : "text-text-muted hover:text-text"
+                aria-pressed={tab === id}
+                className={`rounded-lg px-3 py-1.5 text-micro transition ${
+                  tab === id
+                    ? "bg-ink-800 text-text"
+                    : "text-text-muted hover:bg-ink-900 hover:text-text"
                 }`}
               >
                 {label}
-                <span className="tabular ml-2 font-mono text-micro text-text-faint">{count}</span>
-                {tab === id && (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-t bg-ember" />
-                )}
+                <span className="tabular ml-2 font-mono text-text-faint">{count}</span>
               </button>
             ))}
           </div>
@@ -270,7 +336,9 @@ const MatchesSchedule = () => {
                     hint={
                       term || game
                         ? "Спробуйте іншу назву команди, формат або дисципліну."
-                        : "Матчі створюються вручну або автоматично під час генерації турнірної сітки."
+                        : kind === "friendly"
+                          ? "Практичні матчі зʼявляються, коли капітан приймає виклик іншої команди."
+                          : "Матчі створюються вручну або автоматично під час генерації турнірної сітки."
                     }
                   />
                 ) : (

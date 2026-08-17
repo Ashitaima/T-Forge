@@ -14,6 +14,7 @@ public class SortKeysTests
     [InlineData("wins")]
     [InlineData("winRate")]
     [InlineData("kda")]
+    [InlineData("rating")]
     public void PlayerSortKeys_Known_IsValid(string key)
     {
         Assert.True(PlayerSortKeys.IsValid(key));
@@ -37,6 +38,7 @@ public class SortKeysTests
     [InlineData("wins")]
     [InlineData("winRate")]
     [InlineData("titles")]
+    [InlineData("rating")]
     public void TeamSortKeys_Known_IsValid(string key)
     {
         Assert.True(TeamSortKeys.IsValid(key));

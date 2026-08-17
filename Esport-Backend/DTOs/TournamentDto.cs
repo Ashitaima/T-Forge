@@ -13,6 +13,10 @@ namespace TForge.DTOs
         public string Status { get; set; } = string.Empty;
         public decimal PrizePool { get; set; }
         public bool IsActive { get; set; }
+
+        /// <summary>Закритий турнір: склад учасників визначає організатор.</summary>
+        public bool IsInviteOnly { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public UserDto? Organizer { get; set; }
     }
@@ -27,8 +31,14 @@ namespace TForge.DTOs
         public int MaxTeams { get; set; }
         public decimal PrizePool { get; set; }
 
+        /// <summary>Закритий турнір: реєструватися самостійно капітани не можуть.</summary>
+        public bool IsInviteOnly { get; set; }
+
         /// <summary>Заповнює сервер з токена. Задати вручну може лише адміністратор.</summary>
         public int? OrganizerId { get; set; }
+
+        // Статус новоствореного турніру завжди Registration — сервер проставляє
+        // його сам, тож у DTO створення цього поля немає й бути не повинно.
     }
 
     public class UpdateTournamentDto
@@ -39,6 +49,7 @@ namespace TForge.DTOs
         public DateTime EndDate { get; set; }
         public int MaxTeams { get; set; }
         public decimal PrizePool { get; set; }
+        public bool IsInviteOnly { get; set; }
         public string Status { get; set; } = string.Empty;
     }
 

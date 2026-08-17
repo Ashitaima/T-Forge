@@ -46,6 +46,8 @@ namespace TForge
             builder.Services.AddScoped<IMatchRosterService, MatchRosterService>();
             builder.Services.AddScoped<IMembershipRequestService, MembershipRequestService>();
             builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
+            builder.Services.AddScoped<ITournamentInvitationService, TournamentInvitationService>();
+            builder.Services.AddScoped<IRatingService, RatingService>();
             builder.Services.AddScoped<IAvatarService, AvatarService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
@@ -108,8 +110,9 @@ namespace TForge
             {
                 var context = scope.ServiceProvider.GetRequiredService<EsportsDbContext>();
                 var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+                var ratingService = scope.ServiceProvider.GetRequiredService<IRatingService>();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-                await DatabaseInitializer.InitializeAsync(context, passwordHasher, logger);
+                await DatabaseInitializer.InitializeAsync(context, passwordHasher, ratingService, logger);
             }
 
             // Configure the HTTP request pipeline.

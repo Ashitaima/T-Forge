@@ -13,10 +13,11 @@ namespace TForge.Common
         public const string Wins = "wins";
         public const string WinRate = "winRate";
         public const string Titles = "titles";
+        public const string Rating = "rating";
 
         public static readonly string[] All =
         {
-            Name, Tag, Region, Played, Wins, WinRate, Titles
+            Name, Tag, Region, Played, Wins, WinRate, Titles, Rating
         };
 
         public static bool IsValid(string? key) => key != null && All.Contains(key);

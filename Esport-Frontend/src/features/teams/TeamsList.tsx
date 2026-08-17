@@ -5,6 +5,7 @@ import { teamsApi } from "../../api/teamsApi";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
 import { SortableTh, useSortState } from "../../components/ui/SortableTh";
+import { RatingCell } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
 import type { TeamRowDto } from "../../types";
 
@@ -91,6 +92,7 @@ const TeamsList = () => {
                 <SortableTh label="Перемоги" sortKey="wins" align="right" {...sortProps} />
                 <SortableTh label="%" sortKey="winRate" align="right" {...sortProps} />
                 <SortableTh label="Титули" sortKey="titles" align="right" {...sortProps} />
+                <SortableTh label="Рейтинг" sortKey="rating" align="right" {...sortProps} />
                 <th className="w-px" />
               </tr>
             </thead>
@@ -114,6 +116,9 @@ const TeamsList = () => {
                   <td className="tabular text-right font-mono text-micro">{team.winRate}</td>
                   <td className="tabular text-right font-mono text-micro">
                     {team.titles > 0 ? <span className="text-ember">{team.titles}</span> : team.titles}
+                  </td>
+                  <td className="text-right text-micro">
+                    <RatingCell rating={team.rating} game={team.ratingGame} />
                   </td>
                   <td>
                     <div className="row-actions">

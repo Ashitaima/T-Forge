@@ -34,6 +34,13 @@ namespace TForge.Models
 
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// Закритий турнір: склад учасників визначає організатор. Капітан не
+        /// реєструє команду сам — або отримує запрошення, або подає заявку.
+        /// Рішення про те, кому це дозволено, ухвалює TournamentInvitationPolicy.
+        /// </summary>
+        public bool IsInviteOnly { get; set; } = false;
+
         [Required]
         [StringLength(20)]
         public string Status { get; set; } = TournamentStatus.Registration; // див. Common/StatusConstants.cs

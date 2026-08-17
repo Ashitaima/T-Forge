@@ -17,7 +17,7 @@ public class CreateFullPlayerValidatorTests
         LastName = "Франко",
         Nickname = "ivan",
         Position = "Support",
-        Country = "Україна",
+        Country = "UA", // код ISO — саме з нього виводиться прапор
         Age = 20
     };
 
@@ -74,5 +74,22 @@ public class CreateFullPlayerValidatorTests
         var dto = Valid();
         dto.Age = 11;
         Assert.False(_validator.Validate(dto).IsValid);
+    }
+
+    // Країна зберігається кодом: із довільного рядка прапора не зробити.
+    [Fact]
+    public void Country_FreeText_IsRejected()
+    {
+        var dto = Valid();
+        dto.Country = "Україна";
+        Assert.False(_validator.Validate(dto).IsValid);
+    }
+
+    [Fact]
+    public void Country_Empty_IsAllowed()
+    {
+        var dto = Valid();
+        dto.Country = "";
+        Assert.True(_validator.Validate(dto).IsValid);
     }
 }

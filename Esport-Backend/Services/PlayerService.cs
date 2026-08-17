@@ -15,17 +15,20 @@ namespace TForge.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IStandingsService _standingsService;
+        private readonly IRatingService _ratingService;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IMapper _mapper;
 
         public PlayerService(
             IUnitOfWork unitOfWork,
             IStandingsService standingsService,
+            IRatingService ratingService,
             IPasswordHasher passwordHasher,
             IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _standingsService = standingsService;
+            _ratingService = ratingService;
             _passwordHasher = passwordHasher;
             _mapper = mapper;
         }
@@ -106,6 +109,11 @@ namespace TForge.Services
                 query = query.Where(p => p.Nickname.Contains(request.Search));
             }
 
+            // Захоплюємо запит окремою змінною: EF перекладає корельований
+            // підзапит по DbSet того самого контексту, але тільки якщо це
+            // готовий IQueryable, а не виклик методу всередині дерева виразів.
+            var ratings = _unitOfWork.PlayerRatings.GetQueryable();
+
             var rows = query.Select(p => new PlayerRowDto
             {
                 Id = p.Id,
@@ -125,7 +133,21 @@ namespace TForge.Services
                     && mp.Match.WinnerTeamId == mp.TeamId),
                 Kills = p.MatchPlayers.Sum(mp => mp.Kills),
                 Deaths = p.MatchPlayers.Sum(mp => mp.Deaths),
-                Assists = p.MatchPlayers.Sum(mp => mp.Assists)
+                Assists = p.MatchPlayers.Sum(mp => mp.Assists),
+                // Рейтинг ведеться окремо для кожної дисципліни, а в рядку
+                // списку є місце лише для одного числа — показуємо найкраще.
+                // Гравець без турнірних матчів рядка рейтингу не має, тож тут
+                // буде null, і список покаже «—», а не вигадану тисячу.
+                Rating = ratings
+                    .Where(r => r.PlayerId == p.Id)
+                    .OrderByDescending(r => r.Rating)
+                    .Select(r => (int?)r.Rating)
+                    .FirstOrDefault(),
+                RatingGame = ratings
+                    .Where(r => r.PlayerId == p.Id)
+                    .OrderByDescending(r => r.Rating)
+                    .Select(r => r.Game)
+                    .FirstOrDefault()
             });
 
             rows = ApplyPlayerSort(rows, request.SortBy, request.SortDirection);
@@ -142,6 +164,7 @@ namespace TForge.Services
                     ? 0
                     : Math.Round((decimal)row.Wins / row.Matches * 100, 1);
                 row.Kda = Math.Round((row.Kills + row.Assists) / (double)Math.Max(1, row.Deaths), 2);
+                row.RatingTier = row.Rating == null ? null : EloCalculator.Tier(row.Rating.Value);
             }
 
             return new PagedResponse<PlayerRowDto>
@@ -190,6 +213,12 @@ namespace TForge.Services
                 PlayerSortKeys.Kda => descending
                     ? rows.OrderByDescending(r => (r.Kills + r.Assists) / (double)(r.Deaths == 0 ? 1 : r.Deaths))
                     : rows.OrderBy(r => (r.Kills + r.Assists) / (double)(r.Deaths == 0 ? 1 : r.Deaths)),
+                // Без рейтингу — це нуль, а не «невідомо»: інакше Postgres
+                // ставив би NULL першими при спаданні, і на чолі драбини
+                // опинилися б саме ті, хто не зіграв жодного турнірного матчу.
+                PlayerSortKeys.Rating => descending
+                    ? rows.OrderByDescending(r => r.Rating ?? 0)
+                    : rows.OrderBy(r => r.Rating ?? 0),
                 // Типовий порядок повторює колишню таблицю лідерів: за KDA, потім за фрагами.
                 _ => rows
                     .OrderByDescending(r => (r.Kills + r.Assists) / (double)(r.Deaths == 0 ? 1 : r.Deaths))
@@ -223,10 +252,12 @@ namespace TForge.Services
                 ?? throw new EntityNotFoundException("Player", id);
 
             var career = await _standingsService.GetPlayerCareerAsync(id);
+            var ratings = await _ratingService.GetPlayerRatingsAsync(id);
 
             return new PlayerProfileDto
             {
                 Player = _mapper.Map<PlayerDto>(player),
+                Ratings = ratings.ToList(),
                 Matches = career.Matches,
                 Wins = career.Wins,
                 Losses = career.Losses,

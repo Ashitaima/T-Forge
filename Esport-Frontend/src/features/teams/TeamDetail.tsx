@@ -4,22 +4,24 @@ import { AlertCircle } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { membershipRequestsApi } from "../../api/membershipRequestsApi";
 import { playersApi } from "../../api/playersApi";
+import { ratingsApi } from "../../api/ratingsApi";
 import { teamsApi } from "../../api/teamsApi";
-import { useAuthStore } from "../../store/authStore";
-import { useIsRole } from "../../hooks/useEffectiveRole";
+import { useIsCaptainOf, useIsRole } from "../../hooks/useEffectiveRole";
 import { ChallengePanel } from "./ChallengePanel";
 import { EmptyState, PageHeader, Pager, Skeleton } from "../../components/ui/Primitives";
+import { CountryFlag } from "../../components/ui/CountryFlag";
+import { RatingPanel } from "../../components/ui/Rating";
+import { TournamentInvitationsPanel } from "../tournaments/TournamentInvitationsPanel";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
 import type { MatchDto, MembershipRequestDto, PlayerDto,
-  PlayerRowDto, TeamDto, TeamSummaryStatsDto } from "../../types";
+  PlayerRowDto, RatingChangeDto, RatingDto, TeamDto, TeamSummaryStatsDto } from "../../types";
 
 const HISTORY_PAGE_SIZE = 10;
 
 const TeamDetail = () => {
   const { id } = useParams();
   const teamId = Number(id);
-  const { user } = useAuthStore();
 
   const [team, setTeam] = useState<TeamDto | null>(null);
   const [summary, setSummary] = useState<TeamSummaryStatsDto | null>(null);
@@ -66,6 +68,33 @@ const TeamDetail = () => {
     loadTeam();
   }, [loadTeam]);
 
+  // Рейтинг і його історія — окремі запити: вони не залежать ані від складу,
+  // ані від сторінки історії матчів.
+  const [ratings, setRatings] = useState<RatingDto[]>([]);
+  const [ratingHistory, setRatingHistory] = useState<RatingChangeDto[]>([]);
+
+  useEffect(() => {
+    if (Number.isNaN(teamId)) {
+      return;
+    }
+
+    let isActive = true;
+
+    Promise.all([
+      ratingsApi.getTeamRatings(teamId).catch(() => [] as RatingDto[]),
+      ratingsApi.getTeamHistory(teamId).catch(() => [] as RatingChangeDto[])
+    ]).then(([ratingRows, historyRows]) => {
+      if (isActive) {
+        setRatings(ratingRows);
+        setRatingHistory(historyRows);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [teamId]);
+
   const {
     items: matches,
     page,
@@ -83,7 +112,9 @@ const TeamDetail = () => {
   const [myPlayer, setMyPlayer] = useState<PlayerDto | null>(null);
   const [requests, setRequests] = useState<MembershipRequestDto[]>([]);
 
-  const isCaptain = Boolean(user && team?.captain?.id === user.id);
+  // Капітанство читаємо через хук: у режимі розробника адміністратор може
+  // подивитися на сторінку очима капітана саме цієї команди.
+  const isCaptain = useIsCaptainOf(teamId, team?.captain?.id);
   const isAdmin = useIsRole("Admin");
 
   useEffect(() => {
@@ -308,6 +339,19 @@ const TeamDetail = () => {
 
       <section className="panel">
         <div className="panel-header">
+          <h2 className="section-title">Рейтинг</h2>
+        </div>
+        <div className="panel-body">
+          <RatingPanel
+            ratings={ratings}
+            history={ratingHistory}
+            emptyHint="Він зʼявиться після першого зіграного турнірного матчу — практичні матчі рейтинг не змінюють."
+          />
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
           <h2 className="section-title">Історія матчів</h2>
           <span className="tabular font-mono text-micro text-text-faint">{totalCount}</span>
         </div>
@@ -386,7 +430,9 @@ const TeamDetail = () => {
                   </div>
                   <div className="muted mt-1 text-micro">{player.position || "Позиція не вказана"}</div>
                   {player.country && (
-                    <div className="mt-2 font-mono text-micro text-text-faint">{player.country}</div>
+                    <div className="mt-2 text-micro text-text-faint">
+                      <CountryFlag code={player.country} withName />
+                    </div>
                   )}
                 </div>
               ))}
@@ -480,6 +526,8 @@ const TeamDetail = () => {
           ))}
         </section>
       )}
+
+      {team && <TournamentInvitationsPanel teamId={team.id} isCaptain={isCaptain || isAdmin} />}
 
       {team && <ChallengePanel teamId={team.id} isCaptain={isCaptain} isAdmin={isAdmin} />}
     </>

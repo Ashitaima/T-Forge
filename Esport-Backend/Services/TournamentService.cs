@@ -117,13 +117,33 @@ namespace TForge.Services
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
                 ?? throw new EntityNotFoundException("Team", teamId);
 
-            // Реєструвати команду може її капітан, організатор турніру або адміністратор
-            if (!isAdmin && team.CaptainId != requestingUserId && tournament.OrganizerId != requestingUserId)
+            // Рішення ухвалює чиста політика: на відкритому турнірі команду
+            // реєструє її капітан, на закритому — лише організатор.
+            if (!TournamentInvitationPolicy.CanRegisterDirectly(
+                    tournament.IsInviteOnly, requestingUserId, tournament.OrganizerId, team.CaptainId, isAdmin))
             {
-                throw new ForbiddenException(
-                    "Зареєструвати команду може лише її капітан або організатор турніру");
+                throw new ForbiddenException(tournament.IsInviteOnly
+                    ? "Турнір закритий: потрібне запрошення організатора або схвалена заявка"
+                    : "Зареєструвати команду може лише її капітан або організатор турніру");
             }
 
+            await AdmitAsync(tournament, team);
+        }
+
+        public async Task AdmitTeamAsync(int tournamentId, int teamId)
+        {
+            var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(tournamentId)
+                ?? throw new EntityNotFoundException("Tournament", tournamentId);
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
+
+            await AdmitAsync(tournament, team);
+        }
+
+        /// <summary>Стан турніру та складу — те, що не залежить від того, хто просить.</summary>
+        private async Task AdmitAsync(Tournament tournament, Team team)
+        {
             if (!tournament.IsActive)
             {
                 throw new BusinessLogicException("Турнір неактивний");
@@ -139,7 +159,7 @@ namespace TForge.Services
                 throw new BusinessLogicException("Команда неактивна");
             }
 
-            if (tournament.Teams.Any(t => t.Id == teamId))
+            if (tournament.Teams.Any(t => t.Id == team.Id))
             {
                 throw new BusinessLogicException("Команду вже зареєстровано на цей турнір");
             }

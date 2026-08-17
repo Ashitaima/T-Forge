@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
@@ -7,6 +7,7 @@ import { matchesApi } from "../../api/matchesApi";
 import { teamsApi } from "../../api/teamsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { gameLabel } from "../../constants/games";
+import { DateTimePicker } from "../../components/ui/DateTimePicker";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import type { CreateMatchDto, MatchDto, TeamRowDto, TournamentDto, UpdateMatchDto } from "../../types";
 
@@ -39,6 +40,7 @@ const MatchForm = () => {
   const [match, setMatch] = useState<MatchDto | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     setValue,
     setError,
@@ -209,15 +211,23 @@ const MatchForm = () => {
             </div>
           </>
         )}
-        <label className="field">
+        <div className="field">
           Час початку
-          <input
-            type="datetime-local"
-            {...register("scheduledAt")}
-            className="input"
-          />
+          <div className="mt-1.5">
+            <Controller
+              control={control}
+              name="scheduledAt"
+              render={({ field }) => (
+                <DateTimePicker
+                  ariaLabel="Час початку матчу"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </div>
           {errors.scheduledAt && <p className="field-error">{errors.scheduledAt.message}</p>}
-        </label>
+        </div>
         {!id && (
           <>
             <label className="field">
@@ -322,22 +332,38 @@ const MatchForm = () => {
               </select>
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="field">
+              <div className="field">
                 Старт матчу
-                <input
-                  type="datetime-local"
-                  {...register("startedAt")}
-                  className="input"
-                />
-              </label>
-              <label className="field">
+                <div className="mt-1.5">
+                  <Controller
+                    control={control}
+                    name="startedAt"
+                    render={({ field }) => (
+                      <DateTimePicker
+                        ariaLabel="Фактичний старт матчу"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+              <div className="field">
                 Завершення матчу
-                <input
-                  type="datetime-local"
-                  {...register("endedAt")}
-                  className="input"
-                />
-              </label>
+                <div className="mt-1.5">
+                  <Controller
+                    control={control}
+                    name="endedAt"
+                    render={({ field }) => (
+                      <DateTimePicker
+                        ariaLabel="Фактичне завершення матчу"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
             </div>
           </>
         )}

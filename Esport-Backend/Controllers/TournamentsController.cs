@@ -15,17 +15,20 @@ namespace TForge.Controllers
         private readonly ITournamentService _tournamentService;
         private readonly IBracketService _bracketService;
         private readonly IStandingsService _standingsService;
+        private readonly ITournamentInvitationService _invitationService;
         private readonly ILogger<TournamentsController> _logger;
 
         public TournamentsController(
             ITournamentService tournamentService,
             IBracketService bracketService,
             IStandingsService standingsService,
+            ITournamentInvitationService invitationService,
             ILogger<TournamentsController> logger)
         {
             _tournamentService = tournamentService;
             _bracketService = bracketService;
             _standingsService = standingsService;
+            _invitationService = invitationService;
             _logger = logger;
         }
 
@@ -103,6 +106,39 @@ namespace TForge.Controllers
         {
             await _tournamentService.WithdrawTeamAsync(id, teamId, GetUserIdOrThrow(), IsAdmin);
             return Ok(new { message = "Команду знято з турніру" });
+        }
+
+        // ---- Запрошення та заявки ----
+
+        /// <summary>Організатор запрошує команду до участі.</summary>
+        [HttpPost("{id}/invitations/{teamId}")]
+        [Authorize]
+        public async Task<ActionResult<TournamentInvitationDto>> InviteTeam(
+            int id, int teamId, [FromBody] CreateTournamentInvitationDto? request)
+        {
+            return Ok(await _invitationService.InviteAsync(
+                id, teamId, request?.Message ?? string.Empty, GetUserIdOrThrow(), IsAdmin));
+        }
+
+        /// <summary>Капітан подає заявку на участь своєї команди.</summary>
+        [HttpPost("{id}/applications/{teamId}")]
+        [Authorize]
+        public async Task<ActionResult<TournamentInvitationDto>> ApplyToTournament(
+            int id, int teamId, [FromBody] CreateTournamentInvitationDto? request)
+        {
+            return Ok(await _invitationService.ApplyAsync(
+                id, teamId, request?.Message ?? string.Empty, GetUserIdOrThrow(), IsAdmin));
+        }
+
+        /// <summary>
+        /// Запити цього турніру — і запрошення, і заявки. Публічно, як і склад
+        /// учасників: хто ще претендує на місце, видно всім.
+        /// </summary>
+        [HttpGet("{id}/invitations")]
+        public async Task<ActionResult<IEnumerable<TournamentInvitationDto>>> GetInvitations(
+            int id, [FromQuery] string? status)
+        {
+            return Ok(await _invitationService.GetForTournamentAsync(id, status));
         }
 
         /// <summary>Підсумкова таблиця турніру, виведена з сітки.</summary>

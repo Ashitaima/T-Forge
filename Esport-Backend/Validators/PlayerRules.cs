@@ -30,10 +30,17 @@ namespace TForge.Validators
             rule
                 .Must(PlayerPositions.IsValid).WithMessage("Некоректна позиція гравця");
 
+        /// <summary>
+        /// Країна зберігається кодом ISO 3166-1 alpha-2 — саме з нього
+        /// виводиться прапор. Порожнє значення дозволене (країну можна не
+        /// вказувати), але довільний рядок — ні: з нього прапора не зробити,
+        /// а форма й так пропонує список.
+        /// </summary>
         public static IRuleBuilderOptions<T, string> PlayerCountry<T>(
             this IRuleBuilder<T, string> rule) =>
             rule
-                .MaximumLength(100).WithMessage("Країна не може перевищувати 100 символів");
+                .Must(country => string.IsNullOrEmpty(country) || Countries.IsValid(country))
+                .WithMessage("Оберіть країну зі списку");
 
         public static IRuleBuilderOptions<T, int> PlayerAge<T>(
             this IRuleBuilder<T, int> rule) =>

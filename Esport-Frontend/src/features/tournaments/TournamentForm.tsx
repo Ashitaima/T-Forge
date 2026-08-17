@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { GAMES, GAME_LABELS } from "../../constants/games";
+import { DateTimePicker } from "../../components/ui/DateTimePicker";
 import type { CreateTournamentDto, UpdateTournamentDto } from "../../types";
 
 const schema = z.object({
   name: z.string().min(3, "Вкажіть назву турніру"),
   description: z.string().min(10, "Додайте короткий опис"),
-  game: z.enum(GAMES, { required_error: "Оберіть дисципліну" }),
+  // errorMap, а не required_error: порожній рядок із <select> — це не
+  // «поле відсутнє», а «значення поза переліком», і без цього користувач
+  // бачив би службове «Invalid enum value ... received ''».
+  game: z.enum(GAMES, { errorMap: () => ({ message: "Оберіть дисципліну" }) }),
   startDate: z.string().min(1, "Оберіть дату старту"),
   endDate: z.string().min(1, "Оберіть дату завершення"),
   maxTeams: z.coerce.number().min(2, "Мінімум 2 команди"),
   prizePool: z.coerce.number().min(0, "Призовий фонд має бути додатним"),
-  status: z.string().min(1, "Оберіть статус")
+  isInviteOnly: z.boolean(),
+  // Статус є лише в редагуванні: новий турнір завжди починається з реєстрації,
+  // і цей статус проставляє сервер.
+  status: z.string().optional()
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -27,6 +34,7 @@ const TournamentForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const {
     register,
+    control,
     handleSubmit,
     setValue,
     setError,
@@ -34,6 +42,7 @@ const TournamentForm = () => {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      isInviteOnly: false,
       status: "Registration"
     }
   });
@@ -58,6 +67,7 @@ const TournamentForm = () => {
         setValue("endDate", data.endDate.slice(0, 10));
         setValue("maxTeams", data.maxTeams);
         setValue("prizePool", Number(data.prizePool));
+        setValue("isInviteOnly", data.isInviteOnly);
         setValue("status", data.status);
       } finally {
         setIsLoading(false);
@@ -77,7 +87,8 @@ const TournamentForm = () => {
         endDate: values.endDate,
         maxTeams: values.maxTeams,
         prizePool: values.prizePool,
-        status: values.status
+        isInviteOnly: values.isInviteOnly,
+        status: values.status ?? "Registration"
       };
       await tournamentsApi.update(Number(id), payload);
     } else {
@@ -88,7 +99,8 @@ const TournamentForm = () => {
         startDate: values.startDate,
         endDate: values.endDate,
         maxTeams: values.maxTeams,
-        prizePool: values.prizePool
+        prizePool: values.prizePool,
+        isInviteOnly: values.isInviteOnly
       };
       await tournamentsApi.create(payload);
     }
@@ -103,6 +115,8 @@ const TournamentForm = () => {
       submitError.capture(caught);
     }
   };
+
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -132,7 +146,7 @@ const TournamentForm = () => {
         {!id && (
           <label className="field">
             Дисципліна
-            <select {...register("game")} className="input">
+            <select {...register("game")} className="input" defaultValue="">
               <option value="">Оберіть дисципліну</option>
               {GAMES.map((game) => (
                 <option key={game} value={game}>
@@ -148,24 +162,44 @@ const TournamentForm = () => {
           </label>
         )}
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="field">
+          <div className="field">
             Дата старту
-            <input
-              type="date"
-              {...register("startDate")}
-              className="input"
-            />
+            <div className="mt-1.5">
+              <Controller
+                control={control}
+                name="startDate"
+                render={({ field }) => (
+                  <DateTimePicker
+                    mode="date"
+                    ariaLabel="Дата старту"
+                    minDate={id ? undefined : today}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
             {errors.startDate && <p className="field-error">{errors.startDate.message}</p>}
-          </label>
-          <label className="field">
+          </div>
+          <div className="field">
             Дата завершення
-            <input
-              type="date"
-              {...register("endDate")}
-              className="input"
-            />
+            <div className="mt-1.5">
+              <Controller
+                control={control}
+                name="endDate"
+                render={({ field }) => (
+                  <DateTimePicker
+                    mode="date"
+                    ariaLabel="Дата завершення"
+                    minDate={id ? undefined : today}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
             {errors.endDate && <p className="field-error">{errors.endDate.message}</p>}
-          </label>
+          </div>
         </div>
         <label className="field">
           Максимум команд
@@ -185,23 +219,47 @@ const TournamentForm = () => {
           />
           {errors.prizePool && <p className="field-error">{errors.prizePool.message}</p>}
         </label>
+
+        {/* Закритий турнір: реєстрація перестає бути самообслуговуванням */}
+        <div className="surface-raised flex items-start gap-3 px-4 py-3.5">
+          <input
+            id="invite-only"
+            type="checkbox"
+            {...register("isInviteOnly")}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-ember"
+          />
+          <label htmlFor="invite-only" className="min-w-0">
+            <span className="text-body font-medium text-text">Тільки за запрошеннями</span>
+            <span className="muted mt-1 block text-micro">
+              Капітани не реєструються самі. Ви запрошуєте команди, або вони подають заявку,
+              яку ви схвалюєте.
+            </span>
+          </label>
+        </div>
+
         {!id && (
           <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
             Організатором стане поточний користувач — вказувати ID вручну не потрібно.
+            Турнір починається зі статусу «Реєстрація».
           </p>
         )}
-        <label className="field">
-          Статус
-          <select
-            {...register("status")}
-            className="input"
-          >
-            <option value="Registration">Реєстрація</option>
-            <option value="InProgress">У процесі</option>
-            <option value="Completed">Завершено</option>
-            <option value="Cancelled">Скасовано</option>
-          </select>
-        </label>
+
+        {/* Статус — властивість турніру, що вже існує: новий завжди
+            починається з реєстрації, і обирати тут нема чого. */}
+        {id && (
+          <label className="field">
+            Статус
+            <select
+              {...register("status")}
+              className="input"
+            >
+              <option value="Registration">Реєстрація</option>
+              <option value="InProgress">У процесі</option>
+              <option value="Completed">Завершено</option>
+              <option value="Cancelled">Скасовано</option>
+            </select>
+          </label>
+        )}
         {isLoading && <div className="text-micro text-text-faint">Завантаження даних...</div>}
         {submitError.error && <div className="notice notice-error">{submitError.error}</div>}
         <div className="flex items-center gap-3 border-t border-line-soft pt-5">

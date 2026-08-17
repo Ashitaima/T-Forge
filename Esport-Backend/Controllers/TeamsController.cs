@@ -16,6 +16,7 @@ namespace TForge.Controllers
         private readonly IStandingsService _standingsService;
         private readonly IMembershipRequestService _membershipRequestService;
         private readonly IMatchChallengeService _matchChallengeService;
+        private readonly ITournamentInvitationService _tournamentInvitationService;
         private readonly ILogger<TeamsController> _logger;
 
         public TeamsController(
@@ -23,12 +24,14 @@ namespace TForge.Controllers
             IStandingsService standingsService,
             IMembershipRequestService membershipRequestService,
             IMatchChallengeService matchChallengeService,
+            ITournamentInvitationService tournamentInvitationService,
             ILogger<TeamsController> logger)
         {
             _teamService = teamService;
             _standingsService = standingsService;
             _membershipRequestService = membershipRequestService;
             _matchChallengeService = matchChallengeService;
+            _tournamentInvitationService = tournamentInvitationService;
             _logger = logger;
         }
 
@@ -194,6 +197,17 @@ namespace TForge.Controllers
             int teamId, [FromQuery] string? status)
         {
             return Ok(await _matchChallengeService.GetForTeamAsync(teamId, status));
+        }
+
+        /// <summary>
+        /// Запрошення та заявки команди на турніри. Читання публічне — з того
+        /// самого міркування, що й виклики на матч.
+        /// </summary>
+        [HttpGet("{teamId}/tournament-invitations")]
+        public async Task<ActionResult<IEnumerable<TournamentInvitationDto>>> GetTournamentInvitations(
+            int teamId, [FromQuery] string? status)
+        {
+            return Ok(await _tournamentInvitationService.GetForTeamAsync(teamId, status));
         }
     }
 }

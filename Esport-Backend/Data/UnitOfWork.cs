@@ -24,6 +24,11 @@ namespace TForge.Data
         private IGenericRepository<MatchPlayer>? _matchPlayers;
         private IGenericRepository<TeamMembershipRequest>? _membershipRequests;
         private IGenericRepository<MatchChallenge>? _matchChallenges;
+        private IGenericRepository<TournamentInvitation>? _tournamentInvitations;
+        private IGenericRepository<TeamRating>? _teamRatings;
+        private IGenericRepository<PlayerRating>? _playerRatings;
+        private IGenericRepository<TeamRatingChange>? _teamRatingChanges;
+        private IGenericRepository<PlayerRatingChange>? _playerRatingChanges;
 
         public IUserRepository Users =>
             _users ??= new UserRepository(_context);
@@ -48,6 +53,21 @@ namespace TForge.Data
 
         public IGenericRepository<MatchChallenge> MatchChallenges =>
             _matchChallenges ??= new GenericRepository<MatchChallenge>(_context);
+
+        public IGenericRepository<TournamentInvitation> TournamentInvitations =>
+            _tournamentInvitations ??= new GenericRepository<TournamentInvitation>(_context);
+
+        public IGenericRepository<TeamRating> TeamRatings =>
+            _teamRatings ??= new GenericRepository<TeamRating>(_context);
+
+        public IGenericRepository<PlayerRating> PlayerRatings =>
+            _playerRatings ??= new GenericRepository<PlayerRating>(_context);
+
+        public IGenericRepository<TeamRatingChange> TeamRatingChanges =>
+            _teamRatingChanges ??= new GenericRepository<TeamRatingChange>(_context);
+
+        public IGenericRepository<PlayerRatingChange> PlayerRatingChanges =>
+            _playerRatingChanges ??= new GenericRepository<PlayerRatingChange>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

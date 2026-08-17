@@ -48,5 +48,18 @@ export const endpoints = {
   matchChallengeAccept: (id: number) => `/api/match-challenges/${id}/accept`,
   matchChallengeDecline: (id: number) => `/api/match-challenges/${id}/decline`,
   matchChallengeCancel: (id: number) => `/api/match-challenges/${id}/cancel`,
-  teamMatchChallenges: (teamId: number) => `/api/teams/${teamId}/match-challenges`
+  teamMatchChallenges: (teamId: number) => `/api/teams/${teamId}/match-challenges`,
+  tournamentInvitations: (id: number) => `/api/tournaments/${id}/invitations`,
+  tournamentInvite: (id: number, teamId: number) => `/api/tournaments/${id}/invitations/${teamId}`,
+  tournamentApplication: (id: number, teamId: number) =>
+    `/api/tournaments/${id}/applications/${teamId}`,
+  teamTournamentInvitations: (teamId: number) => `/api/teams/${teamId}/tournament-invitations`,
+  tournamentInvitationAccept: (id: number) => `/api/tournament-invitations/${id}/accept`,
+  tournamentInvitationDecline: (id: number) => `/api/tournament-invitations/${id}/decline`,
+  tournamentInvitationCancel: (id: number) => `/api/tournament-invitations/${id}/cancel`,
+  teamRatings: (teamId: number) => `/api/ratings/teams/${teamId}`,
+  teamRatingHistory: (teamId: number) => `/api/ratings/teams/${teamId}/history`,
+  playerRatings: (playerId: number) => `/api/ratings/players/${playerId}`,
+  playerRatingHistory: (playerId: number) => `/api/ratings/players/${playerId}/history`,
+  matchRatingDelta: (matchId: number) => `/api/ratings/matches/${matchId}`
 };

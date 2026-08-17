@@ -18,6 +18,11 @@ namespace TForge.Data.Context
         public DbSet<MatchPlayer> MatchPlayers { get; set; }
         public DbSet<TeamMembershipRequest> TeamMembershipRequests { get; set; }
         public DbSet<MatchChallenge> MatchChallenges { get; set; }
+        public DbSet<TournamentInvitation> TournamentInvitations { get; set; }
+        public DbSet<TeamRating> TeamRatings { get; set; }
+        public DbSet<PlayerRating> PlayerRatings { get; set; }
+        public DbSet<TeamRatingChange> TeamRatingChanges { get; set; }
+        public DbSet<PlayerRatingChange> PlayerRatingChanges { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,6 +36,8 @@ namespace TForge.Data.Context
             ConfigureMatchModel(modelBuilder);
             ConfigureMatchPlayerModel(modelBuilder);
             ConfigureTeamMembershipRequestModel(modelBuilder);
+            ConfigureTournamentInvitationModel(modelBuilder);
+            ConfigureRatingModels(modelBuilder);
         }
 
         private void ConfigureUserModel(ModelBuilder modelBuilder)
@@ -294,6 +301,121 @@ namespace TForge.Data.Context
                 entity.HasIndex(c => new { c.ChallengerTeamId, c.OpponentTeamId })
                     .IsUnique()
                     .HasFilter($"\"Status\" = '{MatchChallengeStatus.Pending}'");
+            });
+        }
+
+        private void ConfigureTournamentInvitationModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TournamentInvitation>(entity =>
+            {
+                entity.ToTable("tournament_invitations");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Direction).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(TournamentInvitationStatus.Pending);
+                entity.Property(e => e.Message).HasMaxLength(300);
+
+                entity.HasOne(i => i.Tournament)
+                    .WithMany()
+                    .HasForeignKey(i => i.TournamentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(i => i.Team)
+                    .WithMany()
+                    .HasForeignKey(i => i.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Лише один відкритий запит на пару (турнір, команда), незалежно
+                // від напряму. Термінальні запити до індексу не входять — саме
+                // тому після відмови можна подати заявку повторно.
+                entity.HasIndex(i => new { i.TournamentId, i.TeamId })
+                    .IsUnique()
+                    .HasFilter($"\"Status\" = '{TournamentInvitationStatus.Pending}'");
+            });
+        }
+
+        /// <summary>
+        /// Дві пари таблиць, а не одна поліморфна з колонкою SubjectType.
+        /// Поліморфний варіант коротший, але його SubjectId не може нести
+        /// справжній зовнішній ключ, а на лагодження п'яти тіньових FK уже
+        /// пішла ціла фаза роботи. Краще дати EF два однозначні зв'язки, ніж
+        /// один, від якого його доводиться відмовляти.
+        /// </summary>
+        private void ConfigureRatingModels(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeamRating>(entity =>
+            {
+                entity.ToTable("team_ratings");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+
+                entity.HasOne(r => r.Team)
+                    .WithMany()
+                    .HasForeignKey(r => r.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Один рейтинг на пару (команда, дисципліна)
+                entity.HasIndex(r => new { r.TeamId, r.Game }).IsUnique();
+            });
+
+            modelBuilder.Entity<PlayerRating>(entity =>
+            {
+                entity.ToTable("player_ratings");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+
+                entity.HasOne(r => r.Player)
+                    .WithMany()
+                    .HasForeignKey(r => r.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(r => new { r.PlayerId, r.Game }).IsUnique();
+            });
+
+            modelBuilder.Entity<TeamRatingChange>(entity =>
+            {
+                entity.ToTable("team_rating_changes");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+
+                entity.HasOne(c => c.Team)
+                    .WithMany()
+                    .HasForeignKey(c => c.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(c => c.Match)
+                    .WithMany()
+                    .HasForeignKey(c => c.MatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Саме цей індекс робить подвійне нарахування неможливим:
+                // сервіс перевіряє наявність рядка перед нарахуванням, а індекс
+                // ловить те, що прослизнуло повз перевірку через гонку.
+                entity.HasIndex(c => new { c.TeamId, c.MatchId }).IsUnique();
+            });
+
+            modelBuilder.Entity<PlayerRatingChange>(entity =>
+            {
+                entity.ToTable("player_rating_changes");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+
+                entity.HasOne(c => c.Player)
+                    .WithMany()
+                    .HasForeignKey(c => c.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(c => c.Match)
+                    .WithMany()
+                    .HasForeignKey(c => c.MatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(c => new { c.PlayerId, c.MatchId }).IsUnique();
             });
         }
     }

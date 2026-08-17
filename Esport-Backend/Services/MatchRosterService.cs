@@ -12,11 +12,13 @@ namespace TForge.Services
     public class MatchRosterService : IMatchRosterService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IRatingService _ratingService;
         private readonly IMapper _mapper;
 
-        public MatchRosterService(IUnitOfWork unitOfWork, IMapper mapper)
+        public MatchRosterService(IUnitOfWork unitOfWork, IRatingService ratingService, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _ratingService = ratingService;
             _mapper = mapper;
         }
 
@@ -135,6 +137,12 @@ namespace TForge.Services
         /// Переносить результат завершеного матчу в карʼєрну статистику гравців.
         /// Якщо ростер не заповнювали, створюємо його зараз — так MatchPlayer лишається
         /// повним записом участі, а поточний склад команди не переписує минуле.
+        ///
+        /// Тут же нараховується рейтинг: це єдина точка, у якій завершений матч
+        /// перетворюється на карʼєрні показники, і кличуть її з одного місця
+        /// (MatchService.CompleteMatchAsync), тож другого шляху завершити матч
+        /// без рейтингу не існує. Порядок не випадковий — рейтинг роздається
+        /// по рядках ростера, а вони мають існувати на цей момент.
         /// </summary>
         public async Task ApplyMatchResultAsync(Match match)
         {
@@ -170,6 +178,8 @@ namespace TForge.Services
             }
 
             await _unitOfWork.SaveChangesAsync();
+
+            await _ratingService.RateMatchAsync(match);
         }
 
         /// <summary>Створює порожні рядки ростера для активних гравців обох команд.</summary>

@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Anvil, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
+import { teamsApi } from "../../api/teamsApi";
 import { ChallengeIndicator } from "./ChallengeIndicator";
 import { Avatar } from "../ui/Avatar";
+import type { TeamRowDto } from "../../types";
 
 const navItems = [
   { to: "/", label: "Огляд", icon: LayoutGrid, end: true },
@@ -24,15 +26,47 @@ const roleLabels: Record<string, string> = {
 };
 
 export const AppShell = () => {
-  const { user, logout, hydrate, previewRole, setPreviewRole } = useAuthStore();
+  const {
+    user,
+    logout,
+    hydrate,
+    previewRole,
+    setPreviewRole,
+    previewCaptainTeamId,
+    setPreviewCaptainTeamId
+  } = useAuthStore();
   const effectiveRole = useEffectiveRole();
   const isPreviewing = useIsPreviewing();
   // Навмисно читаємо справжню роль: показувати сам перемикач можна лише адміну.
   const isRealAdmin = user?.role === "Admin";
 
+  const [teams, setTeams] = useState<TeamRowDto[]>([]);
+
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  // Список команд потрібен лише для перемикача капітана, тож вантажимо
+  // його тільки адміністраторові.
+  useEffect(() => {
+    if (!isRealAdmin) {
+      setTeams([]);
+      return;
+    }
+
+    let isActive = true;
+
+    teamsApi
+      .getPaged({ page: 1, pageSize: 100, sortBy: "name", sortDirection: "asc" })
+      .then((response) => isActive && setTeams(response.data))
+      .catch(() => isActive && setTeams([]));
+
+    return () => {
+      isActive = false;
+    };
+  }, [isRealAdmin]);
+
+  const previewedTeam = teams.find((team) => team.id === previewCaptainTeamId);
 
   const visibleItems = navItems.filter((item) => !item.adminOnly || effectiveRole === "Admin");
   const initials = user ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.trim() || user.username[0] : "?";
@@ -102,6 +136,26 @@ export const AppShell = () => {
                   </option>
                 ))}
               </select>
+
+              {/* Капітанство — це не роль, а звʼязок із командою, тож його
+                  не виразити рольовим списком: потрібна конкретна команда. */}
+              <label className="eyebrow mb-2 mt-3 block" htmlFor="captain-preview">
+                Як капітан
+              </label>
+              <select
+                id="captain-preview"
+                value={previewCaptainTeamId || ""}
+                onChange={(event) => setPreviewCaptainTeamId(Number(event.target.value) || 0)}
+                className="input text-micro"
+                style={{ height: "2rem" }}
+              >
+                <option value="">Мої команди</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name} ({team.tag})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -136,10 +190,26 @@ export const AppShell = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2.5">
               <span className="text-micro text-text">
                 Режим розробника: інтерфейс показано як{" "}
-                <strong className="font-semibold">{roleLabels[effectiveRole] ?? effectiveRole}</strong>. Запити
-                до сервера й далі йдуть від вашого акаунта.
+                <strong className="font-semibold">{roleLabels[effectiveRole] ?? effectiveRole}</strong>
+                {previewCaptainTeamId > 0 && (
+                  <>
+                    {" "}
+                    — капітан команди{" "}
+                    <strong className="font-semibold">
+                      {previewedTeam ? previewedTeam.name : `#${previewCaptainTeamId}`}
+                    </strong>
+                  </>
+                )}
+                . Запити до сервера й далі йдуть від вашого акаунта.
               </span>
-              <button type="button" onClick={() => setPreviewRole("")} className="btn btn-ghost btn-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewRole("");
+                  setPreviewCaptainTeamId(0);
+                }}
+                className="btn btn-ghost btn-sm"
+              >
                 Вимкнути
               </button>
             </div>

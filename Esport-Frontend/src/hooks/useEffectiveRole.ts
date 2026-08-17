@@ -27,9 +27,38 @@ export const useIsRole = (...roles: string[]): boolean => {
   return roles.includes(effectiveRole);
 };
 
+/**
+ * Чи є поточний користувач капітаном цієї команди — з урахуванням режиму
+ * розробника.
+ *
+ * Капітанство не є роллю: у моделі це Team.CaptainId, тобто звʼязок із
+ * конкретною командою. Тому рольовий перемикач його не виражає, і адміністратор
+ * обирає команду окремо. Підміна діє лише в інтерфейсі: запити й далі йдуть від
+ * справжнього адміністратора, у якого права на ці дії є й без неї.
+ *
+ * Це навмисний виняток із правила «власника звіряй за справжнім id»: тут
+ * підміна нічого не відкриває, бо доступна лише адміністраторові й нічого не
+ * додає до його прав на сервері.
+ */
+export const useIsCaptainOf = (
+  teamId: number | null | undefined,
+  teamCaptainId: number | null | undefined
+): boolean => {
+  const user = useAuthStore((state) => state.user);
+  const previewCaptainTeamId = useAuthStore((state) => state.previewCaptainTeamId);
+
+  // Під час підміни капітанською вважається рівно одна команда — обрана.
+  if (user?.role === "Admin" && previewCaptainTeamId > 0) {
+    return teamId === previewCaptainTeamId;
+  }
+
+  return Boolean(user && teamCaptainId != null && user.id === teamCaptainId);
+};
+
 /** Чи активний режим розробника — потрібно для банера. */
 export const useIsPreviewing = (): boolean => {
   const user = useAuthStore((state) => state.user);
   const previewRole = useAuthStore((state) => state.previewRole);
-  return user?.role === "Admin" && Boolean(previewRole);
+  const previewCaptainTeamId = useAuthStore((state) => state.previewCaptainTeamId);
+  return user?.role === "Admin" && (Boolean(previewRole) || previewCaptainTeamId > 0);
 };

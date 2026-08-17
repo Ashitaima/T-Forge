@@ -191,6 +191,12 @@ namespace TForge.Services
             await _unitOfWork.Matches.AddAsync(match);
             await _unitOfWork.SaveChangesAsync();
 
+            // Склад проставляється одразу: ростер матчу — це нормальний
+            // стартовий стан, а не те, що організатор має згадати заповнити.
+            // Кнопка «Заповнити зі складів» лишається, щоб підтягнути новачків
+            // після трансферу — повторний виклик уже доданих не чіпає.
+            await _rosterService.AutoFillAsync(match.Id);
+
             return _mapper.Map<MatchDto>(match);
         }
 

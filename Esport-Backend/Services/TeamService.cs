@@ -101,6 +101,11 @@ namespace TForge.Services
                 query = query.Where(t => t.Name.Contains(request.Search) || t.Tag.Contains(request.Search));
             }
 
+            // Захоплюємо запит окремою змінною: EF перекладає корельований
+            // підзапит по DbSet того самого контексту, але тільки якщо це
+            // готовий IQueryable, а не виклик методу всередині дерева виразів.
+            var ratings = _unitOfWork.TeamRatings.GetQueryable();
+
             var rows = query.Select(t => new TeamRowDto
             {
                 Id = t.Id,
@@ -126,7 +131,19 @@ namespace TForge.Services
                          + t.AwayMatches.Count(m =>
                              m.Status == MatchStatus.Completed
                              && m.WinnerTeamId == t.Id
-                             && m.MatchType == MatchTypes.Final)
+                             && m.MatchType == MatchTypes.Final),
+                // Рейтинг ведеться окремо для кожної дисципліни, а в рядку
+                // списку є місце лише для одного числа — показуємо найкраще.
+                Rating = ratings
+                    .Where(r => r.TeamId == t.Id)
+                    .OrderByDescending(r => r.Rating)
+                    .Select(r => (int?)r.Rating)
+                    .FirstOrDefault(),
+                RatingGame = ratings
+                    .Where(r => r.TeamId == t.Id)
+                    .OrderByDescending(r => r.Rating)
+                    .Select(r => r.Game)
+                    .FirstOrDefault()
             });
 
             rows = ApplyTeamSort(rows, request.SortBy, request.SortDirection);
@@ -140,6 +157,7 @@ namespace TForge.Services
                 row.WinRate = row.Played == 0
                     ? 0
                     : Math.Round((decimal)row.Wins / row.Played * 100, 1);
+                row.RatingTier = row.Rating == null ? null : EloCalculator.Tier(row.Rating.Value);
             }
 
             return new PagedResponse<TeamRowDto>
@@ -183,6 +201,12 @@ namespace TForge.Services
                 TeamSortKeys.Titles => descending
                     ? rows.OrderByDescending(r => r.Titles)
                     : rows.OrderBy(r => r.Titles),
+                // Без рейтингу — це нуль, а не «невідомо»: інакше Postgres
+                // ставив би NULL першими при спаданні, і на чолі драбини
+                // опинилися б команди, що не зіграли жодного турнірного матчу.
+                TeamSortKeys.Rating => descending
+                    ? rows.OrderByDescending(r => r.Rating ?? 0)
+                    : rows.OrderBy(r => r.Rating ?? 0),
                 _ => rows
                     .OrderByDescending(r => r.Titles)
                     .ThenByDescending(r => r.Wins)

@@ -17,11 +17,16 @@ namespace TForge.Services
     public class BracketService : IBracketService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMatchRosterService _rosterService;
         private readonly ILogger<BracketService> _logger;
 
-        public BracketService(IUnitOfWork unitOfWork, ILogger<BracketService> logger)
+        public BracketService(
+            IUnitOfWork unitOfWork,
+            IMatchRosterService rosterService,
+            ILogger<BracketService> logger)
         {
             _unitOfWork = unitOfWork;
+            _rosterService = rosterService;
             _logger = logger;
         }
 
@@ -75,6 +80,8 @@ namespace TForge.Services
             _unitOfWork.Tournaments.Update(tournament);
 
             await _unitOfWork.SaveChangesAsync();
+
+            await FillRostersAsync(matches);
 
             _logger.LogInformation(
                 "Згенеровано сітку турніру {TournamentId}: {Teams} команд, {Matches} матчів у раунді 1",
@@ -194,9 +201,24 @@ namespace TForge.Services
             await _unitOfWork.Matches.AddRangeAsync(nextMatches);
             await _unitOfWork.SaveChangesAsync();
 
+            await FillRostersAsync(nextMatches);
+
             _logger.LogInformation(
                 "Турнір {TournamentId}: створено раунд {Round} ({Count} матчів)",
                 tournament.Id, nextRound, nextMatches.Count);
+        }
+
+        /// <summary>
+        /// Склади проставляються одразу після створення матчів сітки — так само,
+        /// як для матчу, створеного вручну. Інакше половина розкладу турніру
+        /// приходила б із порожнім ростером.
+        /// </summary>
+        private async Task FillRostersAsync(IEnumerable<Match> matches)
+        {
+            foreach (var match in matches)
+            {
+                await _rosterService.AutoFillAsync(match.Id);
+            }
         }
 
         private static bool IsPowerOfTwo(int value) => value > 0 && (value & (value - 1)) == 0;

@@ -75,6 +75,10 @@ dotnet ef database drop -f
 - **A match carries two optional external links, validated by different rules.** `Match.StreamUrl` is host-allow-listed in `Common/StreamUrlRules.cs` and compared by exact host match — never `Contains("twitch.tv")`, since `twitch.tv.evil.com` contains it. `Match.TrackerUrl` (the post-match stats page: tracker.gg, HLTV, Dotabuff, OP.GG) is deliberately **not** host-restricted, because every discipline has its own tracker; `Common/TrackerUrlRules.cs` requires https, a real host and ≤300 chars. Both are set through `PUT /api/matches/{id}/links`, and the tracker one can also be supplied when completing a match.
 - **Paginated lists use `hooks/usePagedList.ts`.** Its `resetKey` must contain every value the fetch closure captures (search term, entity id). Get that wrong and the list silently stops refreshing.
 
+- **Rating arithmetic lives in `Common/EloCalculator.cs`**, alongside the record calculators — pure, no EF. `Services/RatingService.cs` only reads and writes rows. Rating is per `(subject, game)`; only tournament matches with a winner count, so a friendly never moves it. The `TeamRatingChanges`/`PlayerRatingChanges` ledger is what makes double-counting structurally impossible: the service checks for an existing row before rating, and the unique `(TeamId, MatchId)` index catches anything that slips past. Rating hooks into `MatchRosterService.ApplyMatchResultAsync` *after* the roster is materialised — players are paid from `MatchPlayer.TeamId`, so those rows must exist first.
+- **Country is an ISO 3166-1 alpha-2 code, not a name.** `Common/Countries.cs` holds the codes; the Ukrainian labels and the flag live in `Esport-Frontend/src/constants/countries.ts`, same split as `Games`. `PlayerRules.PlayerCountry` whitelists them — free text can't produce a flag. `DatabaseInitializer.NormalizeLegacyCountriesAsync` translates known old names once and leaves unknown ones alone rather than wiping them. Flags are emoji: Windows lacks the glyphs and renders the two letters instead, which is why the code or name always sits next to the flag.
+- **Date and time are picked with `components/ui/DateTimePicker.tsx`**, never `input[type=datetime-local]` — its segment-by-segment mask was the complaint that prompted the change. `mode="date"` drops the time half. The emitted string matches the native control's, so form wiring is unchanged, and the text field still accepts typing.
+
 ## Current state
 
 Branch `feature/scope-phase1-accounts-roles` implements Phases 1 and 2 of the `Scope.md` work: registration restricted to Player/Organizer with an auto-created player profile, an Admin-only full-account endpoint, a `/profile` page, Admin-only developer mode, and the game catalog with match filtering. **Nothing is committed** — the repo owner commits manually.
@@ -87,7 +91,18 @@ Phase 4 is done: the shadow foreign keys are repaired (**five** columns, not the
 
 Phase 5 is done: avatars (upload, serve, remove) and stream links, with the matches page subscribing to `MatchHub` so live scores tick without a refresh.
 
-**All of `Scope.md` is now implemented.** The design is `docs/superpowers/specs/2026-08-16-scope-features-design.md`, with per-phase plans alongside it in `docs/superpowers/plans/`.
+**All of `Scope.md` is now implemented** — including the second round of eight items (2026-08-17):
+
+1. Developer mode gained a team picker: an Admin can view the app as a given team's captain. Captaincy is `Team.CaptainId`, not a role, so the role dropdown could not express it. Read it through `hooks/useEffectiveRole.ts` → `useIsCaptainOf(teamId, teamCaptainId)`.
+2. The matches page splits on two axes: **Турніри / Практичні** as tabs (the real distinction — friendlies give no titles and no rating), with Заплановані / Зіграні as a switch inside each.
+3. Date and time are picked with `DateTimePicker`, not the native mask.
+4. Player countries are ISO codes with flags.
+5. Rosters auto-fill the moment a match is created — all four paths (`MatchService.CreateAsync`, both `BracketService` paths, `MatchChallengeService.AcceptAsync`). The manual button stays for topping up after transfers.
+6. Tournaments have `IsInviteOnly`. `TournamentInvitation` + `Common/TournamentInvitationPolicy.cs` mirror the membership-request pattern: organizers invite, captains apply, and `CanRegisterDirectly` is what closes self-registration on a closed tournament.
+7. Status is gone from tournament creation — the server always starts one at `Registration`. The field appears only when editing.
+8. An empty discipline now reads «Оберіть дисципліну». The fix is a zod `errorMap`, not `required_error`: an empty `<select>` is an invalid enum value, not a missing field, so `required_error` never fired.
+
+Plus the ranked ladder from `docs/superpowers/specs/2026-08-16-elo-ranked-ladder-design.md`: Elo per team and player per discipline, an append-only ledger, tier badges, sortable rating columns in both lists, rating panels with a sparkline on both profiles, and a per-match delta on the match page. Backfill replays completed tournament matches on startup through the production calculator.
 
 Captains now also run their own friendly matches: start, score, complete and the stream link. `Common/FriendlyMatchPolicy.cs` decides who may — organizers and admins keep their rights over every match, while a *friendly* may additionally be run by either team's captain. A captain still cannot touch a tournament match, which would let them award themselves a title.
 
@@ -96,10 +111,11 @@ Captains now also run their own friendly matches: start, score, complete and the
 1. **Security, mostly untouched.** Passwords are SHA-256 with one shared salt (`Services/PasswordHasher.cs` — deliberately isolated so swapping in BCrypt is a one-file change). JWT signing key and DB password are committed in `appsettings.json`. No refresh tokens; logout is a no-op. Organizers can edit *any* tournament — `OrganizerId` is never compared to the caller. *Fixed:* public registration no longer accepts `Role: "Admin"` — `RegisterValidator` restricts it to `UserRoles.SelfService`.
 2. **Counter drift.** Editing a match roster after completion, or re-completing a match via `PUT` (`MatchService.UpdateAsync` maps `Status`/`WinnerTeamId` straight through), desynchronises the cached `Player.*` counters from the derived statistics. Needs status guards on those endpoints.
 3. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-4. **Test coverage is 186 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+4. **Test coverage is 273 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+5. **Rating survives a corrected result badly.** Flipping a completed match's winner through `UpdateAsync` leaves the ledger holding the original outcome: the guard stops a second charge but nothing reverses the first. Fixing it properly needs compensating entries, and it is the same problem as the counter drift in item 2 — worth doing together.
 
 ## Suggested next work
 
-Security (item 1) is the highest value and splits cleanly: BCrypt via the existing `IPasswordHasher`; move secrets to user-secrets/env; add tournament ownership checks. (Registration roles are already restricted.) Item 2 is a small, well-understood follow-up. Beyond fixes, the unbuilt features worth considering are double-elimination or group-stage brackets, and team logos (there is no image handling anywhere yet).
+Security (item 1) is the highest value and splits cleanly: BCrypt via the existing `IPasswordHasher`; move secrets to user-secrets/env; add tournament ownership checks. (Registration roles are already restricted.) Items 2 and 5 are the same bug wearing two hats and should be fixed together. Beyond fixes, the unbuilt features worth considering are double-elimination or group-stage brackets, and team logos (avatars already show how file handling works here).
 
 Design specs and implementation plans for completed work live in `docs/superpowers/` and are worth reading before extending those areas.

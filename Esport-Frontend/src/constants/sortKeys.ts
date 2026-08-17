@@ -13,7 +13,8 @@ export const PLAYER_SORT_KEYS = [
   "matches",
   "wins",
   "winRate",
-  "kda"
+  "kda",
+  "rating"
 ] as const;
 
 export const TEAM_SORT_KEYS = [
@@ -23,7 +24,8 @@ export const TEAM_SORT_KEYS = [
   "played",
   "wins",
   "winRate",
-  "titles"
+  "titles",
+  "rating"
 ] as const;
 
 export type PlayerSortKey = (typeof PLAYER_SORT_KEYS)[number];

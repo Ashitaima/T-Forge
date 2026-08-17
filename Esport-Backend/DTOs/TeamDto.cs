@@ -46,6 +46,14 @@ namespace TForge.DTOs
         public int Losses { get; set; }
         public decimal WinRate { get; set; }
         public int Titles { get; set; }
+
+        /// <summary>
+        /// Найвищий рейтинг команди серед дисциплін, або null для команди без
+        /// турнірних матчів — вона показується як «без рейтингу».
+        /// </summary>
+        public int? Rating { get; set; }
+        public string? RatingGame { get; set; }
+        public string? RatingTier { get; set; }
     }
 
     public class CreateTeamDto

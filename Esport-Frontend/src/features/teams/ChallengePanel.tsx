@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { matchChallengesApi } from "../../api/matchChallengesApi";
 import { teamsApi } from "../../api/teamsApi";
 import { GAMES, GAME_LABELS, gameLabel } from "../../constants/games";
+import { DateTimePicker } from "../../components/ui/DateTimePicker";
 import type { MatchChallengeDto, TeamRowDto } from "../../types";
 
 const FORMATS = ["BO1", "BO3", "BO5"] as const;
@@ -23,7 +24,7 @@ const formatDateTime = (value: string) =>
     minute: "2-digit"
   });
 
-/** Значення для input[type=datetime-local] — рівно за годину від зараз. */
+/** Значення для DateTimePicker — рівно за годину від зараз. */
 const defaultProposedAt = () => {
   const when = new Date(Date.now() + 60 * 60 * 1000);
   const offset = when.getTimezoneOffset() * 60 * 1000;
@@ -276,15 +277,17 @@ export const ChallengePanel = ({ teamId, isCaptain, isAdmin }: Props) => {
             </label>
           </div>
 
-          <label className="field">
+          <div className="field">
             Час матчу
-            <input
-              type="datetime-local"
-              value={proposedAt}
-              onChange={(event) => setProposedAt(event.target.value)}
-              className="input"
-            />
-          </label>
+            <div className="mt-1.5">
+              <DateTimePicker
+                ariaLabel="Запропонований час матчу"
+                minDate={new Date().toISOString().slice(0, 10)}
+                value={proposedAt}
+                onChange={setProposedAt}
+              />
+            </div>
+          </div>
 
           <label className="field">
             Повідомлення

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { playersApi } from "../../api/playersApi";
+import { COUNTRY_CODES, COUNTRY_NAMES, countryFlag } from "../../constants/countries";
 import {
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
@@ -21,7 +22,11 @@ const schema = z.object({
     .max(NICKNAME_MAX_LENGTH, `Максимум ${NICKNAME_MAX_LENGTH} символів`)
     .regex(NICKNAME_PATTERN, "Лише літери, цифри та підкреслення"),
   position: z.enum(PLAYER_POSITIONS, { required_error: "Оберіть позицію" }),
-  country: z.string().min(2, "Вкажіть країну").max(100, "Максимум 100 символів"),
+  // Країна зберігається кодом ISO — саме з нього виводиться прапор.
+  // Перелік мусить збігатися з Esport-Backend/Common/Countries.cs.
+  country: z
+    .string()
+    .refine((code) => code in COUNTRY_NAMES, { message: "Оберіть країну зі списку" }),
   age: z.coerce
     .number()
     .min(PLAYER_MIN_AGE, `Мінімум ${PLAYER_MIN_AGE} років`)
@@ -183,7 +188,14 @@ const PlayerForm = () => {
         </label>
         <label className="field">
           Країна
-          <input type="text" {...register("country")} className="input" />
+          <select {...register("country")} className="input" defaultValue="">
+            <option value="">Оберіть країну</option>
+            {COUNTRY_CODES.map((code) => (
+              <option key={code} value={code}>
+                {countryFlag(code)} {COUNTRY_NAMES[code]}
+              </option>
+            ))}
+          </select>
           {errors.country && <p className="field-error">{errors.country.message}</p>}
         </label>
         <label className="field">

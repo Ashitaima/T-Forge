@@ -10,9 +10,17 @@ type AuthState = {
   isAuthenticated: boolean;
   /** Режим розробника: роль, під якою адміністратор дивиться інтерфейс. */
   previewRole: string;
+  /**
+   * Режим розробника: команда, капітаном якої адміністратор себе бачить.
+   * Капітанство — це не роль, а звʼязок Team.CaptainId, тож рольовий
+   * перемикач його виразити не може: потрібна конкретна команда.
+   * 0 — підміни немає.
+   */
+  previewCaptainTeamId: number;
   setAuth: (payload: AuthResponseDto) => void;
   setUser: (user: UserInfo) => void;
   setPreviewRole: (role: string) => void;
+  setPreviewCaptainTeamId: (teamId: number) => void;
   hydrate: () => void;
   logout: () => void;
   login: (payload: { username: string; password: string }) => Promise<void>;
@@ -32,6 +40,7 @@ export const authStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   previewRole: "",
+  previewCaptainTeamId: 0,
   setAuth: (payload) => {
     localStorage.setItem("etm_token", payload.token);
     localStorage.setItem("etm_user", JSON.stringify(payload.user));
@@ -45,6 +54,9 @@ export const authStore = create<AuthState>((set, get) => ({
   // Режим розробника підміняє роль лише в інтерфейсі. Токен, який іде до API,
   // залишається справжнім — підмінити права на сервері звідси неможливо.
   setPreviewRole: (role) => set({ previewRole: role }),
+  // Так само лише в інтерфейсі: запити до API йдуть від справжнього
+  // адміністратора, у якого права на ці дії й так є.
+  setPreviewCaptainTeamId: (teamId) => set({ previewCaptainTeamId: teamId }),
   hydrate: () => {
     const token = localStorage.getItem("etm_token");
     const userRaw = localStorage.getItem("etm_user");
@@ -55,7 +67,13 @@ export const authStore = create<AuthState>((set, get) => ({
     localStorage.removeItem("etm_token");
     localStorage.removeItem("etm_user");
     localStorage.removeItem("etm_expires");
-    set({ token: null, user: null, isAuthenticated: false, previewRole: "" });
+    set({
+      token: null,
+      user: null,
+      isAuthenticated: false,
+      previewRole: "",
+      previewCaptainTeamId: 0
+    });
   },
   login: async ({ username, password }) => {
     const response = await authApi.login({ username, password });

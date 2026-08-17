@@ -34,6 +34,8 @@ export type TournamentDto = {
   status: string;
   prizePool: number;
   isActive: boolean;
+  /** Закритий турнір: склад учасників визначає організатор. */
+  isInviteOnly: boolean;
   createdAt: string;
   organizer?: UserDto | null;
 };
@@ -46,8 +48,10 @@ export type CreateTournamentDto = {
   endDate: string;
   maxTeams: number;
   prizePool: number;
+  isInviteOnly: boolean;
   /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
   organizerId?: number | null;
+  // Статус новоствореного турніру завжди «Реєстрація» — його проставляє сервер.
 };
 
 export type UpdateTournamentDto = {
@@ -57,6 +61,7 @@ export type UpdateTournamentDto = {
   endDate: string;
   maxTeams: number;
   prizePool: number;
+  isInviteOnly: boolean;
   status: string;
 };
 
@@ -141,6 +146,10 @@ export type PlayerRowDto = {
   deaths: number;
   assists: number;
   kda: number;
+  /** Найкращий рейтинг серед дисциплін, або null — гравець без турнірних матчів. */
+  rating: number | null;
+  ratingGame: string | null;
+  ratingTier: string | null;
 };
 
 export type TeamRowDto = {
@@ -157,6 +166,10 @@ export type TeamRowDto = {
   losses: number;
   winRate: number;
   titles: number;
+  /** Найкращий рейтинг серед дисциплін, або null — команда без турнірних матчів. */
+  rating: number | null;
+  ratingGame: string | null;
+  ratingTier: string | null;
 };
 
 export type CreatePlayerDto = {
@@ -335,6 +348,61 @@ export type PlayerProfileDto = {
   deaths: number;
   assists: number;
   kda: number;
+  /** Рейтинг за кожною дисципліною, у якій гравець грав турнірні матчі. */
+  ratings: RatingDto[];
+};
+
+/** Рейтинг в одній дисципліні. Порожній список = гравець ще без рейтингу. */
+export type RatingDto = {
+  game: string;
+  rating: number;
+  peak: number;
+  matchesRated: number;
+  tier: string;
+  updatedAt: string;
+};
+
+/** Точка на графіку рейтингу — одна зміна за один матч. */
+export type RatingChangeDto = {
+  matchId: number;
+  game: string;
+  delta: number;
+  ratingBefore: number;
+  ratingAfter: number;
+  createdAt: string;
+  opponentName: string | null;
+  tournamentName: string | null;
+  matchType: string;
+};
+
+/** Зміна рейтингу обох команд у конкретному матчі. */
+export type MatchRatingDeltaDto = {
+  matchId: number;
+  game: string;
+  homeDelta: number | null;
+  awayDelta: number | null;
+};
+
+export type TournamentInvitationDirection = "Invite" | "Application";
+
+export type TournamentInvitationStatus = "Pending" | "Accepted" | "Declined" | "Cancelled";
+
+export type TournamentInvitationDto = {
+  id: number;
+  tournamentId: number;
+  tournamentName: string;
+  tournamentGame: string;
+  teamId: number;
+  teamName: string;
+  teamTag: string;
+  /** Потрібні клієнту, щоб показати дії саме тій стороні, яка має відповідати. */
+  teamCaptainId: number;
+  organizerId: number;
+  direction: TournamentInvitationDirection;
+  status: TournamentInvitationStatus;
+  message: string;
+  createdAt: string;
+  respondedAt: string | null;
 };
 
 export type PlayerMatchDto = {

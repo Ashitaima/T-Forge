@@ -16,11 +16,16 @@ namespace TForge.Services
     public class MatchChallengeService : IMatchChallengeService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMatchRosterService _rosterService;
         private readonly IMapper _mapper;
 
-        public MatchChallengeService(IUnitOfWork unitOfWork, IMapper mapper)
+        public MatchChallengeService(
+            IUnitOfWork unitOfWork,
+            IMatchRosterService rosterService,
+            IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _rosterService = rosterService;
             _mapper = mapper;
         }
 
@@ -121,6 +126,11 @@ namespace TForge.Services
                 challenge.MatchId = match.Id;
 
                 await _unitOfWork.SaveChangesAsync();
+
+                // Склад проставляється одразу, як і для турнірного матчу:
+                // капітани приймають виклик і бачать готовий ростер.
+                await _rosterService.AutoFillAsync(match.Id);
+
                 await _unitOfWork.CommitTransactionAsync();
 
                 return await LoadDtoAsync(challenge.Id);

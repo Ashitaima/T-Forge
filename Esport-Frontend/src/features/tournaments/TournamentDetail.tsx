@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, Lock, Users } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { teamsApi } from "../../api/teamsApi";
+import { tournamentInvitationsApi } from "../../api/tournamentInvitationsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { useAuthStore } from "../../store/authStore";
 import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import { BracketView } from "./BracketView";
-import type { MatchDto,
-  TeamRowDto, TeamSummaryDto, TournamentDto, TournamentStandingDto } from "../../types";
+import type { MatchDto, TeamRowDto, TeamSummaryDto, TournamentDto,
+  TournamentInvitationDto, TournamentStandingDto } from "../../types";
 
 const TournamentDetail = () => {
   const { id } = useParams();
@@ -21,7 +22,10 @@ const TournamentDetail = () => {
   const [registered, setRegistered] = useState<TeamSummaryDto[]>([]);
   const [allTeams, setAllTeams] = useState<TeamRowDto[]>([]);
   const [standings, setStandings] = useState<TournamentStandingDto[]>([]);
+  const [invitations, setInvitations] = useState<TournamentInvitationDto[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
+  const [inviteTeam, setInviteTeam] = useState("");
+  const [applyTeam, setApplyTeam] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,18 +45,23 @@ const TournamentDetail = () => {
 
     setLoading(true);
     try {
-      const [tournamentData, matchesData, registeredData, teamsData, standingsData] = await Promise.all([
-        tournamentsApi.getById(tournamentId),
-        matchesApi.getPaged({ page: 1, pageSize: 64, tournamentId }),
-        tournamentsApi.getRegisteredTeams(tournamentId).catch(() => [] as TeamSummaryDto[]),
-        teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamRowDto[]),
-        tournamentsApi.getStandings(tournamentId).catch(() => [] as TournamentStandingDto[])
-      ]);
+      const [tournamentData, matchesData, registeredData, teamsData, standingsData, invitationData] =
+        await Promise.all([
+          tournamentsApi.getById(tournamentId),
+          matchesApi.getPaged({ page: 1, pageSize: 64, tournamentId }),
+          tournamentsApi.getRegisteredTeams(tournamentId).catch(() => [] as TeamSummaryDto[]),
+          teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamRowDto[]),
+          tournamentsApi.getStandings(tournamentId).catch(() => [] as TournamentStandingDto[]),
+          tournamentInvitationsApi
+            .getForTournament(tournamentId, "Pending")
+            .catch(() => [] as TournamentInvitationDto[])
+        ]);
       setTournament(tournamentData);
       setMatches(matchesData.data);
       setRegistered(registeredData);
       setAllTeams(teamsData);
       setStandings(standingsData);
+      setInvitations(invitationData);
     } finally {
       setLoading(false);
     }
@@ -84,6 +93,23 @@ const TournamentDetail = () => {
     [allTeams, registered]
   );
 
+  // Кого ще можна запросити: не зареєстрованих і без відкритого запиту —
+  // повторне запрошення сервер усе одно відхилить.
+  const invitableTeams = useMemo(
+    () => availableTeams.filter((team) => !invitations.some((i) => i.teamId === team.id)),
+    [availableTeams, invitations]
+  );
+
+  // Команди, за які може подати заявку саме цей користувач.
+  const myTeams = useMemo(
+    () => invitableTeams.filter((team) => team.captainId === user?.id),
+    [invitableTeams, user?.id]
+  );
+
+  const incomingApplications = invitations.filter((i) => i.direction === "Application");
+  const sentInvitations = invitations.filter((i) => i.direction === "Invite");
+
+  const isInviteOnly = Boolean(tournament?.isInviteOnly);
   const hasBracket = matches.some((match) => match.round > 0);
   const slotsLeft = tournament ? tournament.maxTeams - registered.length : 0;
 
@@ -105,6 +131,12 @@ const TournamentDetail = () => {
       {tournament && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <StatusPill status={tournament.status} />
+          {isInviteOnly && (
+            <span className="pill pill-neutral" title="Склад учасників визначає організатор">
+              <Lock className="h-3 w-3" />
+              Тільки за запрошеннями
+            </span>
+          )}
           <span className="flex items-center gap-2 text-body text-text-muted">
             <Users className="h-4 w-4 text-text-faint" />
             <span className="tabular font-mono text-text">
@@ -220,7 +252,10 @@ const TournamentDetail = () => {
           )}
         </div>
 
-        {isRegistrationOpen && (
+        {/* На відкритому турнірі капітан реєструє команду одним рухом. На
+            закритому пряма реєстрація лишається тільки в організатора —
+            решта проходить через запрошення чи заявку. */}
+        {isRegistrationOpen && (!isInviteOnly || canManage) && (
           <div className="flex flex-wrap gap-3 border-b border-line-soft px-5 py-4">
             <label className="sr-only" htmlFor="team-picker">
               Команда для реєстрації
@@ -250,6 +285,41 @@ const TournamentDetail = () => {
               className="btn btn-primary"
             >
               Зареєструвати
+            </button>
+          </div>
+        )}
+
+        {/* Капітан на закритому турнірі: подати заявку */}
+        {isRegistrationOpen && isInviteOnly && !canManage && myTeams.length > 0 && (
+          <div className="flex flex-wrap gap-3 border-b border-line-soft px-5 py-4">
+            <label className="sr-only" htmlFor="apply-picker">
+              Команда для заявки
+            </label>
+            <select
+              id="apply-picker"
+              value={applyTeam}
+              onChange={(event) => setApplyTeam(event.target.value)}
+              className="input min-w-[15rem] flex-1"
+            >
+              <option value="">Оберіть свою команду</option>
+              {myTeams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name} ({team.tag})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!applyTeam || busy}
+              onClick={() =>
+                run(
+                  () => tournamentInvitationsApi.apply(tournamentId, Number(applyTeam)),
+                  "Заявку надіслано — очікуйте рішення організатора"
+                ).then(() => setApplyTeam(""))
+              }
+              className="btn btn-primary"
+            >
+              Подати заявку
             </button>
           </div>
         )}
@@ -293,6 +363,134 @@ const TournamentDetail = () => {
           )}
         </div>
       </section>
+
+      {/* Запрошення та заявки — інструмент організатора, тож і панель його. */}
+      {canManage && isRegistrationOpen && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2 className="section-title">Запрошення та заявки</h2>
+            <span className="font-mono text-micro text-text-faint">{invitations.length}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-3 border-b border-line-soft px-5 py-4">
+            <label className="sr-only" htmlFor="invite-picker">
+              Команда для запрошення
+            </label>
+            <select
+              id="invite-picker"
+              value={inviteTeam}
+              onChange={(event) => setInviteTeam(event.target.value)}
+              className="input min-w-[15rem] flex-1"
+            >
+              <option value="">Оберіть команду</option>
+              {invitableTeams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name} ({team.tag})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!inviteTeam || busy || slotsLeft <= 0}
+              onClick={() =>
+                run(
+                  () => tournamentInvitationsApi.invite(tournamentId, Number(inviteTeam)),
+                  "Запрошення надіслано"
+                ).then(() => setInviteTeam(""))
+              }
+              className="btn btn-secondary"
+            >
+              Запросити
+            </button>
+          </div>
+
+          <div className="panel-body space-y-5">
+            <div>
+              <div className="eyebrow mb-1">Заявки від команд</div>
+              {incomingApplications.length === 0 ? (
+                <p className="muted text-micro">Нових заявок немає.</p>
+              ) : (
+                incomingApplications.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="surface-raised mt-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/teams/${invitation.teamId}`}
+                        className="truncate text-body font-medium text-text hover:text-ember"
+                      >
+                        {invitation.teamName}
+                      </Link>
+                      <div className="muted mt-1 font-mono text-micro">{invitation.teamTag}</div>
+                      {invitation.message && (
+                        <div className="muted mt-1 text-micro">{invitation.message}</div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        disabled={busy || slotsLeft <= 0}
+                        className="btn btn-primary btn-sm"
+                        onClick={() =>
+                          run(
+                            () => tournamentInvitationsApi.accept(invitation.id),
+                            "Команду прийнято на турнір"
+                          )
+                        }
+                      >
+                        Прийняти
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="btn btn-ghost btn-sm"
+                        onClick={() =>
+                          run(() => tournamentInvitationsApi.decline(invitation.id), "Заявку відхилено")
+                        }
+                      >
+                        Відхилити
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {sentInvitations.length > 0 && (
+              <div className="border-t border-line-soft pt-4">
+                <div className="eyebrow mb-1">Надіслані запрошення</div>
+                {sentInvitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="surface-raised mt-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/teams/${invitation.teamId}`}
+                        className="truncate text-body font-medium text-text hover:text-ember"
+                      >
+                        {invitation.teamName}
+                      </Link>
+                      <span className="pill mt-1">Очікує відповіді</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="btn btn-ghost btn-sm"
+                      onClick={() =>
+                        run(() => tournamentInvitationsApi.cancel(invitation.id), "Запрошення скасовано")
+                      }
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </>
   );
 };

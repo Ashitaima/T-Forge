@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AlertCircle, BarChart3, Minus, Plus, Radio, Trash2, UserPlus } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
+import { ratingsApi } from "../../api/ratingsApi";
 import { subscribeToMatch } from "../../api/matchHub";
-import { useIsRole } from "../../hooks/useEffectiveRole";
+import { useIsCaptainOf, useIsRole } from "../../hooks/useEffectiveRole";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
-import type { MatchDto, MatchPlayerDto } from "../../types";
+import { RatingDelta } from "../../components/ui/Rating";
+import type { MatchDto, MatchPlayerDto, MatchRatingDeltaDto } from "../../types";
 
 const MatchDetail = () => {
   const { id } = useParams();
@@ -25,18 +27,23 @@ const MatchDetail = () => {
   const [linksSaved, setLinksSaved] = useState(false);
   const [winnerChoice, setWinnerChoice] = useState<string>("");
   const [finishTracker, setFinishTracker] = useState("");
+  const [ratingDelta, setRatingDelta] = useState<MatchRatingDeltaDto | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [matchData, rosterData] = await Promise.all([
+      const [matchData, rosterData, deltaData] = await Promise.all([
         matchesApi.getById(matchId),
-        matchesApi.getRoster(matchId).catch(() => [] as MatchPlayerDto[])
+        matchesApi.getRoster(matchId).catch(() => [] as MatchPlayerDto[]),
+        // Товариський або ще не зіграний матч рейтингу не має — це
+        // нормальний стан, а не помилка.
+        ratingsApi.getMatchDelta(matchId).catch(() => null)
       ]);
       setMatch(matchData);
       setStreamDraft(matchData.streamUrl ?? "");
       setTrackerDraft(matchData.trackerUrl ?? "");
       setRoster(rosterData);
+      setRatingDelta(deltaData);
     } finally {
       setLoading(false);
     }
@@ -112,9 +119,11 @@ const MatchDetail = () => {
   // ньому немає — тож вести його можуть самі капітани. Дзеркалить серверний
   // FriendlyMatchPolicy; сервер усе одно перевіряє це сам.
   const isFriendly = match?.tournamentId === null;
-  const isCaptainHere =
-    Boolean(user) &&
-    (user?.id === match?.homeTeamCaptainId || user?.id === match?.awayTeamCaptainId);
+  // Через хук, щоб діяв режим розробника: адміністратор може подивитися на
+  // матч очима капітана однієї з команд.
+  const isHomeCaptain = useIsCaptainOf(match?.homeTeam?.id, match?.homeTeamCaptainId);
+  const isAwayCaptain = useIsCaptainOf(match?.awayTeam?.id, match?.awayTeamCaptainId);
+  const isCaptainHere = Boolean(user) && (isHomeCaptain || isAwayCaptain);
   const canScore = isStaff || (isFriendly && isCaptainHere);
 
   const isLive = match?.status === "InProgress";
@@ -299,7 +308,10 @@ const MatchDetail = () => {
               <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
                 <div className="text-center sm:text-right">
                   <div className="text-lead font-medium text-text">{match.homeTeam?.name ?? "Очікується"}</div>
-                  <div className="font-mono text-micro text-text-faint">{match.homeTeam?.tag}</div>
+                  <div className="flex items-center justify-center gap-2 sm:justify-end">
+                    <span className="font-mono text-micro text-text-faint">{match.homeTeam?.tag}</span>
+                    <RatingDelta delta={ratingDelta?.homeDelta} />
+                  </div>
                 </div>
 
                 <div className="tabular flex items-center justify-center gap-4 font-mono text-[2.5rem] leading-none text-text">
@@ -314,7 +326,10 @@ const MatchDetail = () => {
 
                 <div className="text-center sm:text-left">
                   <div className="text-lead font-medium text-text">{match.awayTeam?.name ?? "Очікується"}</div>
-                  <div className="font-mono text-micro text-text-faint">{match.awayTeam?.tag}</div>
+                  <div className="flex items-center justify-center gap-2 sm:justify-start">
+                    <span className="font-mono text-micro text-text-faint">{match.awayTeam?.tag}</span>
+                    <RatingDelta delta={ratingDelta?.awayDelta} />
+                  </div>
                 </div>
               </div>
 

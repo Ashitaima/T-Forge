@@ -1,6 +1,7 @@
 using TForge.Common;
 using TForge.Data.Context;
 using TForge.Services;
+using TForge.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace TForge.Data
@@ -14,11 +15,19 @@ namespace TForge.Data
         public static async Task InitializeAsync(
             EsportsDbContext context,
             IPasswordHasher passwordHasher,
+            IRatingService ratingService,
             ILogger logger)
         {
             await ApplyMigrationsAsync(context, logger);
             await NormalizeLegacyStatusesAsync(context, logger);
+            await NormalizeLegacyCountriesAsync(context, logger);
             await DbSeeder.SeedAsync(context, passwordHasher);
+
+            // Драбина програється тим самим калькулятором, що й жива гра, тож
+            // у перший же день видно справжній розклад сил, а не всіх, рівних
+            // базовому рейтингу. Виклик ідемпотентний: уже враховані матчі
+            // відсіює журнал.
+            await ratingService.BackfillAsync();
         }
 
         private static async Task ApplyMigrationsAsync(EsportsDbContext context, ILogger logger)
@@ -90,6 +99,41 @@ namespace TForge.Data
                 logger.LogInformation(
                     "Нормалізовано застарілі статуси: матчів — {Matches}, турнірів — {Tournaments}",
                     fixedMatches, fixedTournaments);
+            }
+        }
+
+        /// <summary>
+        /// Країна тепер зберігається кодом ISO — з нього виводиться прапор.
+        /// Профілі, створені до цього, тримають назву англійською; перекладаємо
+        /// відомі назви один раз, щоб їхній прапор з'явився сам, а не після
+        /// того, як власник відкриє форму. Невідомі значення лишаємо як є:
+        /// стерти чужі дані гірше, ніж показати їх без прапора.
+        /// </summary>
+        private static async Task NormalizeLegacyCountriesAsync(EsportsDbContext context, ILogger logger)
+        {
+            var stored = await context.Players
+                .Where(p => p.Country != "")
+                .Select(p => p.Country)
+                .Distinct()
+                .ToListAsync();
+
+            var replacements = stored
+                .Where(value => !Countries.IsValid(value))
+                .Select(value => new { From = value, To = Countries.ToCode(value) })
+                .Where(pair => pair.To != null)
+                .ToList();
+
+            var updated = 0;
+            foreach (var pair in replacements)
+            {
+                updated += await context.Players
+                    .Where(p => p.Country == pair.From)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.Country, pair.To));
+            }
+
+            if (updated > 0)
+            {
+                logger.LogInformation("Країни переведено на коди ISO: оновлено профілів — {Players}", updated);
             }
         }
     }

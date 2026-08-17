@@ -141,7 +141,7 @@ namespace TForge.Data
                     UserId = users[2].Id, // player1
                     Nickname = "AlexPro",
                     Position = PlayerPositions.Rifler,
-                    Country = "Ukraine",
+                    Country = "UA",
                     Age = 22,
                     TeamId = teams[0].Id, // Phoenix Warriors
                     // Кешовані лічильники мають відповідати рядкам MatchPlayer,
@@ -159,7 +159,7 @@ namespace TForge.Data
                     UserId = users[3].Id, // player2
                     Nickname = "SarahSniper",
                     Position = PlayerPositions.AWPer,
-                    Country = "USA",
+                    Country = "US",
                     Age = 24,
                     TeamId = teams[1].Id, // Dragon Slayers
                     // Кешовані лічильники мають відповідати рядкам MatchPlayer,
@@ -177,7 +177,7 @@ namespace TForge.Data
                     UserId = users[4].Id, // player3
                     Nickname = "MikeElite",
                     Position = PlayerPositions.Entry,
-                    Country = "Canada",
+                    Country = "CA",
                     Age = 21,
                     TeamId = teams[0].Id, // Phoenix Warriors
                     // Кешовані лічильники мають відповідати рядкам MatchPlayer,
@@ -195,7 +195,7 @@ namespace TForge.Data
                     UserId = users[5].Id, // player4
                     Nickname = "EmmaChamp",
                     Position = PlayerPositions.Support,
-                    Country = "Germany",
+                    Country = "DE",
                     Age = 23,
                     TeamId = teams[1].Id, // Dragon Slayers
                     // Кешовані лічильники мають відповідати рядкам MatchPlayer,

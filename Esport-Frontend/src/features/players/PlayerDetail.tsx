@@ -3,12 +3,20 @@ import { Link, useParams } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 import { membershipRequestsApi } from "../../api/membershipRequestsApi";
 import { playersApi } from "../../api/playersApi";
+import { ratingsApi } from "../../api/ratingsApi";
 import { useAuthStore } from "../../store/authStore";
 import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, Skeleton, StatCard } from "../../components/ui/Primitives";
+import { CountryFlag } from "../../components/ui/CountryFlag";
+import { RatingPanel } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
-import type { MembershipRequestDto, PlayerMatchDto, PlayerProfileDto } from "../../types";
+import type {
+  MembershipRequestDto,
+  PlayerMatchDto,
+  PlayerProfileDto,
+  RatingChangeDto
+} from "../../types";
 
 const LOG_PAGE_SIZE = 10;
 
@@ -57,6 +65,27 @@ const PlayerDetail = () => {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  // Історія рейтингу живить графік. Порожня — це нормальний стан: гравець
+  // без турнірних матчів рейтингу не має взагалі.
+  const [ratingHistory, setRatingHistory] = useState<RatingChangeDto[]>([]);
+
+  useEffect(() => {
+    if (Number.isNaN(playerId)) {
+      return;
+    }
+
+    let isActive = true;
+
+    ratingsApi
+      .getPlayerHistory(playerId)
+      .then((data) => isActive && setRatingHistory(data))
+      .catch(() => isActive && setRatingHistory([]));
+
+    return () => {
+      isActive = false;
+    };
+  }, [playerId]);
 
   const {
     items: log,
@@ -198,6 +227,22 @@ const PlayerDetail = () => {
           />
           <StatCard label="KDA" value={profile.kda.toFixed(2)} />
         </div>
+      )}
+
+      {!loading && profile && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2 className="section-title">Рейтинг</h2>
+            {player?.country && <CountryFlag code={player.country} withName />}
+          </div>
+          <div className="panel-body">
+            <RatingPanel
+              ratings={profile.ratings}
+              history={ratingHistory}
+              emptyHint="Він зʼявиться після першого зіграного турнірного матчу — практичні матчі рейтинг не змінюють."
+            />
+          </div>
+        </section>
       )}
 
       <section className="panel">

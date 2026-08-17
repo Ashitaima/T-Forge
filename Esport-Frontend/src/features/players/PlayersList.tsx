@@ -7,6 +7,8 @@ import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
 import { SortableTh, useSortState } from "../../components/ui/SortableTh";
 import { Avatar } from "../../components/ui/Avatar";
+import { CountryFlag } from "../../components/ui/CountryFlag";
+import { RatingCell } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
 import type { PlayerRowDto } from "../../types";
 
@@ -86,6 +88,7 @@ const PlayersList = () => {
                 <SortableTh label="Перемоги" sortKey="wins" align="right" {...sortProps} />
                 <SortableTh label="%" sortKey="winRate" align="right" {...sortProps} />
                 <SortableTh label="KDA" sortKey="kda" align="right" {...sortProps} />
+                <SortableTh label="Рейтинг" sortKey="rating" align="right" {...sortProps} />
                 <th className="w-px" />
               </tr>
             </thead>
@@ -113,7 +116,9 @@ const PlayersList = () => {
                       </Link>
                     </td>
                     <td>{player.position || "—"}</td>
-                    <td>{player.country || "—"}</td>
+                    <td>
+                      <CountryFlag code={player.country} />
+                    </td>
                     <td>
                       {player.teamId ? (
                         <Link to={`/teams/${player.teamId}`} className="hover:text-ember">
@@ -127,6 +132,9 @@ const PlayersList = () => {
                     <td className="tabular text-right font-mono text-micro">{player.wins}</td>
                     <td className="tabular text-right font-mono text-micro">{player.winRate}</td>
                     <td className="tabular text-right font-mono text-micro">{player.kda}</td>
+                    <td className="text-right text-micro">
+                      <RatingCell rating={player.rating} game={player.ratingGame} />
+                    </td>
                     <td>
                       {canEdit && (
                         <div className="row-actions">

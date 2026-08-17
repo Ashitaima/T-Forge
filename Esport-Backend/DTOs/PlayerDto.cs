@@ -52,6 +52,18 @@ namespace TForge.DTOs
         public int Deaths { get; set; }
         public int Assists { get; set; }
         public double Kda { get; set; }
+
+        /// <summary>
+        /// Найвищий рейтинг гравця серед дисциплін, або null — гравець без
+        /// турнірних матчів не має рейтингу взагалі й показується як «без
+        /// рейтингу», а не як фальшива тисяча.
+        /// </summary>
+        public int? Rating { get; set; }
+
+        /// <summary>Дисципліна, до якої належить показаний рейтинг.</summary>
+        public string? RatingGame { get; set; }
+
+        public string? RatingTier { get; set; }
     }
 
     public class CreatePlayerDto
@@ -118,5 +130,8 @@ namespace TForge.DTOs
         public int Deaths { get; set; }
         public int Assists { get; set; }
         public double Kda { get; set; }
+
+        /// <summary>Рейтинг за кожною дисципліною, у якій гравець грав турнірні матчі.</summary>
+        public List<RatingDto> Ratings { get; set; } = new();
     }
 }

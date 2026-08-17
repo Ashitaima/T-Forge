@@ -142,6 +142,14 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.PlayerPosition, opt => opt.MapFrom(src => src.Player.Position))
                 .ForMember(dest => dest.PlayerUserId, opt => opt.MapFrom(src => src.Player.UserId));
 
+            CreateMap<TournamentInvitation, TournamentInvitationDto>()
+                .ForMember(dest => dest.TournamentName, opt => opt.MapFrom(src => src.Tournament.Name))
+                .ForMember(dest => dest.TournamentGame, opt => opt.MapFrom(src => src.Tournament.Game))
+                .ForMember(dest => dest.OrganizerId, opt => opt.MapFrom(src => src.Tournament.OrganizerId))
+                .ForMember(dest => dest.TeamName, opt => opt.MapFrom(src => src.Team.Name))
+                .ForMember(dest => dest.TeamTag, opt => opt.MapFrom(src => src.Team.Tag))
+                .ForMember(dest => dest.TeamCaptainId, opt => opt.MapFrom(src => src.Team.CaptainId));
+
             CreateMap<MatchChallenge, MatchChallengeDto>()
                 .ForMember(dest => dest.ChallengerTeamName, opt => opt.MapFrom(src => src.ChallengerTeam.Name))
                 .ForMember(dest => dest.ChallengerTeamTag, opt => opt.MapFrom(src => src.ChallengerTeam.Tag))
