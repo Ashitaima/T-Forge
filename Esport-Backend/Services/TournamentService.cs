@@ -76,11 +76,17 @@ namespace TForge.Services
             return _mapper.Map<TournamentDto>(createdTournament);
         }
 
-        public async Task<TournamentDto?> UpdateAsync(int id, UpdateTournamentDto updateDto)
+        public async Task<TournamentDto?> UpdateAsync(
+            int id, UpdateTournamentDto updateDto, int requestingUserId, bool isAdmin)
         {
             var tournament = await _unitOfWork.Tournaments.GetByIdAsync(id);
             if (tournament == null)
                 throw new EntityNotFoundException("Tournament", id);
+
+            if (!TournamentOwnershipPolicy.CanManage(tournament.OrganizerId, requestingUserId, isAdmin))
+            {
+                throw new ForbiddenException("Редагувати турнір може лише його організатор");
+            }
 
             _mapper.Map(updateDto, tournament);
             _unitOfWork.Tournaments.Update(tournament);

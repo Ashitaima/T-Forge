@@ -144,42 +144,65 @@ namespace TForge.Services
         /// без рейтингу не існує. Порядок не випадковий — рейтинг роздається
         /// по рядках ростера, а вони мають існувати на цей момент.
         /// </summary>
+        /// <summary>
+        /// Зводить кеш лічильників гравця та журнал рейтингу з фактичним
+        /// результатом матчу.
+        ///
+        /// Лічильники не додаються по одиниці, а перераховуються з рядків
+        /// ростера. Додавання було правильним рівно один раз — при першому
+        /// завершенні матчу; правка складу після завершення або повторне
+        /// проставляння результату через PUT розсинхронізовували кеш із
+        /// похідною статистикою, яку показують списки. Перерахунок робить
+        /// метод ідемпотентним, тож розійтися вже нема з чим.
+        ///
+        /// Виклик лишається і тоді, коли матч перестав бути завершеним:
+        /// журнал рейтингу тоді сторнує нарахування, а лічильники впадуть
+        /// самі, бо цей матч більше не потрапляє в підрахунок.
+        /// </summary>
         public async Task ApplyMatchResultAsync(Match match)
         {
-            if (match.Status != MatchStatus.Completed || match.WinnerTeamId == null)
-            {
-                return;
-            }
-
             var roster = await LoadRosterAsync(match.Id);
 
-            if (roster.Count == 0)
+            if (roster.Count == 0 && match.Status == MatchStatus.Completed && match.WinnerTeamId != null)
             {
                 roster = await MaterialiseRosterAsync(match);
             }
 
-            foreach (var entry in roster)
+            foreach (var playerId in roster.Select(entry => entry.PlayerId).Distinct())
             {
-                var player = entry.Player;
-                player.TotalMatches += 1;
-
-                if (entry.TeamId == match.WinnerTeamId)
-                {
-                    player.Wins += 1;
-                }
-                else
-                {
-                    player.Losses += 1;
-                }
-
-                player.WinRate = player.TotalMatches == 0
-                    ? 0
-                    : Math.Round((decimal)player.Wins / player.TotalMatches * 100, 2);
+                await RecalculatePlayerRecordAsync(playerId);
             }
 
             await _unitOfWork.SaveChangesAsync();
 
             await _ratingService.RateMatchAsync(match);
+        }
+
+        /// <summary>
+        /// Переписує кеш Player.TotalMatches/Wins/Losses/WinRate з рядків
+        /// MatchPlayer — єдиного джерела статистики гравця. Рахує той самий
+        /// PlayerRecordCalculator, з якого читають профіль і списки, тож три
+        /// місця не можуть дати трьох різних відповідей.
+        /// </summary>
+        private async Task RecalculatePlayerRecordAsync(int playerId)
+        {
+            var player = await _unitOfWork.Players.GetByIdAsync(playerId);
+            if (player == null)
+            {
+                return;
+            }
+
+            var rows = await _unitOfWork.MatchPlayers.GetQueryable()
+                .Include(mp => mp.Match)
+                .Where(mp => mp.PlayerId == playerId)
+                .ToListAsync();
+
+            var record = PlayerRecordCalculator.Calculate(rows);
+
+            player.TotalMatches = record.Matches;
+            player.Wins = record.Wins;
+            player.Losses = record.Losses;
+            player.WinRate = record.WinRate;
         }
 
         /// <summary>Створює порожні рядки ростера для активних гравців обох команд.</summary>

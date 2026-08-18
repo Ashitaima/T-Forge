@@ -127,7 +127,7 @@ const TeamForm = () => {
         </label>
         {!id && (
           <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
-            Капітаном стане поточний користувач — вказувати ID вручну не потрібно.
+            Капітаном стане поточний користувач.
           </p>
         )}
         {loading && <div className="text-micro text-text-faint">Завантаження даних...</div>}

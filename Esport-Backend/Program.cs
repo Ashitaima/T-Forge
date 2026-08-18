@@ -15,6 +15,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using TForge.Validators;
 using Microsoft.Extensions.FileProviders;
+using System.Threading.RateLimiting;
 
 namespace TForge
 {
@@ -31,8 +32,21 @@ namespace TForge
             Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "avatars"));
             builder.Environment.WebRootPath = webRoot;
 
+            // Рядок підключення й ключ підпису живуть у user-secrets (розробка)
+            // або у змінних середовища — у репозиторії лишаються тільки порожні
+            // місця під них. Порожнє значення означає незроблене налаштування,
+            // тож повідомлення має бути зрозумілим, а не помилкою десь у драйвері.
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:DefaultConnection не налаштовано. " +
+                    "Виконайте: dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"...\" " +
+                    "або задайте змінну середовища ConnectionStrings__DefaultConnection.");
+            }
+
             builder.Services.AddDbContext<EsportsDbContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(connectionString));
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -61,7 +75,15 @@ namespace TForge
 
             // JWT Authentication
             var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
-            var key = Encoding.UTF8.GetBytes(jwtSecretKey ?? throw new InvalidOperationException("JWT SecretKey not configured"));
+            if (string.IsNullOrWhiteSpace(jwtSecretKey))
+            {
+                throw new InvalidOperationException(
+                    "Jwt:SecretKey не налаштовано. " +
+                    "Виконайте: dotnet user-secrets set \"Jwt:SecretKey\" \"...\" " +
+                    "або задайте змінну середовища Jwt__SecretKey.");
+            }
+
+            var key = Encoding.UTF8.GetBytes(jwtSecretKey);
 
             builder.Services.AddAuthentication(options =>
             {
@@ -99,6 +121,24 @@ namespace TForge
 
             builder.Services.AddSignalR();
 
+            // Вхід і реєстрація — єдині відкриті точки, де має сенс перебір.
+            // Вікно на IP: людині, що двічі помилилася паролем, це непомітно,
+            // а словниковий перебір стає безглуздим.
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.AddPolicy("auth", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0
+                        }));
+            });
+
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -125,6 +165,10 @@ namespace TForge
             app.UseMiddleware<ExceptionMiddleware>();
 
             app.UseCors("Frontend");
+
+            // Після UseCors: інакше відповідь 429 приходить без заголовків CORS,
+            // і фронтенд бачить мережеву помилку замість зрозумілого статусу.
+            app.UseRateLimiter();
 
             if (!app.Environment.IsDevelopment())
             {

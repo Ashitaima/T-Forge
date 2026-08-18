@@ -67,6 +67,16 @@ namespace TForge.DTOs
         public int? CaptainId { get; set; }
     }
 
+    /// <summary>
+    /// Передача капітанства. Приймає id гравця, а не користувача: у команді
+    /// видно саме гравців, і змушувати обирати з користувачів означало б
+    /// показувати список, у якому потрібного може не бути.
+    /// </summary>
+    public class TransferCaptaincyDto
+    {
+        public int PlayerId { get; set; }
+    }
+
     public class UpdateTeamDto
     {
         public string Name { get; set; } = string.Empty;

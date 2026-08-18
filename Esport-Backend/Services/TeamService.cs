@@ -7,6 +7,7 @@ using TForge.Common;
 using TForge.Common.Filters;
 using TForge.Extensions;
 using Microsoft.EntityFrameworkCore;
+using TForge.Exceptions;
 
 namespace TForge.Services
 {
@@ -256,6 +257,51 @@ namespace TForge.Services
             await _unitOfWork.SaveChangesAsync();
 
             return _mapper.Map<TeamDto>(team);
+        }
+
+        /// <summary>
+        /// Передає капітанство гравцеві цієї ж команди.
+        ///
+        /// Team.CaptainId посилається на User, а не на Player, тож новий капітан
+        /// мусить мати акаунт: гравець, заведений організатором вручну, його не
+        /// має й керувати командою не зможе. Це перевіряється тут, а не в
+        /// політиці — політика вирішує лише, кому дозволено, а не кому можливо.
+        /// </summary>
+        public async Task<TeamDto> TransferCaptaincyAsync(
+            int teamId, int playerId, int requestingUserId, bool isAdmin)
+        {
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
+                ?? throw new EntityNotFoundException("Team", teamId);
+
+            if (!TeamCaptaincyPolicy.CanTransfer(team.CaptainId, requestingUserId, isAdmin))
+            {
+                throw new ForbiddenException("Передати капітанство може лише чинний капітан команди");
+            }
+
+            var player = await _unitOfWork.Players.GetByIdAsync(playerId)
+                ?? throw new EntityNotFoundException("Player", playerId);
+
+            if (player.TeamId != teamId)
+            {
+                throw new BusinessLogicException("Капітаном може стати лише гравець цієї команди");
+            }
+
+            if (player.UserId == 0)
+            {
+                throw new BusinessLogicException(
+                    "У цього гравця немає акаунта, тож він не може керувати командою");
+            }
+
+            if (team.CaptainId == player.UserId)
+            {
+                throw new BusinessLogicException("Цей гравець уже капітан команди");
+            }
+
+            team.CaptainId = player.UserId;
+            _unitOfWork.Teams.Update(team);
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<TeamDto>(await _unitOfWork.Teams.GetByIdAsync(teamId));
         }
 
         public async Task<bool> DeleteAsync(int id)

@@ -3,6 +3,7 @@ using TForge.Services.Interfaces;
 using TForge.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace TForge.Controllers
@@ -21,6 +22,7 @@ namespace TForge.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
         {
             var result = await _authService.LoginAsync(loginDto);
@@ -28,6 +30,7 @@ namespace TForge.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("auth")]
         public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto registerDto)
         {
             var result = await _authService.RegisterAsync(registerDto);

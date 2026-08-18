@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TForge.Common;
 using TForge.Models;
 namespace TForge.Data.Context
@@ -392,10 +392,14 @@ namespace TForge.Data.Context
                     .HasForeignKey(c => c.MatchId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                entity.Property(e => e.Kind).IsRequired().HasMaxLength(20);
+
                 // Саме цей індекс робить подвійне нарахування неможливим:
-                // сервіс перевіряє наявність рядка перед нарахуванням, а індекс
+                // сервіс перевіряє стан журналу перед нарахуванням, а індекс
                 // ловить те, що прослизнуло повз перевірку через гонку.
-                entity.HasIndex(c => new { c.TeamId, c.MatchId }).IsUnique();
+                // Revision у ключі — це те, що дозволяє дописати сторнування
+                // виправленого результату, не прибираючи сам захист.
+                entity.HasIndex(c => new { c.TeamId, c.MatchId, c.Revision }).IsUnique();
             });
 
             modelBuilder.Entity<PlayerRatingChange>(entity =>
@@ -415,7 +419,9 @@ namespace TForge.Data.Context
                     .HasForeignKey(c => c.MatchId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasIndex(c => new { c.PlayerId, c.MatchId }).IsUnique();
+                entity.Property(e => e.Kind).IsRequired().HasMaxLength(20);
+
+                entity.HasIndex(c => new { c.PlayerId, c.MatchId, c.Revision }).IsUnique();
             });
         }
     }

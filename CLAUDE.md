@@ -28,13 +28,28 @@ Ports are not arbitrary: `Esport-Frontend/.env` points at `:5274`, and backend C
 
 PostgreSQL is expected at `localhost:5432`, user `postgres`, password `1111`, database `EsportsDB`. Migrations and seeding run automatically at startup (`Data/DatabaseInitializer.cs`).
 
+**Secrets are not in the repository.** `appsettings.json` ships with empty
+placeholders for `ConnectionStrings:DefaultConnection` and `Jwt:SecretKey`;
+startup fails with an explicit message if either is missing. Set them once per
+machine:
+
+```bash
+cd Esport-Backend
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=EsportsDB;Username=postgres;Password=1111"
+dotnet user-secrets set "Jwt:SecretKey" "<any string of 32+ characters>"
+```
+
+Environment variables (`ConnectionStrings__DefaultConnection`, `Jwt__SecretKey`)
+override user-secrets, which is what makes the scratch-database recipe below work
+unchanged.
+
 **Seeded accounts:** `admin`, `organizer1`, `player1`–`player4`, all with password `DevPassw0rd` (`DbSeeder.DevPassword`).
 
 ## Verifying changes
 
 ```bash
 dotnet build T-Forge.sln                                # must be 0 warnings, 0 errors
-dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 186 test cases
+dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 301 test cases
 cd Esport-Frontend && npx tsc --noEmit && npx vite build
 ```
 
@@ -77,6 +92,35 @@ dotnet ef database drop -f
 
 - **Rating arithmetic lives in `Common/EloCalculator.cs`**, alongside the record calculators — pure, no EF. `Services/RatingService.cs` only reads and writes rows. Rating is per `(subject, game)`; only tournament matches with a winner count, so a friendly never moves it. The `TeamRatingChanges`/`PlayerRatingChanges` ledger is what makes double-counting structurally impossible: the service checks for an existing row before rating, and the unique `(TeamId, MatchId)` index catches anything that slips past. Rating hooks into `MatchRosterService.ApplyMatchResultAsync` *after* the roster is materialised — players are paid from `MatchPlayer.TeamId`, so those rows must exist first.
 - **Country is an ISO 3166-1 alpha-2 code, not a name.** `Common/Countries.cs` holds the codes; the Ukrainian labels and the flag live in `Esport-Frontend/src/constants/countries.ts`, same split as `Games`. `PlayerRules.PlayerCountry` whitelists them — free text can't produce a flag. `DatabaseInitializer.NormalizeLegacyCountriesAsync` translates known old names once and leaves unknown ones alone rather than wiping them. Flags are emoji: Windows lacks the glyphs and renders the two letters instead, which is why the code or name always sits next to the flag.
+- **Tournament writes check ownership through `Common/TournamentOwnershipPolicy.cs`** —
+  a pure function, like `FriendlyMatchPolicy`. The `Organizer` role grants the right
+  to create tournaments, never the right to edit someone else's, so `UpdateAsync` and
+  `GenerateAsync` both take the caller's id and `isAdmin`. `[Authorize(Roles = "…")]`
+  alone is not an ownership check — that was the bug. `Common/TeamCaptaincyPolicy.cs`
+  is the same shape for `Team.CaptainId`, and `PUT /api/teams/{id}/captain` is the
+  only way that column changes.
+- **Admin is above every ownership rule.** Role attributes read `"Admin,Organizer"`,
+  never `"Organizer"` alone, and hand-written owner checks in controllers are guarded
+  with `!IsAdmin &&`. An admin who can delete a tournament but not fix a typo in it
+  was the symptom; grep for `Roles = "` and for `Captain?.Id !=` when adding either.
+- **Password hashes carry their own algorithm marker.** `PasswordHasher.Verify`
+  dispatches on the `$2` prefix, so BCrypt and the legacy SHA-256 hashes coexist;
+  `NeedsRehash` plus the upgrade in `AuthService.LoginAsync` is what drains the old
+  ones. Never compare hashes outside this class.
+- **A corrected result is reversed, never rewritten.** The rating ledger is
+  append-only, so `RatingService.RateMatchAsync` compares
+  `TeamRatingChange.RecordedWinnerTeamId` on the highest-`Revision` row against the
+  match's current winner and, when they differ, writes a `Reversal` pair and then a
+  fresh `Applied` pair at the next revisions (`Common/RatingChangeKinds.cs`). The
+  unique index is `(TeamId, MatchId, Revision)` — extended, not dropped, so
+  double-counting is still structurally impossible. `MatchService.UpdateAsync` is the
+  path that makes this necessary: it maps `Status`/`WinnerTeamId` straight through.
+- **Cached player counters are recomputed, not incremented.**
+  `MatchRosterService.ApplyMatchResultAsync` rebuilds `Player.TotalMatches/Wins/
+  Losses/WinRate` from `MatchPlayer` rows via `PlayerRecordCalculator` — the same
+  calculator the profile and the lists read. Incrementing was correct exactly once
+  and drifted on every roster edit or re-`PUT`; recomputing makes the method
+  idempotent, so there is nothing left to drift from.
 - **Date and time are picked with `components/ui/DateTimePicker.tsx`**, never `input[type=datetime-local]` — its segment-by-segment mask was the complaint that prompted the change. `mode="date"` drops the time half. The emitted string matches the native control's, so form wiring is unchanged, and the text field still accepts typing.
 
 ## Current state
@@ -108,14 +152,33 @@ Captains now also run their own friendly matches: start, score, complete and the
 
 ## Known issues, roughly by value
 
-1. **Security, mostly untouched.** Passwords are SHA-256 with one shared salt (`Services/PasswordHasher.cs` — deliberately isolated so swapping in BCrypt is a one-file change). JWT signing key and DB password are committed in `appsettings.json`. No refresh tokens; logout is a no-op. Organizers can edit *any* tournament — `OrganizerId` is never compared to the caller. *Fixed:* public registration no longer accepts `Role: "Admin"` — `RegisterValidator` restricts it to `UserRoles.SelfService`.
-2. **Counter drift.** Editing a match roster after completion, or re-completing a match via `PUT` (`MatchService.UpdateAsync` maps `Status`/`WinnerTeamId` straight through), desynchronises the cached `Player.*` counters from the derived statistics. Needs status guards on those endpoints.
-3. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-4. **Test coverage is 273 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
-5. **Rating survives a corrected result badly.** Flipping a completed match's winner through `UpdateAsync` leaves the ledger holding the original outcome: the guard stops a second charge but nothing reverses the first. Fixing it properly needs compensating entries, and it is the same problem as the counter drift in item 2 — worth doing together.
+1. **Security.** *Fixed:* passwords are BCrypt with a per-password salt and work
+   factor 12 (`Services/PasswordHasher.cs` still verifies the old SHA-256 hashes
+   and upgrades them on next login — delete that path once no legacy hash
+   remains); the JWT key and DB password live in user-secrets; tournament writes
+   check `OrganizerId` through `Common/TournamentOwnershipPolicy.cs`; login and
+   registration are rate-limited to 10 requests per minute per IP; public
+   registration no longer accepts `Role: "Admin"`. *Still open:* no refresh
+   tokens, so logout is a no-op and a stolen token is valid until it expires.
+   Note that the old JWT key and DB password remain in git history.
+2. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
+3. **Test coverage is 301 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+4. **The ledger `Down` migration is not reversible once a result has been corrected.**
+   `AddRatingChangeRevisions` cannot restore the old two-column unique index when a
+   match already carries more than one revision, and it fails loudly rather than
+   deleting rows to make room. That is the right trade — but rolling back past that
+   migration needs the compensating rows removed by hand first.
 
 ## Suggested next work
 
-Security (item 1) is the highest value and splits cleanly: BCrypt via the existing `IPasswordHasher`; move secrets to user-secrets/env; add tournament ownership checks. (Registration roles are already restricted.) Items 2 and 5 are the same bug wearing two hats and should be fixed together. Beyond fixes, the unbuilt features worth considering are double-elimination or group-stage brackets, and team logos (avatars already show how file handling works here).
+Security is done apart from refresh tokens, and the counter-drift/rating-reversal
+pair is fixed. The unbuilt features left from `docs/Scope.md` are **D1 team logos**
+(avatars already show how file handling works here — the best visual return of
+anything left) and **D2 notifications** (a row plus an unread count in `AppShell`
+would tie together the four things that already happen behind the user's back:
+team invitations, membership applications, match challenges and tournament
+invitations). **A7**, re-centring the tier boundaries so 1000 is not already
+Silver, is worth revisiting once there is enough seeded history to see the real
+distribution. Beyond that: double-elimination or group-stage brackets.
 
 Design specs and implementation plans for completed work live in `docs/superpowers/` and are worth reading before extending those areas.

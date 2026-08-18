@@ -316,7 +316,7 @@ const PlayerDetail = () => {
       </section>
 
       {isOwnProfile && invitations.length > 0 && (
-        <section className="panel mt-6">
+        <section className="panel panel-body mt-6">
           <div className="eyebrow">Ваші запрошення</div>
 
           {invitations.map((request) => (
@@ -342,7 +342,7 @@ const PlayerDetail = () => {
       )}
 
       {isOwnProfile && applications.length > 0 && (
-        <section className="panel mt-6">
+        <section className="panel panel-body mt-6">
           <div className="eyebrow">Надіслані заявки</div>
 
           {applications.map((request) => (

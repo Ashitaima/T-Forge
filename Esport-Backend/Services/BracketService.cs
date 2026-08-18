@@ -30,10 +30,15 @@ namespace TForge.Services
             _logger = logger;
         }
 
-        public async Task<int> GenerateAsync(int tournamentId)
+        public async Task<int> GenerateAsync(int tournamentId, int requestingUserId, bool isAdmin)
         {
             var tournament = await _unitOfWork.Tournaments.GetWithTeamsAsync(tournamentId)
                 ?? throw new EntityNotFoundException("Tournament", tournamentId);
+
+            if (!TournamentOwnershipPolicy.CanManage(tournament.OrganizerId, requestingUserId, isAdmin))
+            {
+                throw new ForbiddenException("Згенерувати сітку може лише організатор турніру");
+            }
 
             if (tournament.Status != TournamentStatus.Registration)
             {

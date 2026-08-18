@@ -43,6 +43,23 @@ namespace TForge.Services
                 throw new BusinessLogicException("Акаунт деактивовано");
             }
 
+            // Вхід — єдина мить, коли пароль відомий у відкритому вигляді, тож
+            // саме тут акаунт зі старим хешем тихо переходить на BCrypt.
+            // Помилка запису не має заважати входу: пароль уже перевірено.
+            if (_passwordHasher.NeedsRehash(user.PasswordHash))
+            {
+                try
+                {
+                    user.PasswordHash = HashPassword(loginDto.Password);
+                    await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation("Пароль користувача {UserId} перехешовано на BCrypt", user.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Не вдалося перехешувати пароль користувача {UserId}", user.Id);
+                }
+            }
+
             var userDto = _mapper.Map<UserDto>(user);
             var token = _tokenService.GenerateToken(userDto);
 

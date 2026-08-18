@@ -23,13 +23,18 @@ namespace TForge.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Приводить журнал рейтингу у відповідність до поточного результату матчу.
+        ///
+        /// Раніше метод умів тільки одне: нарахувати, якщо ще не нараховано.
+        /// Цього достатньо, поки результат не змінюють — але MatchService.UpdateAsync
+        /// проставляє Status і WinnerTeamId напряму, і після виправлення журнал
+        /// лишався з результатом, якого вже немає. Тепер метод порівнює результат,
+        /// з якого журнал рахували, з поточним, і за розбіжності дописує
+        /// сторнування та нове нарахування. Записи не видаляються ніколи.
+        /// </summary>
         public async Task RateMatchAsync(Match match)
         {
-            if (!EloCalculator.IsRated(match.TournamentId, match.Status, match.WinnerTeamId))
-            {
-                return;
-            }
-
             if (!Games.IsValid(match.Game))
             {
                 // Дисципліна проставляється з турніру, тож порожня означає
@@ -41,18 +46,55 @@ namespace TForge.Services
                 return;
             }
 
-            // Журнал — це і є захист від подвійного нарахування. CompleteMatchAsync
-            // уже не дає завершити матч удруге, але MatchService.UpdateAsync
-            // проставляє Status і WinnerTeamId напряму, і цю дірку закриває саме
-            // перевірка нижче разом з унікальним індексом (TeamId, MatchId).
-            var alreadyRated = await _unitOfWork.TeamRatingChanges
-                .ExistsAsync(c => c.MatchId == match.Id);
+            // Найсвіжіший рядок журналу описує поточний стан: сторнування
+            // завжди дописується разом із новим нарахуванням, тож рядок
+            // з найбільшим Revision — це або живе нарахування, або сторнування,
+            // після якого матч навмисно лишився без рейтингу.
+            var latest = await _unitOfWork.TeamRatingChanges.GetQueryable()
+                .Where(c => c.MatchId == match.Id)
+                .OrderByDescending(c => c.Revision)
+                .FirstOrDefaultAsync();
 
-            if (alreadyRated)
+            var ledgerIsLive = latest != null && latest.Kind == RatingChangeKinds.Applied;
+            var shouldBeRated = EloCalculator.IsRated(match.TournamentId, match.Status, match.WinnerTeamId);
+
+            // Найчастіший випадок: нічого не змінилося. Сюди ж потрапляє
+            // повторний виклик після завершення матчу.
+            if (ledgerIsLive && shouldBeRated && latest!.RecordedWinnerTeamId == match.WinnerTeamId)
             {
                 return;
             }
 
+            if (!ledgerIsLive && !shouldBeRated)
+            {
+                return;
+            }
+
+            var revision = (latest?.Revision ?? -1) + 1;
+
+            if (ledgerIsLive)
+            {
+                await ReverseAsync(match, latest!.Revision, revision);
+                revision += 1;
+
+                _logger.LogInformation(
+                    "Рейтинг за матч {MatchId} сторновано: результат змінили після нарахування",
+                    match.Id);
+            }
+
+            if (shouldBeRated)
+            {
+                await ApplyAsync(match, revision);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Нараховує рейтинг за результатом матчу однією ревізією.
+        /// </summary>
+        private async Task ApplyAsync(Match match, int revision)
+        {
             var home = await GetOrCreateTeamRatingAsync(match.HomeTeamId, match.Game);
             var away = await GetOrCreateTeamRatingAsync(match.AwayTeamId, match.Game);
 
@@ -66,14 +108,84 @@ namespace TForge.Services
             var awayDelta = EloCalculator.Delta(
                 away.Rating, home.Rating, !homeWon, EloCalculator.KFactor(match.MatchType, away.MatchesRated));
 
-            var homeChange = ApplyTeamChange(home, match, homeDelta);
-            var awayChange = ApplyTeamChange(away, match, awayDelta);
+            var homeChange = ApplyTeamChange(home, match, homeDelta, revision);
+            var awayChange = ApplyTeamChange(away, match, awayDelta, revision);
 
             await _unitOfWork.TeamRatingChanges.AddRangeAsync(new[] { homeChange, awayChange });
 
-            await RatePlayersAsync(match, homeDelta, awayDelta);
+            await RatePlayersAsync(match, homeDelta, awayDelta, revision);
+        }
 
-            await _unitOfWork.SaveChangesAsync();
+        /// <summary>
+        /// Сторнує ревізію: на кожен її рядок дописує зворотний із протилежним
+        /// зсувом. Зсув застосовується до поточного рейтингу, а не відновлює
+        /// той, що був: відтоді могли бути інші матчі, і переписувати їх заднім
+        /// числом означало б підміняти історію замість того, щоб її виправити.
+        ///
+        /// Peak не опускаємо. Він означає «найвище, що показував лічильник»,
+        /// і щоб перерахувати його чесно, довелося б переграти весь журнал —
+        /// цього коштує більше, ніж важить саме число.
+        /// </summary>
+        private async Task ReverseAsync(Match match, int appliedRevision, int revision)
+        {
+            var teamRows = await _unitOfWork.TeamRatingChanges.GetQueryable()
+                .Where(c => c.MatchId == match.Id
+                            && c.Revision == appliedRevision
+                            && c.Kind == RatingChangeKinds.Applied)
+                .ToListAsync();
+
+            foreach (var row in teamRows)
+            {
+                var rating = await GetOrCreateTeamRatingAsync(row.TeamId, row.Game);
+                var before = rating.Rating;
+
+                rating.Rating = EloCalculator.Apply(before, -row.Delta);
+                rating.MatchesRated = Math.Max(0, rating.MatchesRated - 1);
+                rating.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.TeamRatingChanges.AddAsync(new TeamRatingChange
+                {
+                    TeamId = row.TeamId,
+                    Game = row.Game,
+                    MatchId = match.Id,
+                    Delta = rating.Rating - before,
+                    RatingBefore = before,
+                    RatingAfter = rating.Rating,
+                    Revision = revision,
+                    Kind = RatingChangeKinds.Reversal,
+                    RecordedWinnerTeamId = row.RecordedWinnerTeamId,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            var playerRows = await _unitOfWork.PlayerRatingChanges.GetQueryable()
+                .Where(c => c.MatchId == match.Id
+                            && c.Revision == appliedRevision
+                            && c.Kind == RatingChangeKinds.Applied)
+                .ToListAsync();
+
+            foreach (var row in playerRows)
+            {
+                var rating = await GetOrCreatePlayerRatingAsync(row.PlayerId, row.Game);
+                var before = rating.Rating;
+
+                rating.Rating = EloCalculator.Apply(before, -row.Delta);
+                rating.MatchesRated = Math.Max(0, rating.MatchesRated - 1);
+                rating.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.PlayerRatingChanges.AddAsync(new PlayerRatingChange
+                {
+                    PlayerId = row.PlayerId,
+                    Game = row.Game,
+                    MatchId = match.Id,
+                    Delta = rating.Rating - before,
+                    RatingBefore = before,
+                    RatingAfter = rating.Rating,
+                    Revision = revision,
+                    Kind = RatingChangeKinds.Reversal,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
         }
 
         /// <summary>
@@ -82,7 +194,7 @@ namespace TForge.Services
         /// матч, тож масштабування за ними лише винагороджувало б накрутку.
         /// Команду беремо з MatchPlayer.TeamId — трансфер не переписує минуле.
         /// </summary>
-        private async Task RatePlayersAsync(Match match, int homeDelta, int awayDelta)
+        private async Task RatePlayersAsync(Match match, int homeDelta, int awayDelta, int revision)
         {
             var roster = await _unitOfWork.MatchPlayers.GetQueryable()
                 .Where(mp => mp.MatchId == match.Id)
@@ -118,12 +230,14 @@ namespace TForge.Services
                     Delta = rating.Rating - before,
                     RatingBefore = before,
                     RatingAfter = rating.Rating,
+                    Revision = revision,
+                    Kind = RatingChangeKinds.Applied,
                     CreatedAt = DateTime.UtcNow
                 });
             }
         }
 
-        private static TeamRatingChange ApplyTeamChange(TeamRating rating, Match match, int delta)
+        private static TeamRatingChange ApplyTeamChange(TeamRating rating, Match match, int delta, int revision)
         {
             var before = rating.Rating;
 
@@ -140,6 +254,9 @@ namespace TForge.Services
                 Delta = rating.Rating - before,
                 RatingBefore = before,
                 RatingAfter = rating.Rating,
+                Revision = revision,
+                Kind = RatingChangeKinds.Applied,
+                RecordedWinnerTeamId = match.WinnerTeamId,
                 CreatedAt = DateTime.UtcNow
             };
         }
@@ -230,33 +347,79 @@ namespace TForge.Services
 
         public async Task<IEnumerable<RatingDto>> GetTeamRatingsAsync(int teamId)
         {
-            var rows = await _unitOfWork.TeamRatings.GetQueryable()
+            // Місце в таблиці рахується тим самим запитом, що й сам рейтинг:
+            // окремий прохід по базі розійшовся б із ним, щойно хтось зіграв
+            // матч між двома викликами. Порівняльне місце — 1 + скільки команд
+            // цієї дисципліни мають більший рейтинг, тож однакові рейтинги
+            // ділять одне місце.
+            var all = _unitOfWork.TeamRatings.GetQueryable();
+
+            var rows = await all
                 .Where(r => r.TeamId == teamId)
+                .Select(r => new RankedRatingRow
+                {
+                    Game = r.Game,
+                    Rating = r.Rating,
+                    Peak = r.Peak,
+                    MatchesRated = r.MatchesRated,
+                    UpdatedAt = r.UpdatedAt,
+                    Rank = 1 + all.Count(o => o.Game == r.Game && o.Rating > r.Rating),
+                    TotalRanked = all.Count(o => o.Game == r.Game)
+                })
                 .OrderByDescending(r => r.Rating)
                 .ToListAsync();
 
-            return rows.Select(r => ToDto(r.Game, r.Rating, r.Peak, r.MatchesRated, r.UpdatedAt));
+            return rows.Select(ToDto);
         }
 
         public async Task<IEnumerable<RatingDto>> GetPlayerRatingsAsync(int playerId)
         {
-            var rows = await _unitOfWork.PlayerRatings.GetQueryable()
+            var all = _unitOfWork.PlayerRatings.GetQueryable();
+
+            var rows = await all
                 .Where(r => r.PlayerId == playerId)
+                .Select(r => new RankedRatingRow
+                {
+                    Game = r.Game,
+                    Rating = r.Rating,
+                    Peak = r.Peak,
+                    MatchesRated = r.MatchesRated,
+                    UpdatedAt = r.UpdatedAt,
+                    Rank = 1 + all.Count(o => o.Game == r.Game && o.Rating > r.Rating),
+                    TotalRanked = all.Count(o => o.Game == r.Game)
+                })
                 .OrderByDescending(r => r.Rating)
                 .ToListAsync();
 
-            return rows.Select(r => ToDto(r.Game, r.Rating, r.Peak, r.MatchesRated, r.UpdatedAt));
+            return rows.Select(ToDto);
         }
 
-        private static RatingDto ToDto(string game, int rating, int peak, int matchesRated, DateTime updatedAt) =>
+        /// <summary>
+        /// Проміжна форма рядка рейтингу разом із місцем у таблиці. Існує лише
+        /// щоб обидва запити вище мали спільну проєкцію й не розійшлися.
+        /// </summary>
+        private sealed class RankedRatingRow
+        {
+            public string Game { get; init; } = string.Empty;
+            public int Rating { get; init; }
+            public int Peak { get; init; }
+            public int MatchesRated { get; init; }
+            public DateTime UpdatedAt { get; init; }
+            public int Rank { get; init; }
+            public int TotalRanked { get; init; }
+        }
+
+        private static RatingDto ToDto(RankedRatingRow row) =>
             new()
             {
-                Game = game,
-                Rating = rating,
-                Peak = peak,
-                MatchesRated = matchesRated,
-                Tier = EloCalculator.Tier(rating),
-                UpdatedAt = updatedAt
+                Game = row.Game,
+                Rating = row.Rating,
+                Peak = row.Peak,
+                MatchesRated = row.MatchesRated,
+                Tier = EloCalculator.Tier(row.Rating),
+                UpdatedAt = row.UpdatedAt,
+                Rank = row.Rank,
+                TotalRanked = row.TotalRanked
             };
 
         public async Task<IEnumerable<RatingChangeDto>> GetTeamHistoryAsync(int teamId, string? game, int take)

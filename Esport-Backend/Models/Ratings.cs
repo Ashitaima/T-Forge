@@ -87,6 +87,26 @@ namespace TForge.Models
 
         public int RatingAfter { get; set; }
 
+        /// <summary>
+        /// Номер спроби нарахувати цей матч, з нуля. Виправлений результат не
+        /// стирає попередні рядки, а дописує сторнування й нове нарахування
+        /// з наступними номерами. Разом із MatchId і TeamId це унікальний ключ:
+        /// у межах однієї спроби подвійне нарахування неможливе.
+        /// </summary>
+        public int Revision { get; set; }
+
+        /// <summary>Нарахування чи сторнування — див. Common/RatingChangeKinds.cs.</summary>
+        [Required]
+        [StringLength(20)]
+        public string Kind { get; set; } = RatingChangeKinds.Applied;
+
+        /// <summary>
+        /// Результат, з якого цей рядок порахували. Саме він відрізняє
+        /// «журнал уже описує поточний результат» від «результат виправили
+        /// після нарахування» — без нього другий випадок не видно.
+        /// </summary>
+        public int? RecordedWinnerTeamId { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public virtual Team Team { get; set; } = null!;
@@ -114,6 +134,14 @@ namespace TForge.Models
         public int RatingBefore { get; set; }
 
         public int RatingAfter { get; set; }
+
+        /// <summary>Номер спроби — той самий, що у TeamRatingChange цього матчу.</summary>
+        public int Revision { get; set; }
+
+        /// <summary>Нарахування чи сторнування — див. Common/RatingChangeKinds.cs.</summary>
+        [Required]
+        [StringLength(20)]
+        public string Kind { get; set; } = RatingChangeKinds.Applied;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

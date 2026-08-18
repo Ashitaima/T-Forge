@@ -15,7 +15,7 @@ namespace TForge.Services.Interfaces
         Task<IEnumerable<TournamentDto>> GetByGameAsync(string game);
         Task<IEnumerable<TournamentDto>> GetUpcomingAsync();
         Task<TournamentDto> CreateAsync(CreateTournamentDto createDto, int organizerId);
-        Task<TournamentDto?> UpdateAsync(int id, UpdateTournamentDto updateDto);
+        Task<TournamentDto?> UpdateAsync(int id, UpdateTournamentDto updateDto, int requestingUserId, bool isAdmin);
         Task<bool> DeleteAsync(int id);
         Task<IEnumerable<TeamSummaryDto>> GetRegisteredTeamsAsync(int tournamentId);
         Task RegisterTeamAsync(int tournamentId, int teamId, int requestingUserId, bool isAdmin);

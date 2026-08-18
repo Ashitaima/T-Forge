@@ -87,7 +87,7 @@ export const TournamentInvitationsPanel = ({ teamId, isCaptain }: Props) => {
   );
 
   return (
-    <section className="panel mt-6">
+    <section className="panel panel-body mt-6">
       <div className="eyebrow">Запрошення на турніри</div>
 
       {error && <div className="notice notice-error mt-3">{error}</div>}

@@ -86,13 +86,30 @@ namespace TForge.Controllers
                 throw new EntityNotFoundException("Team", id);
             }
 
-            if (existingTeam.Captain?.Id != userId)
+            // Адміністратор стоїть над перевіркою власності, як і всюди:
+            // без цього він не міг виправити навіть друкарську помилку в назві.
+            if (!IsAdmin && existingTeam.Captain?.Id != userId)
             {
                 return Forbid();
             }
 
             var updatedTeam = await _teamService.UpdateAsync(id, updateDto);
             return Ok(updatedTeam);
+        }
+
+        /// <summary>
+        /// Передача капітанства. Капітанство — це колонка, а не роль, тож
+        /// перевірку робить TeamCaptaincyPolicy у сервісі, а не [Authorize].
+        /// </summary>
+        [HttpPut("{id}/captain")]
+        [Authorize]
+        public async Task<ActionResult<TeamDto>> TransferCaptaincy(
+            int id, [FromBody] TransferCaptaincyDto transferDto)
+        {
+            var team = await _teamService.TransferCaptaincyAsync(
+                id, transferDto.PlayerId, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(team);
         }
 
         [HttpDelete("{id}")]
@@ -106,7 +123,7 @@ namespace TForge.Controllers
                 throw new EntityNotFoundException("Team", id);
             }
 
-            if (team.Captain?.Id != userId)
+            if (!IsAdmin && team.Captain?.Id != userId)
             {
                 return Forbid();
             }

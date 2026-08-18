@@ -15,6 +15,16 @@ namespace TForge.DTOs
         /// <summary>Ліга, виведена з рейтингу тим самим калькулятором.</summary>
         public string Tier { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Місце в таблиці цієї дисципліни, рахуючи з одиниці. «1180, Золото»
+        /// саме по собі не каже нічого — «#4 з 37» каже.
+        /// Однакові рейтинги ділять одне місце.
+        /// </summary>
+        public int Rank { get; set; }
+
+        /// <summary>Скільки всього суб'єктів має рейтинг у цій дисципліні.</summary>
+        public int TotalRanked { get; set; }
+
         public DateTime UpdatedAt { get; set; }
     }
 

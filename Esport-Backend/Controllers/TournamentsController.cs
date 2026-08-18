@@ -68,7 +68,7 @@ namespace TForge.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Organizer")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<TournamentDto>> CreateTournament([FromBody] CreateTournamentDto createDto)
         {
             var tournament = await _tournamentService.CreateAsync(createDto, ResolveOwnerId(createDto.OrganizerId));
@@ -76,10 +76,10 @@ namespace TForge.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Organizer")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<TournamentDto>> UpdateTournament(int id, [FromBody] UpdateTournamentDto updateDto)
         {
-            var tournament = await _tournamentService.UpdateAsync(id, updateDto);
+            var tournament = await _tournamentService.UpdateAsync(id, updateDto, GetUserIdOrThrow(), IsAdmin);
             return Ok(tournament);
         }
 
@@ -154,7 +154,7 @@ namespace TForge.Controllers
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult> GenerateBracket(int id)
         {
-            var created = await _bracketService.GenerateAsync(id);
+            var created = await _bracketService.GenerateAsync(id, GetUserIdOrThrow(), IsAdmin);
             return Ok(new { message = $"Сітку створено: {created} матчів у першому раунді", matches = created });
         }
 

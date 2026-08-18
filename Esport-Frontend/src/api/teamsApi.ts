@@ -27,6 +27,10 @@ export const teamsApi = {
   remove: async (id: number) => {
     await apiClient.delete(`${endpoints.teams}/${id}`);
   },
+  transferCaptaincy: async (teamId: number, playerId: number) => {
+    const response = await apiClient.put<TeamDto>(`${endpoints.teams}/${teamId}/captain`, { playerId });
+    return response.data;
+  },
   removePlayer: async (teamId: number, playerId: number) => {
     await apiClient.delete(`${endpoints.teams}/${teamId}/players/${playerId}`);
   },

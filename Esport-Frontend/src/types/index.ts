@@ -122,6 +122,8 @@ export type PlayerDto = {
 
 export type PlayerSummaryDto = {
   id: number;
+  /** Акаунт гравця — щоб зіставити склад із Team.captain.id. */
+  userId: number;
   nickname: string;
   position: string;
   country: string;
@@ -359,6 +361,10 @@ export type RatingDto = {
   peak: number;
   matchesRated: number;
   tier: string;
+  /** Місце в таблиці цієї дисципліни, з одиниці. Однакові рейтинги ділять місце. */
+  rank: number;
+  /** Скільки всього суб'єктів мають рейтинг у цій дисципліні. */
+  totalRanked: number;
   updatedAt: string;
 };
 

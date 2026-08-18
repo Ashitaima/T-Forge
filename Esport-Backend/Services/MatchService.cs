@@ -200,15 +200,39 @@ namespace TForge.Services
             return _mapper.Map<MatchDto>(match);
         }
 
+        /// <summary>
+        /// Правка матчу. Оскільки DTO несе Status і WinnerTeamId, цей метод —
+        /// другий шлях змінити результат уже завершеного матчу, крім
+        /// CompleteMatchAsync. Саме через нього рейтинг і лічильники гравців
+        /// колись розходилися з фактом: журнал лишався з попереднім
+        /// результатом, а лічильники рахувалися вдруге. Тому після збереження
+        /// результат зводиться так само, як після завершення — обидва боки
+        /// цієї операції тепер ідемпотентні.
+        /// </summary>
         public async Task<MatchDto?> UpdateAsync(int id, UpdateMatchDto updateDto)
         {
             var match = await _unitOfWork.Matches.GetByIdAsync(id);
             if (match == null)
                 return null;
 
+            var resultChanged =
+                match.Status != updateDto.Status || match.WinnerTeamId != updateDto.WinnerTeamId;
+
             _mapper.Map(updateDto, match);
 
+            // Час завершення має йти за статусом, інакше виправлений матч
+            // лишається «завершеним» без дати, а backfill сортує за нею.
+            if (match.Status == MatchStatus.Completed && match.EndedAt == null)
+            {
+                match.EndedAt = DateTime.UtcNow;
+            }
+
             await _unitOfWork.SaveChangesAsync();
+
+            if (resultChanged)
+            {
+                await _rosterService.ApplyMatchResultAsync(match);
+            }
 
             return _mapper.Map<MatchDto>(match);
         }

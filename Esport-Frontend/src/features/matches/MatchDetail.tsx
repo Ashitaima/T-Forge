@@ -245,12 +245,13 @@ const MatchDetail = () => {
         description={match ? `${match.matchType} · ${match.format}` : undefined}
         action={
           <div className="flex items-center gap-2">
-            {match?.streamUrl && (
+            {/* Тільки поки матч іде — див. коментар у MatchesSchedule. */}
+            {match?.streamUrl && isLive && (
               <a
                 href={match.streamUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`btn ${isLive ? "btn-primary" : "btn-secondary"}`}
+                className="btn btn-primary"
               >
                 <Radio className="h-4 w-4" />
                 Дивитися

@@ -195,6 +195,17 @@ const TeamDetail = () => {
       loadRequests();
     });
 
+  // Передача капітанства забирає право в того, хто її робить, тож питаємо
+  // підтвердження: скасувати дію може вже тільки новий капітан або адміністратор.
+  const [transferring, setTransferring] = useState<number | null>(null);
+
+  const transferCaptaincy = (playerId: number) =>
+    runAction(async () => {
+      await teamsApi.transferCaptaincy(teamId, playerId);
+      setTransferring(null);
+      loadTeam();
+    });
+
   const canApply =
     Boolean(myPlayer) && !myPlayer?.team && !isCaptain && Boolean(team?.isActive);
 
@@ -422,27 +433,77 @@ const TeamDetail = () => {
           )}
           {!loading && (team?.players?.length ?? 0) > 0 && (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {team?.players?.map((player) => (
-                <div key={player.id} className="surface-raised px-4 py-3.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="truncate text-body font-medium text-text">{player.nickname}</span>
-                    {!player.isActive && <span className="pill pill-off shrink-0">Неактивний</span>}
-                  </div>
-                  <div className="muted mt-1 text-micro">{player.position || "Позиція не вказана"}</div>
-                  {player.country && (
-                    <div className="mt-2 text-micro text-text-faint">
-                      <CountryFlag code={player.country} withName />
+              {team?.players?.map((player) => {
+                const isTeamCaptain =
+                  player.userId > 0 && player.userId === team?.captain?.id;
+
+                return (
+                  <div key={player.id} className="surface-raised px-4 py-3.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="truncate text-body font-medium text-text">
+                        {player.nickname}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {isTeamCaptain && <span className="pill">Капітан</span>}
+                        {!player.isActive && <span className="pill pill-off">Неактивний</span>}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="muted mt-1 text-micro">
+                      {player.position || "Позиція не вказана"}
+                    </div>
+                    {player.country && (
+                      <div className="mt-2 text-micro text-text-faint">
+                        <CountryFlag code={player.country} withName />
+                      </div>
+                    )}
+
+                    {/* Гравець без акаунта капітаном стати не може: Team.CaptainId
+                        посилається на користувача, а не на гравця. */}
+                    {(isCaptain || isAdmin) && !isTeamCaptain && player.userId > 0 && (
+                      <div className="mt-3 border-t border-line-soft pt-3">
+                        {transferring === player.id ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-micro text-text-muted">
+                              {isCaptain && !isAdmin
+                                ? "Ви втратите права капітана."
+                                : "Змінити капітана команди?"}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => transferCaptaincy(player.id)}
+                            >
+                              Підтвердити
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => setTransferring(null)}
+                            >
+                              Скасувати
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => setTransferring(player.id)}
+                          >
+                            Зробити капітаном
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </section>
 
       {(isCaptain || isAdmin) && (
-        <section className="panel mt-6">
+        <section className="panel panel-body mt-6">
           <div className="eyebrow">Заявки на вступ</div>
 
           {applications.length === 0 && (
@@ -476,7 +537,7 @@ const TeamDetail = () => {
       )}
 
       {(isCaptain || isAdmin) && invitations.length > 0 && (
-        <section className="panel mt-6">
+        <section className="panel panel-body mt-6">
           <div className="eyebrow">Надіслані запрошення</div>
 
           {invitations.map((request) => (
@@ -499,7 +560,7 @@ const TeamDetail = () => {
       )}
 
       {(isCaptain || isAdmin) && (
-        <section className="panel mt-6">
+        <section className="panel panel-body mt-6">
           <div className="eyebrow">Запросити гравця</div>
 
           <input

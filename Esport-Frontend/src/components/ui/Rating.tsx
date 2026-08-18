@@ -128,7 +128,15 @@ export const RatingPanel = ({
   history,
   emptyHint
 }: {
-  ratings: { game: string; rating: number; peak: number; matchesRated: number; tier: string }[];
+  ratings: {
+    game: string;
+    rating: number;
+    peak: number;
+    matchesRated: number;
+    tier: string;
+    rank: number;
+    totalRanked: number;
+  }[];
   history: RatingChangeDto[];
   emptyHint: string;
 }) => {
@@ -149,8 +157,20 @@ export const RatingPanel = ({
               <span className="eyebrow">{gameLabel(entry.game)}</span>
               <TierBadge tier={entry.tier} />
             </div>
-            <div className="tabular mt-2.5 font-mono text-[1.75rem] font-medium leading-none text-text">
-              {entry.rating}
+            <div className="mt-2.5 flex items-baseline gap-2.5">
+              <span className="tabular font-mono text-[1.75rem] font-medium leading-none text-text">
+                {entry.rating}
+              </span>
+              {/* Саме число нічого не важить без місця в таблиці: «1180»
+                  читається зовсім інакше як #2 з 37 і як #30 з 37. */}
+              {entry.totalRanked > 0 && (
+                <span
+                  className="tabular font-mono text-micro text-text-muted"
+                  title={`Місце серед ${entry.totalRanked} у дисципліні ${gameLabel(entry.game)}`}
+                >
+                  #{entry.rank} з {entry.totalRanked}
+                </span>
+              )}
             </div>
             <div className="muted mt-2 font-mono text-micro">
               пік {entry.peak} · матчів {entry.matchesRated}

@@ -59,12 +59,15 @@ const MatchRow = ({
         )}
         <span className="font-mono text-micro text-text-faint">{match.format}</span>
         <StatusPill status={match.status} />
-        {match.streamUrl && (
+        {/* Трансляція показується лише для матчу, що йде: у запланованого
+            дивитися ще нема чого, а у зіграного посилання веде в порожнечу.
+            Для зіграного цю роль виконує посилання на трекер нижче. */}
+        {match.streamUrl && match.status === "InProgress" && (
           <a
             href={match.streamUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`btn btn-sm ${match.status === "InProgress" ? "btn-primary" : "btn-ghost"}`}
+            className="btn btn-sm btn-primary"
           >
             <Radio className="h-4 w-4" />
             Дивитися

@@ -239,7 +239,7 @@ const TournamentForm = () => {
 
         {!id && (
           <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
-            Організатором стане поточний користувач — вказувати ID вручну не потрібно.
+            Організатором стане поточний користувач.
             Турнір починається зі статусу «Реєстрація».
           </p>
         )}

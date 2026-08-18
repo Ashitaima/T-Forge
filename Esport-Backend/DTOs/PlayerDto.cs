@@ -22,6 +22,14 @@ namespace TForge.DTOs
     public class PlayerSummaryDto
     {
         public int Id { get; set; }
+
+        /// <summary>
+        /// Акаунт гравця. Потрібен клієнту, щоб зіставити склад із
+        /// Team.CaptainId — інакше в списку не видно, хто саме капітан.
+        /// Той самий привід, що у MatchDto.HomeTeamCaptainId.
+        /// </summary>
+        public int UserId { get; set; }
+
         public string Nickname { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;

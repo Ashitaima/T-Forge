@@ -17,5 +17,8 @@ namespace TForge.Services.Interfaces
         Task<bool> DeleteAsync(int id);
         Task<bool> AddPlayerToTeamAsync(int teamId, int playerId);
         Task<bool> RemovePlayerFromTeamAsync(int teamId, int playerId);
+
+        /// <summary>Передає капітанство гравцеві цієї ж команди.</summary>
+        Task<TeamDto> TransferCaptaincyAsync(int teamId, int playerId, int requestingUserId, bool isAdmin);
     }
 }

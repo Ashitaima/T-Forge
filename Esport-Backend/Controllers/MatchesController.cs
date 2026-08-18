@@ -69,7 +69,7 @@ namespace TForge.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Organizer")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<MatchDto>> CreateMatch([FromBody] CreateMatchDto createDto)
         {
             var match = await _matchService.CreateAsync(createDto);
@@ -77,7 +77,7 @@ namespace TForge.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Organizer")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<MatchDto>> UpdateMatch(int id, [FromBody] UpdateMatchDto updateDto)
         {
             var match = await _matchService.UpdateAsync(id, updateDto);
@@ -85,7 +85,7 @@ namespace TForge.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Organizer")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult> DeleteMatch(int id)
         {
             var result = await _matchService.DeleteAsync(id);
@@ -207,7 +207,7 @@ namespace TForge.Controllers
         }
 
         [HttpPost("{id}/cancel")]
-        [Authorize(Roles = "Organizer")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult> CancelMatch(int id, [FromBody] CancelMatchRequest request)
         {
             var result = await _matchService.CancelMatchAsync(id, request.Reason);
