@@ -6,6 +6,7 @@ import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
 import { SortableTh, useSortState } from "../../components/ui/SortableTh";
 import { RatingCell } from "../../components/ui/Rating";
+import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { usePagedList } from "../../hooks/usePagedList";
 import type { TeamRowDto } from "../../types";
 
@@ -104,9 +105,19 @@ const TeamsList = () => {
                     {(page - 1) * pageSize + index + 1}
                   </td>
                   <td className="cell-primary">
-                    <Link to={`/teams/${team.id}`} className="hover:text-ember">
-                      {team.name}
-                    </Link>
+                    {/* min-w-0 + truncate: довга назва обрізається, а не розсуває рядок */}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Avatar
+                        url={team.logoPath}
+                        shape="square"
+                        size="sm"
+                        fallback={teamInitials(team.name, team.tag)}
+                        alt=""
+                      />
+                      <Link to={`/teams/${team.id}`} className="truncate hover:text-ember">
+                        {team.name}
+                      </Link>
+                    </span>
                   </td>
                   <td className="font-mono text-micro">{team.tag}</td>
                   <td>{team.region || "—"}</td>

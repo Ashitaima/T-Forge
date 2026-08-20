@@ -150,7 +150,6 @@ const UserForm = () => {
               {...register("role")}
               className="input"
             >
-              <option value="User">Користувач</option>
               <option value="Player">Гравець</option>
               <option value="Organizer">Організатор</option>
               <option value="Admin">Адміністратор</option>

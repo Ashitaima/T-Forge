@@ -14,8 +14,20 @@ namespace TForge.Common
     /// </summary>
     public static class TeamCaptaincyPolicy
     {
-        /// <summary>Обидва id — це id користувачів: Team.CaptainId посилається на User.</summary>
-        public static bool CanTransfer(int currentCaptainId, int userId, bool isAdmin) =>
+        /// <summary>
+        /// Чи може користувач діяти від імені команди — передати капітанство,
+        /// змінити логотип тощо. Обидва id — це id користувачів:
+        /// Team.CaptainId посилається на User.
+        /// </summary>
+        public static bool CanManage(int currentCaptainId, int userId, bool isAdmin) =>
             isAdmin || (currentCaptainId != 0 && currentCaptainId == userId);
+
+        /// <summary>
+        /// Передати капітанство може той самий, хто взагалі керує командою.
+        /// Окреме ім'я лишається, бо на місці виклику воно читається точніше;
+        /// правило ж має бути одне, інакше дві копії з часом розійдуться.
+        /// </summary>
+        public static bool CanTransfer(int currentCaptainId, int userId, bool isAdmin) =>
+            CanManage(currentCaptainId, userId, isAdmin);
     }
 }

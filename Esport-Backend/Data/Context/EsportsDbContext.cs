@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TForge.Common;
 using TForge.Models;
 namespace TForge.Data.Context
@@ -23,6 +23,7 @@ namespace TForge.Data.Context
         public DbSet<PlayerRating> PlayerRatings { get; set; }
         public DbSet<TeamRatingChange> TeamRatingChanges { get; set; }
         public DbSet<PlayerRatingChange> PlayerRatingChanges { get; set; }
+        public DbSet<Duel> Duels { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -38,6 +39,49 @@ namespace TForge.Data.Context
             ConfigureTeamMembershipRequestModel(modelBuilder);
             ConfigureTournamentInvitationModel(modelBuilder);
             ConfigureRatingModels(modelBuilder);
+            ConfigureDuelModel(modelBuilder);
+        }
+
+        /// <summary>
+        /// Дуель 1 на 1. Обидві сторони — гравці; жодного зв'язку з matches
+        /// тут немає й бути не повинно (див. Models/Duel.cs).
+        /// </summary>
+        private void ConfigureDuelModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Duel>(entity =>
+            {
+                entity.ToTable("duels");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Format).HasMaxLength(10).HasDefaultValue("BO1");
+                entity.Property(e => e.Message).HasMaxLength(300);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(DuelStatuses.Pending);
+
+                entity.HasOne(d => d.ChallengerPlayer)
+                    .WithMany()
+                    .HasForeignKey(d => d.ChallengerPlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict на другій стороні: два каскади на ту саму таблицю
+                // PostgreSQL відхиляє як цикл.
+                // Необов'язковий: у відкритому виклику суперника ще немає.
+                entity.HasOne(d => d.OpponentPlayer)
+                    .WithMany()
+                    .HasForeignKey(d => d.OpponentPlayerId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Один відкритий виклик у цьому напрямі. Зустрічний виклик
+                // індекс не бачить — його відсіює DuelService, як і в
+                // match_challenges.
+                entity.HasIndex(d => new { d.ChallengerPlayerId, d.OpponentPlayerId })
+                    .HasFilter($"\"Status\" = '{DuelStatuses.Pending}'")
+                    .IsUnique();
+
+                entity.HasIndex(d => d.Status);
+            });
         }
 
         private void ConfigureUserModel(ModelBuilder modelBuilder)
@@ -193,9 +237,11 @@ namespace TForge.Data.Context
                     .HasForeignKey(m => m.HomeTeamId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                // Необов'язковий: у відкритому матчі гостя ще немає.
                 entity.HasOne(m => m.AwayTeam)
                     .WithMany(t => t.AwayMatches)
                     .HasForeignKey(m => m.AwayTeamId)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
                 // Зв'язок з командою-переможцем (nullable)

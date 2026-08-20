@@ -6,7 +6,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../components/ui/Primitives";
 import { SortableTh, useSortState } from "../../components/ui/SortableTh";
-import { Avatar } from "../../components/ui/Avatar";
+import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { RatingCell } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
@@ -81,11 +81,33 @@ const PlayersList = () => {
               <tr>
                 <th className="w-px text-right">#</th>
                 <SortableTh label="Нікнейм" sortKey="nickname" {...sortProps} />
-                <SortableTh label="Позиція" sortKey="position" {...sortProps} />
-                <SortableTh label="Країна" sortKey="country" {...sortProps} />
+                <SortableTh
+                  label="Позиція"
+                  sortKey="position"
+                  className="hidden lg:table-cell"
+                  {...sortProps}
+                />
+                <SortableTh
+                  label="Країна"
+                  sortKey="country"
+                  className="hidden md:table-cell"
+                  {...sortProps}
+                />
                 <SortableTh label="Команда" sortKey="team" {...sortProps} />
-                <SortableTh label="Матчі" sortKey="matches" align="right" {...sortProps} />
-                <SortableTh label="Перемоги" sortKey="wins" align="right" {...sortProps} />
+                <SortableTh
+                  label="Матчі"
+                  sortKey="matches"
+                  align="right"
+                  className="hidden xl:table-cell"
+                  {...sortProps}
+                />
+                <SortableTh
+                  label="Перемоги"
+                  sortKey="wins"
+                  align="right"
+                  className="hidden xl:table-cell"
+                  {...sortProps}
+                />
                 <SortableTh label="%" sortKey="winRate" align="right" {...sortProps} />
                 <SortableTh label="KDA" sortKey="kda" align="right" {...sortProps} />
                 <SortableTh label="Рейтинг" sortKey="rating" align="right" {...sortProps} />
@@ -115,21 +137,34 @@ const PlayersList = () => {
                         {player.nickname}
                       </Link>
                     </td>
-                    <td>{player.position || "—"}</td>
-                    <td>
+                    <td className="hidden lg:table-cell">{player.position || "—"}</td>
+                    <td className="hidden md:table-cell">
                       <CountryFlag code={player.country} />
                     </td>
                     <td>
                       {player.teamId ? (
-                        <Link to={`/teams/${player.teamId}`} className="hover:text-ember">
-                          {player.teamName}
+                        <Link
+                          to={`/teams/${player.teamId}`}
+                          className="flex items-center gap-2 hover:text-ember"
+                        >
+                          <Avatar
+                            url={player.teamLogoPath}
+                            fallback={teamInitials(player.teamName, player.teamTag)}
+                            size="sm"
+                            shape="square"
+                          />
+                          <span className="truncate">{player.teamName}</span>
                         </Link>
                       ) : (
                         <span className="text-text-faint">Вільний агент</span>
                       )}
                     </td>
-                    <td className="tabular text-right font-mono text-micro">{player.matches}</td>
-                    <td className="tabular text-right font-mono text-micro">{player.wins}</td>
+                    <td className="tabular hidden text-right font-mono text-micro xl:table-cell">
+                      {player.matches}
+                    </td>
+                    <td className="tabular hidden text-right font-mono text-micro xl:table-cell">
+                      {player.wins}
+                    </td>
                     <td className="tabular text-right font-mono text-micro">{player.winRate}</td>
                     <td className="tabular text-right font-mono text-micro">{player.kda}</td>
                     <td className="text-right text-micro">

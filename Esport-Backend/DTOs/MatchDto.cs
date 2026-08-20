@@ -1,4 +1,4 @@
-namespace TForge.DTOs
+﻿namespace TForge.DTOs
 {
     public class MatchDto
     {
@@ -36,7 +36,15 @@ namespace TForge.DTOs
         /// матчем: TeamSummaryDto.Captain у відповідях матчу не підвантажується.
         /// </summary>
         public int HomeTeamCaptainId { get; set; }
-        public int AwayTeamCaptainId { get; set; }
+
+        /// <summary>Порожній у відкритому матчі — гостя ще немає.</summary>
+        public int? AwayTeamCaptainId { get; set; }
+
+        /// <summary>Власна назва матчу, якщо її дали.</summary>
+        public string? Name { get; set; }
+
+        /// <summary>Відкритий матч: приєднатися може капітан будь-якої іншої команди.</summary>
+        public bool IsOpen { get; set; }
         public TeamSummaryDto? WinnerTeam { get; set; }
         public TournamentDto? Tournament { get; set; }
         public List<MatchPlayerDto> MatchPlayers { get; set; } = new();
@@ -44,10 +52,30 @@ namespace TForge.DTOs
 
     public class CreateMatchDto
     {
-        public int TournamentId { get; set; }
-        public int HomeTeamId { get; set; }
-        public int AwayTeamId { get; set; }
+        /// <summary>
+        /// Null — товариський матч. Дисципліну тоді задає клієнт (нижче),
+        /// бо успадкувати її нема від чого; у турнірному матчі Game завжди
+        /// береться з турніру й будь-яке значення клієнта ігнорується.
+        /// </summary>
+        public int? TournamentId { get; set; }
+
+        /// <summary>
+        /// Домашня команда. Null — сервер візьме команду, якою капітанує той,
+        /// хто створює матч; якщо таких команд кілька, він попросить уточнити.
+        /// </summary>
+        public int? HomeTeamId { get; set; }
+
+        /// <summary>Null — відкритий матч: суперника назве той, хто приєднається.</summary>
+        public int? AwayTeamId { get; set; }
+
+        /// <summary>Власна назва матчу. Необов'язкова.</summary>
+        public string? Name { get; set; }
+
         public DateTime ScheduledAt { get; set; }
+
+        /// <summary>Лише для товариського матчу — див. Common/Games.cs.</summary>
+        public string? Game { get; set; }
+
         public string MatchType { get; set; } = "GroupStage";
         public string Format { get; set; } = "BO1";
         public string Notes { get; set; } = string.Empty;

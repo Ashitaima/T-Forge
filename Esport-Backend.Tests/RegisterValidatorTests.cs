@@ -47,7 +47,7 @@ public class RegisterValidatorTests
     [Fact]
     public void Role_LegacyUser_IsRejected()
     {
-        Assert.False(_validator.Validate(Valid(UserRoles.User)).IsValid);
+        Assert.False(_validator.Validate(Valid(UserRoles.LegacyUser)).IsValid);
     }
 
     // ---- Нікнейм ----

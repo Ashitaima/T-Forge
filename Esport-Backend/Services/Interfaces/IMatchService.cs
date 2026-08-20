@@ -1,4 +1,4 @@
-using TForge.DTOs;
+﻿using TForge.DTOs;
 using TForge.Common;
 using TForge.Common.Filters;
 
@@ -15,7 +15,15 @@ namespace TForge.Services.Interfaces
         Task<IEnumerable<MatchDto>> GetByStatusAsync(string status);
         Task<IEnumerable<MatchDto>> GetScheduledMatchesAsync();
         Task<IEnumerable<MatchDto>> GetCompletedMatchesAsync();
-        Task<MatchDto> CreateAsync(CreateMatchDto createDto);
+        /// <summary>Домашню команду сервіс виводить із капітанства того, хто створює.</summary>
+        Task<MatchDto> CreateAsync(CreateMatchDto createDto, int requestingUserId);
+
+        /// <summary>Приєднатися до відкритого матчу — назватися командою-гостем.</summary>
+        Task<MatchDto> JoinAsync(int id, int requestingUserId, bool isAdmin);
+
+        /// <summary>Дані, потрібні MatchCreationPolicy, щоб вирішити, хто може створити цей матч.</summary>
+        Task<MatchCreationPolicy.Context> GetCreateContextAsync(
+            CreateMatchDto createDto, int requestingUserId);
         Task<MatchDto?> UpdateAsync(int id, UpdateMatchDto updateDto);
 
         /// <summary>Дані, потрібні FriendlyMatchPolicy, щоб вирішити, хто веде цей матч.</summary>

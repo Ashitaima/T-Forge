@@ -9,9 +9,7 @@ import type { UserDto } from "../../types";
 const roleLabels: Record<string, string> = {
   Admin: "Адміністратор",
   Organizer: "Організатор",
-  Player: "Гравець",
-  User: "Користувач",
-  Moderator: "Модератор"
+  Player: "Гравець"
 };
 
 const UsersList = () => {

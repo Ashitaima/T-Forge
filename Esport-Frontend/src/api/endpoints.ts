@@ -19,6 +19,7 @@ export const endpoints = {
   teams: "/api/teams",
   teamsPaged: "/api/teams/paged",
   teamSummary: (id: number) => `/api/teams/${id}/summary`,
+  teamLogo: (id: number) => `/api/teams/${id}/logo`,
   players: "/api/players",
   playersPaged: "/api/players/paged",
   playersFull: "/api/players/full",
@@ -61,5 +62,15 @@ export const endpoints = {
   teamRatingHistory: (teamId: number) => `/api/ratings/teams/${teamId}/history`,
   playerRatings: (playerId: number) => `/api/ratings/players/${playerId}`,
   playerRatingHistory: (playerId: number) => `/api/ratings/players/${playerId}/history`,
-  matchRatingDelta: (matchId: number) => `/api/ratings/matches/${matchId}`
+  matchRatingDelta: (matchId: number) => `/api/ratings/matches/${matchId}`,
+  notifications: "/api/notifications",
+  notificationsUnreadCount: "/api/notifications/unread-count",
+  notificationsSeen: "/api/notifications/seen",
+  matchJoin: (id: number) => `/api/matches/${id}/join`,
+  duels: "/api/duels",
+  duelRecord: (playerId: number) => `/api/duels/record/${playerId}`,
+  duelRespond: (id: number) => `/api/duels/${id}/respond`,
+  duelCancel: (id: number) => `/api/duels/${id}/cancel`,
+  duelStart: (id: number) => `/api/duels/${id}/start`,
+  duelComplete: (id: number) => `/api/duels/${id}/complete`
 };

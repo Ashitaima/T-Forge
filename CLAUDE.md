@@ -89,6 +89,28 @@ dotnet ef database drop -f
 - **Who may run a match is decided by `Common/FriendlyMatchPolicy.cs`** — a pure function, like the other authorization rules. `MatchesController` calls `EnsureCanManageAsync` on start/complete/score/stream instead of carrying a role attribute. `MatchDto.HomeTeamCaptainId`/`AwayTeamCaptainId` exist so the client can mirror that check: `TeamSummaryDto.Captain` is **not** loaded on match responses, so testing `team.captain?.id` there silently fails.
 - **A match carries two optional external links, validated by different rules.** `Match.StreamUrl` is host-allow-listed in `Common/StreamUrlRules.cs` and compared by exact host match — never `Contains("twitch.tv")`, since `twitch.tv.evil.com` contains it. `Match.TrackerUrl` (the post-match stats page: tracker.gg, HLTV, Dotabuff, OP.GG) is deliberately **not** host-restricted, because every discipline has its own tracker; `Common/TrackerUrlRules.cs` requires https, a real host and ≤300 chars. Both are set through `PUT /api/matches/{id}/links`, and the tracker one can also be supplied when completing a match.
 - **Paginated lists use `hooks/usePagedList.ts`.** Its `resetKey` must contain every value the fetch closure captures (search term, entity id). Get that wrong and the list silently stops refreshing.
+- **Image uploads go through `Services/ImageUploadService.cs`.** It knows a folder
+  and a subject id, nothing else; `AvatarService` (`User.AvatarPath`) and
+  `TeamLogoService` (`Team.LogoPath`) are thin callers. The rule the split exists
+  to protect is that the previous file is deleted only *after* the row saves —
+  deleting first and then failing the save leaves the subject with no image at
+  all. Type is decided by `Common/AvatarRules.cs` from the magic bytes, never from
+  `Content-Type` or the filename. `LogoPath` is absent from `CreateTeamDto`/
+  `UpdateTeamDto` on purpose, and `Esport-Backend.Tests/TeamDtoSurfaceTests.cs`
+  pins that. `TeamRowDto` is hand-projected in `TeamService.GetPagedRowsAsync`, so
+  a new column has to be added there too or it is null in the list only.
+- **Notifications have no table.** `Services/NotificationService.cs` projects
+  `TeamMembershipRequest`, `MatchChallenge` and `TournamentInvitation` rows into
+  one DTO, and `Common/NotificationAddressing.cs` — pure, like the other policies —
+  decides who each row is for: while it is pending it awaits the responder, once
+  answered it informs the initiator, and a cancelled row addresses nobody.
+  `RespondedByUserId` is never the audience. Unread is one column,
+  `User.NotificationsSeenAt`, not a flag per row, and `POST /api/notifications/seen`
+  is the only thing that writes it. `GetUnreadCountAsync` deliberately reuses the
+  same collection instead of a leaner SQL `COUNT`: the addressing rule is C# and
+  EF cannot translate it, so counting in SQL would mean a second copy of the one
+  rule that must not drift. The ceiling is real — only those three flows can
+  produce a notification, so anything else needs an events table.
 
 - **Rating arithmetic lives in `Common/EloCalculator.cs`**, alongside the record calculators — pure, no EF. `Services/RatingService.cs` only reads and writes rows. Rating is per `(subject, game)`; only tournament matches with a winner count, so a friendly never moves it. The `TeamRatingChanges`/`PlayerRatingChanges` ledger is what makes double-counting structurally impossible: the service checks for an existing row before rating, and the unique `(TeamId, MatchId)` index catches anything that slips past. Rating hooks into `MatchRosterService.ApplyMatchResultAsync` *after* the roster is materialised — players are paid from `MatchPlayer.TeamId`, so those rows must exist first.
 - **Country is an ISO 3166-1 alpha-2 code, not a name.** `Common/Countries.cs` holds the codes; the Ukrainian labels and the flag live in `Esport-Frontend/src/constants/countries.ts`, same split as `Games`. `PlayerRules.PlayerCountry` whitelists them — free text can't produce a flag. `DatabaseInitializer.NormalizeLegacyCountriesAsync` translates known old names once and leaves unknown ones alone rather than wiping them. Flags are emoji: Windows lacks the glyphs and renders the two letters instead, which is why the code or name always sits next to the flag.
@@ -171,14 +193,24 @@ Captains now also run their own friendly matches: start, score, complete and the
 
 ## Suggested next work
 
-Security is done apart from refresh tokens, and the counter-drift/rating-reversal
-pair is fixed. The unbuilt features left from `docs/Scope.md` are **D1 team logos**
-(avatars already show how file handling works here — the best visual return of
-anything left) and **D2 notifications** (a row plus an unread count in `AppShell`
-would tie together the four things that already happen behind the user's back:
-team invitations, membership applications, match challenges and tournament
-invitations). **A7**, re-centring the tier boundaries so 1000 is not already
-Silver, is worth revisiting once there is enough seeded history to see the real
-distribution. Beyond that: double-elimination or group-stage brackets.
+Every item in `docs/Scope.md` is implemented. The last three — **A7** (tier
+boundaries re-centred so `EloCalculator.BaseRating` sits in Bronze, no migration
+because tiers are derived on every read), **D1** (team logos) and **D2**
+(notifications) — landed on 2026-08-18; see
+`docs/superpowers/specs/2026-08-18-logos-notifications-tiers-design.md` and the
+plan beside it.
+
+What is left is genuinely new work rather than unfinished work:
+
+- **Refresh tokens.** The one open item from the security list — logout is still
+  a no-op and a stolen token stays valid until it expires.
+- **Double-elimination or group-stage brackets.** `BracketService` handles single
+  elimination only.
+- **Re-fit the A7 tier boundaries.** The current bands are a considered guess, not
+  a fit to data; once there is enough seeded history, check whether Elite is
+  actually rare and Bronze is not a trap.
+- **An events table, if notifications need to grow.** The derived design covers
+  the three request flows and structurally cannot cover anything else — see the
+  notifications convention above.
 
 Design specs and implementation plans for completed work live in `docs/superpowers/` and are worth reading before extending those areas.

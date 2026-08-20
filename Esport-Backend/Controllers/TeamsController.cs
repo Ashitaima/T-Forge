@@ -17,6 +17,7 @@ namespace TForge.Controllers
         private readonly IMembershipRequestService _membershipRequestService;
         private readonly IMatchChallengeService _matchChallengeService;
         private readonly ITournamentInvitationService _tournamentInvitationService;
+        private readonly ITeamLogoService _teamLogoService;
         private readonly ILogger<TeamsController> _logger;
 
         public TeamsController(
@@ -25,6 +26,7 @@ namespace TForge.Controllers
             IMembershipRequestService membershipRequestService,
             IMatchChallengeService matchChallengeService,
             ITournamentInvitationService tournamentInvitationService,
+            ITeamLogoService teamLogoService,
             ILogger<TeamsController> logger)
         {
             _teamService = teamService;
@@ -32,6 +34,7 @@ namespace TForge.Controllers
             _membershipRequestService = membershipRequestService;
             _matchChallengeService = matchChallengeService;
             _tournamentInvitationService = tournamentInvitationService;
+            _teamLogoService = teamLogoService;
             _logger = logger;
         }
 
@@ -112,6 +115,29 @@ namespace TForge.Controllers
             return Ok(team);
         }
 
+        /// <summary>
+        /// Логотип команди. Право перевіряє TeamCaptaincyPolicy у сервісі —
+        /// капітанство це колонка, а не роль.
+        /// </summary>
+        [HttpPost("{id}/logo")]
+        [Authorize]
+        [RequestSizeLimit(AvatarRules.MaxBytes + 4096)]
+        public async Task<ActionResult<TeamDto>> UploadLogo(int id, IFormFile file)
+        {
+            await _teamLogoService.SaveAsync(id, file, GetUserIdOrThrow(), IsAdmin);
+
+            return Ok(await _teamService.GetByIdAsync(id)
+                ?? throw new EntityNotFoundException("Team", id));
+        }
+
+        [HttpDelete("{id}/logo")]
+        [Authorize]
+        public async Task<ActionResult> DeleteLogo(int id)
+        {
+            await _teamLogoService.ClearAsync(id, GetUserIdOrThrow(), IsAdmin);
+            return NoContent();
+        }
+
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<ActionResult> DeleteTeam(int id)
@@ -168,7 +194,7 @@ namespace TForge.Controllers
                 throw new EntityNotFoundException("Team", teamId);
             }
 
-            if (team.Captain?.Id != userId)
+            if (!IsAdmin && team.Captain?.Id != userId)
             {
                 return Forbid();
             }

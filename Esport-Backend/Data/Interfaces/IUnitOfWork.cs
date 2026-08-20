@@ -1,4 +1,4 @@
-using TForge.Models;
+﻿using TForge.Models;
 
 namespace TForge.Data.Interfaces
 {
@@ -17,6 +17,7 @@ namespace TForge.Data.Interfaces
         IGenericRepository<PlayerRating> PlayerRatings { get; }
         IGenericRepository<TeamRatingChange> TeamRatingChanges { get; }
         IGenericRepository<PlayerRatingChange> PlayerRatingChanges { get; }
+        IGenericRepository<Duel> Duels { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

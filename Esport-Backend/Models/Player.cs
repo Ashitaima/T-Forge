@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using TForge.Common;
 namespace TForge.Models
 {
     public class Player
@@ -23,6 +24,17 @@ namespace TForge.Models
         public int Age { get; set; } = 0;
 
         public int? TeamId { get; set; } // Nullable - гравець може не мати команди
+
+        // Ігрові теги. Формати перевіряє Common/GameIdFormats.cs; null означає
+        // «гравець його не вказав», а не «немає акаунта».
+        [StringLength(GameIdFormats.MaxLength)]
+        public string? RiotId { get; set; }
+
+        [StringLength(GameIdFormats.MaxLength)]
+        public string? SteamId64 { get; set; }
+
+        [StringLength(GameIdFormats.MaxLength)]
+        public string? BattleTag { get; set; }
 
         // Статистика
         public int TotalMatches { get; set; } = 0;

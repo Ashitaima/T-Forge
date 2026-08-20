@@ -1,3 +1,5 @@
+﻿using TForge.Common;
+
 namespace TForge.DTOs
 {
     public class LoginDto
@@ -13,7 +15,8 @@ namespace TForge.DTOs
         public string Password { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public string Role { get; set; } = "User";
+        /// <summary>Типова роль — гравець; «User» більше не існує.</summary>
+        public string Role { get; set; } = UserRoles.Player;
 
         /// <summary>Обов'язковий лише для ролі Player — з нього створюється профіль гравця.</summary>
         public string Nickname { get; set; } = string.Empty;

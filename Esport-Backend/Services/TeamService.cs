@@ -113,6 +113,7 @@ namespace TForge.Services
                 Name = t.Name,
                 Tag = t.Tag,
                 Region = t.Region,
+                LogoPath = t.LogoPath,
                 IsActive = t.IsActive,
                 CaptainId = t.CaptainId,
                 CaptainUsername = t.Captain != null ? t.Captain.Username : null,

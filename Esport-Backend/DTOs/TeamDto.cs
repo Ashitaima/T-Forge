@@ -7,6 +7,7 @@ namespace TForge.DTOs
         public string Tag { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
+        public string? LogoPath { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public UserDto? Captain { get; set; }
@@ -19,6 +20,7 @@ namespace TForge.DTOs
         public string Name { get; set; } = string.Empty;
         public string Tag { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
+        public string? LogoPath { get; set; }
         public bool IsActive { get; set; }
         public UserDto? Captain { get; set; }
     }
@@ -34,6 +36,7 @@ namespace TForge.DTOs
         public string Name { get; set; } = string.Empty;
         public string Tag { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
+        public string? LogoPath { get; set; }
         public bool IsActive { get; set; }
 
         /// <summary>Потрібен списку, щоб показати кнопки редагування лише капітанові.</summary>

@@ -4,7 +4,7 @@ import { Anvil, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, Us
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
 import { teamsApi } from "../../api/teamsApi";
-import { ChallengeIndicator } from "./ChallengeIndicator";
+import { NotificationBell } from "./NotificationBell";
 import { Avatar } from "../ui/Avatar";
 import type { TeamRowDto } from "../../types";
 
@@ -19,7 +19,6 @@ const navItems = [
 
 const roleLabels: Record<string, string> = {
   Guest: "Гість",
-  User: "Користувач",
   Player: "Гравець",
   Organizer: "Організатор",
   Admin: "Адміністратор"
@@ -113,7 +112,7 @@ export const AppShell = () => {
         </nav>
 
         <div className="mt-auto hidden space-y-3 p-3 lg:block">
-          {user && <ChallengeIndicator />}
+          {user && <NotificationBell />}
 
           {/* Інструмент розробки — лише для адміністратора, унизу й підписаний,
               щоб не читався як частина продукту */}

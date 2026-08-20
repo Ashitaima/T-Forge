@@ -13,6 +13,7 @@ import {
   PLAYER_MIN_AGE,
   PLAYER_POSITIONS
 } from "../../constants/playerPositions";
+import { GAME_ID_FIELDS, emptyToUndefined, isValidGameId } from "../../constants/gameIds";
 import type { UpdatePlayerDto } from "../../types";
 
 const schema = z.object({
@@ -31,6 +32,27 @@ const schema = z.object({
     .number()
     .min(PLAYER_MIN_AGE, `Мінімум ${PLAYER_MIN_AGE} років`)
     .max(PLAYER_MAX_AGE, `Максимум ${PLAYER_MAX_AGE} років`),
+  // Ігрові теги необов'язкові, але заповнений має бути правильним:
+  // за поламаним тегом гравця однаково ніхто не знайде.
+  // Формати — дзеркало Esport-Backend/Common/GameIdFormats.cs.
+  riotId: z
+    .string()
+    .optional()
+    .refine((value) => isValidGameId(GAME_ID_FIELDS[0], value), {
+      message: GAME_ID_FIELDS[0].error
+    }),
+  steamId64: z
+    .string()
+    .optional()
+    .refine((value) => isValidGameId(GAME_ID_FIELDS[1], value), {
+      message: GAME_ID_FIELDS[1].error
+    }),
+  battleTag: z
+    .string()
+    .optional()
+    .refine((value) => isValidGameId(GAME_ID_FIELDS[2], value), {
+      message: GAME_ID_FIELDS[2].error
+    }),
   username: z.string().optional(),
   email: z.string().optional(),
   password: z.string().optional()
@@ -78,6 +100,9 @@ const PlayerForm = () => {
         setValue("position", data.position as FormValues["position"]);
         setValue("country", data.country);
         setValue("age", data.age);
+        setValue("riotId", data.riotId ?? "");
+        setValue("steamId64", data.steamId64 ?? "");
+        setValue("battleTag", data.battleTag ?? "");
       } finally {
         setLoading(false);
       }
@@ -126,7 +151,10 @@ const PlayerForm = () => {
           nickname: values.nickname,
           position: values.position,
           country: values.country,
-          age: values.age
+          age: values.age,
+          riotId: emptyToUndefined(values.riotId),
+          steamId64: emptyToUndefined(values.steamId64),
+          battleTag: emptyToUndefined(values.battleTag)
         };
         await playersApi.update(Number(id), payload);
       }
@@ -203,6 +231,29 @@ const PlayerForm = () => {
           <input type="number" {...register("age")} className="input" />
           {errors.age && <p className="field-error">{errors.age.message}</p>}
         </label>
+        <fieldset className="space-y-4 border-t border-line-soft pt-5">
+          <legend className="eyebrow">Ігрові акаунти</legend>
+          <p className="text-micro text-text-faint">
+            Необов'язково. Потрібні, щоб суперник знайшов вас у грі.
+          </p>
+
+          {GAME_ID_FIELDS.map((tag) => (
+            <label key={tag.name} className="field">
+              {tag.label}
+              <span className="ml-2 text-micro font-normal text-text-faint">{tag.hint}</span>
+              <input
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={tag.placeholder}
+                {...register(tag.name)}
+                className="input font-mono"
+              />
+              {errors[tag.name] && <p className="field-error">{errors[tag.name]?.message}</p>}
+            </label>
+          ))}
+        </fieldset>
+
         {isCreatingAccount && (
           <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
             Буде створено обліковий запис із роллю «Гравець» і привʼязаний до нього профіль.

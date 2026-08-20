@@ -9,6 +9,8 @@ type Props = {
   direction: SortDirection;
   onSort: (key: string) => void;
   align?: "left" | "right";
+  /** Класи для самого <th> — таблиці ховають частину колонок на вузьких екранах. */
+  className?: string;
 };
 
 /**
@@ -23,13 +25,14 @@ export const SortableTh = ({
   activeKey,
   direction,
   onSort,
-  align = "left"
+  align = "left",
+  className
 }: Props) => {
   const isActive = activeKey === sortKey;
   const Icon = !isActive ? ChevronsUpDown : direction === "asc" ? ChevronUp : ChevronDown;
 
   return (
-    <th className={align === "right" ? "text-right" : undefined}>
+    <th className={[align === "right" ? "text-right" : null, className].filter(Boolean).join(" ") || undefined}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}

@@ -9,7 +9,6 @@ public class UserRolesTests
     [InlineData("Player")]
     [InlineData("Organizer")]
     [InlineData("Admin")]
-    [InlineData("User")]
     public void IsValid_KnownRole_IsTrue(string role)
     {
         Assert.True(UserRoles.IsValid(role));
@@ -20,6 +19,9 @@ public class UserRolesTests
     [InlineData("player")]
     [InlineData("")]
     [InlineData(null)]
+    // «User» — успадкована роль, якої більше немає: наявні рядки переводить
+    // у Player DatabaseInitializer.NormalizeLegacyRolesAsync.
+    [InlineData("User")]
     public void IsValid_UnknownRole_IsFalse(string? role)
     {
         Assert.False(UserRoles.IsValid(role));

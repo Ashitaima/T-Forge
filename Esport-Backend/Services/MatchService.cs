@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using TForge.Data.Interfaces;
 using TForge.DTOs;
@@ -177,16 +177,151 @@ namespace TForge.Services
             return _mapper.Map<IEnumerable<MatchDto>>(matches);
         }
 
-        public async Task<MatchDto> CreateAsync(CreateMatchDto createDto)
+        /// <summary>
+        /// Дані, потрібні MatchCreationPolicy, щоб вирішити, кому можна
+        /// створити саме цей матч. Читаємо одним запитом ще до запису.
+        /// </summary>
+        /// <summary>
+        /// Домашня команда матчу, який створює капітан. Клієнт її не надсилає:
+        /// вона випливає з капітанства. Якщо капітан веде кілька команд —
+        /// просимо уточнити, бо вгадувати за нього не можна.
+        /// </summary>
+        private async Task<int> ResolveHomeTeamIdAsync(CreateMatchDto createDto, int requestingUserId)
         {
-            var tournament = await _unitOfWork.Tournaments.GetByIdAsync(createDto.TournamentId)
-                ?? throw new EntityNotFoundException("Tournament", createDto.TournamentId);
+            if (createDto.HomeTeamId is int explicitId)
+            {
+                return explicitId;
+            }
+
+            var captained = await _unitOfWork.Teams.GetQueryable()
+                .Where(t => t.CaptainId == requestingUserId)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            return captained.Count switch
+            {
+                1 => captained[0],
+                0 => throw new BusinessLogicException(
+                    "Створити матч може капітан команди — у вас її немає"),
+                _ => throw new BusinessLogicException(
+                    "Ви капітан кількох команд — оберіть, яка з них грає")
+            };
+        }
+
+        public async Task<MatchCreationPolicy.Context> GetCreateContextAsync(
+            CreateMatchDto createDto, int requestingUserId)
+        {
+            // Домашню команду треба вивести ще до перевірки прав: капітан її не
+            // надсилає, і без цього контекст лишався б без жодного капітана —
+            // тобто відкритий матч не міг би створити ніхто.
+            var homeTeamId = await ResolveHomeTeamIdAsync(createDto, requestingUserId);
+
+            var organizerUserId = createDto.TournamentId == null
+                ? null
+                : await _unitOfWork.Tournaments.GetQueryable()
+                    .Where(t => t.Id == createDto.TournamentId)
+                    .Select(t => (int?)t.OrganizerId)
+                    .FirstOrDefaultAsync();
+
+            var captains = await _unitOfWork.Teams.GetQueryable()
+                .Where(t => t.Id == homeTeamId || t.Id == createDto.AwayTeamId)
+                .Select(t => new { t.Id, t.CaptainId })
+                .ToListAsync();
+
+            return new MatchCreationPolicy.Context(
+                createDto.TournamentId,
+                organizerUserId,
+                captains.FirstOrDefault(t => t.Id == homeTeamId)?.CaptainId,
+                captains.FirstOrDefault(t => t.Id == createDto.AwayTeamId)?.CaptainId);
+        }
+
+        /// <summary>
+        /// Приєднатися до відкритого матчу — це і є назватися гостем. Доти
+        /// AwayTeamId порожній, і саме тут він уперше отримує значення.
+        /// </summary>
+        public async Task<MatchDto> JoinAsync(int id, int requestingUserId, bool isAdmin)
+        {
+            var match = await _unitOfWork.Matches.GetByIdAsync(id)
+                ?? throw new EntityNotFoundException("Match", id);
+
+            if (match.AwayTeamId != null)
+            {
+                throw new BusinessLogicException("До цього матчу вже приєдналися");
+            }
+
+            if (match.Status != MatchStatus.Scheduled)
+            {
+                throw new BusinessLogicException("Приєднатися можна лише до запланованого матчу");
+            }
+
+            var captained = await _unitOfWork.Teams.GetQueryable()
+                .Where(t => t.CaptainId == requestingUserId && t.Id != match.HomeTeamId)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            var awayTeamId = captained.Count switch
+            {
+                1 => captained[0],
+                0 => throw new ForbiddenException(
+                    "Приєднатися до матчу може лише капітан іншої команди"),
+                _ => throw new BusinessLogicException(
+                    "Ви капітан кількох команд — оберіть, яка з них грає")
+            };
+
+            match.AwayTeamId = awayTeamId;
+            await _unitOfWork.SaveChangesAsync();
+
+            // Склад гостя доливаємо тим самим шляхом, що й при створенні:
+            // виклик ідемпотентний, уже доданих він не чіпає.
+            await _rosterService.AutoFillAsync(match.Id);
+
+            return await GetByIdAsync(match.Id)
+                ?? throw new EntityNotFoundException("Match", match.Id);
+        }
+
+        public async Task<MatchDto> CreateAsync(CreateMatchDto createDto, int requestingUserId)
+        {
+            var homeTeamId = await ResolveHomeTeamIdAsync(createDto, requestingUserId);
+
+            if (homeTeamId == createDto.AwayTeamId)
+            {
+                throw new BusinessLogicException("Команда не може грати сама із собою");
+            }
 
             var match = _mapper.Map<Match>(createDto);
+            match.HomeTeamId = homeTeamId;
             match.CreatedAt = DateTime.UtcNow;
             match.Status = MatchStatus.Scheduled;
-            // Дисципліна успадковується від турніру, а не приходить від клієнта.
-            match.Game = tournament.Game;
+
+            if (createDto.TournamentId == null)
+            {
+                // Товариський матч: турніру немає, тож дисципліну задає той, хто
+                // його створює. Round = 0 і GroupStage — та сама позначка, що її
+                // ставить MatchChallengeService: саме вона тримає товариські матчі
+                // поза сіткою BracketService і поза підрахунком титулів.
+                if (!Games.IsValid(createDto.Game))
+                {
+                    throw new BusinessLogicException("Оберіть дисципліну товариського матчу");
+                }
+
+                match.Game = createDto.Game!;
+                match.Round = 0;
+                match.MatchType = MatchTypes.GroupStage;
+            }
+            else
+            {
+                if (createDto.AwayTeamId == null)
+                {
+                    throw new BusinessLogicException(
+                        "Турнірний матч не буває відкритим — вкажіть обидві команди");
+                }
+
+                var tournament = await _unitOfWork.Tournaments.GetByIdAsync(createDto.TournamentId.Value)
+                    ?? throw new EntityNotFoundException("Tournament", createDto.TournamentId.Value);
+
+                // Дисципліна успадковується від турніру, а не приходить від клієнта.
+                match.Game = tournament.Game;
+            }
 
             await _unitOfWork.Matches.AddAsync(match);
             await _unitOfWork.SaveChangesAsync();
@@ -248,7 +383,7 @@ namespace TForge.Services
                 .Select(m => new FriendlyMatchPolicy.Context(
                     m.TournamentId,
                     m.HomeTeam.CaptainId,
-                    m.AwayTeam.CaptainId))
+                    m.AwayTeam == null ? (int?)null : m.AwayTeam.CaptainId))
                 .FirstOrDefaultAsync();
 
             return context ?? throw new EntityNotFoundException("Match", id);
@@ -335,6 +470,16 @@ namespace TForge.Services
         public async Task<bool> CompleteMatchAsync(int id, int? winnerTeamId, string? result, string? trackerUrl)
         {
             var match = await _unitOfWork.Matches.GetByIdAsync(id);
+
+            // Відкритий матч зіграти нема з ким. Без цієї перевірки він міг би
+            // дійти до Completed із порожнім гостем — а на статус Completed
+            // спираються геть усі підсумки.
+            if (match is { AwayTeamId: null })
+            {
+                throw new BusinessLogicException(
+                    "До матчу ще ніхто не приєднався — завершувати нема чого");
+            }
+
             if (match == null || match.Status == MatchStatus.Completed)
                 return false;
 

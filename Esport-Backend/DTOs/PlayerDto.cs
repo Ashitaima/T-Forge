@@ -1,4 +1,4 @@
-namespace TForge.DTOs
+﻿namespace TForge.DTOs
 {
     public class PlayerDto
     {
@@ -15,6 +15,16 @@ namespace TForge.DTOs
         public int Ranking { get; set; }
         public bool IsActive { get; set; }
         public DateTime JoinedAt { get; set; }
+
+        // Ігрові теги гравця — див. Common/GameIdFormats.cs
+        public string? RiotId { get; set; }
+        public string? SteamId64 { get; set; }
+        public string? BattleTag { get; set; }
+
+        /// <summary>Готове посилання на профіль Steam, або null. Будує сервер,
+        /// щоб клієнт не склеював URL сам.</summary>
+        public string? SteamProfileUrl { get; set; }
+
         public UserDto? User { get; set; }
         public TeamSummaryDto? Team { get; set; }
     }
@@ -52,6 +62,8 @@ namespace TForge.DTOs
         public string? AvatarUrl { get; set; }
         public int? TeamId { get; set; }
         public string? TeamName { get; set; }
+        public string? TeamTag { get; set; }
+        public string? TeamLogoPath { get; set; }
         public int Matches { get; set; }
         public int Wins { get; set; }
         public int Losses { get; set; }
@@ -80,6 +92,9 @@ namespace TForge.DTOs
         public string Position { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public int Age { get; set; }
+        public string? RiotId { get; set; }
+        public string? SteamId64 { get; set; }
+        public string? BattleTag { get; set; }
         /// <summary>Заповнює сервер з токена. Задати вручну може лише адміністратор.</summary>
         public int? UserId { get; set; }
     }
@@ -107,6 +122,9 @@ namespace TForge.DTOs
         public string Position { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public int Age { get; set; }
+        public string? RiotId { get; set; }
+        public string? SteamId64 { get; set; }
+        public string? BattleTag { get; set; }
     }
 
     public class PlayerStatsDto

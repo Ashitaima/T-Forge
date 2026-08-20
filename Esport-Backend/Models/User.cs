@@ -30,6 +30,15 @@ namespace TForge.Models
         [StringLength(200)]
         public string? AvatarPath { get; set; }
 
+        /// <summary>
+        /// Коли користувач востаннє відкривав сповіщення. Непрочитане — це те,
+        /// що сталося пізніше за цю мітку. Одна колонка замість прапорця на
+        /// кожен рядок: самих рядків сповіщень ми не зберігаємо, вони виводяться
+        /// із запитів (див. NotificationService). null означає «ще не відкривав»,
+        /// тож новий користувач бачить усе як нове.
+        /// </summary>
+        public DateTime? NotificationsSeenAt { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

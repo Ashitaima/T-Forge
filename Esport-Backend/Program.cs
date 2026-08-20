@@ -1,4 +1,4 @@
-
+﻿
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -10,6 +10,7 @@ using TForge.Services.Interfaces;
 using TForge.Services;
 using TForge.Mappings;
 using TForge.Middleware;
+using TForge.Common;
 using TForge.Hubs;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -55,6 +56,7 @@ namespace TForge
             builder.Services.AddScoped<ITeamService, TeamService>();
             builder.Services.AddScoped<IPlayerService, PlayerService>();
             builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<IDuelService, DuelService>();
             builder.Services.AddScoped<IBracketService, BracketService>();
             builder.Services.AddScoped<IStandingsService, StandingsService>();
             builder.Services.AddScoped<IMatchRosterService, MatchRosterService>();
@@ -62,7 +64,10 @@ namespace TForge
             builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
             builder.Services.AddScoped<ITournamentInvitationService, TournamentInvitationService>();
             builder.Services.AddScoped<IRatingService, RatingService>();
+            builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
             builder.Services.AddScoped<IAvatarService, AvatarService>();
+            builder.Services.AddScoped<ITeamLogoService, TeamLogoService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
@@ -139,7 +144,14 @@ namespace TForge
                         }));
             });
 
-            builder.Services.AddControllers();
+            // Дати з тіла запиту приходять без зсуву (див. UtcDateTimeConverter):
+            // без цього Npgsql відмовляється писати їх у timestamptz, і будь-яке
+            // створення матчу чи турніру падало з 500.
+            builder.Services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+                options.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeConverter());
+            });
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 

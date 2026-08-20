@@ -7,9 +7,9 @@ import { playersApi } from "../../api/playersApi";
 import { ratingsApi } from "../../api/ratingsApi";
 import { teamsApi } from "../../api/teamsApi";
 import { useIsCaptainOf, useIsRole } from "../../hooks/useEffectiveRole";
-import { ChallengePanel } from "./ChallengePanel";
 import { EmptyState, PageHeader, Pager, Skeleton } from "../../components/ui/Primitives";
 import { CountryFlag } from "../../components/ui/CountryFlag";
+import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { RatingPanel } from "../../components/ui/Rating";
 import { TournamentInvitationsPanel } from "../tournaments/TournamentInvitationsPanel";
 import { usePagedList } from "../../hooks/usePagedList";
@@ -116,6 +116,54 @@ const TeamDetail = () => {
   // подивитися на сторінку очима капітана саме цієї команди.
   const isCaptain = useIsCaptainOf(teamId, team?.captain?.id);
   const isAdmin = useIsRole("Admin");
+
+  // Логотип змінює капітан, а адміністратор — як і всюди — стоїть над правилом.
+  const canManageLogo = isCaptain || isAdmin;
+
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+
+  // Ті самі межі, що на сервері (Common/AvatarRules.cs) — щоб про завеликий
+  // файл користувач дізнався ще до вивантаження.
+  const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+  const ALLOWED_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  const readLogoError = (caught: unknown, fallback: string) =>
+    (caught as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
+
+  const uploadLogo = async (file: File) => {
+    setLogoError(null);
+    if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+      setLogoError("Підтримуються лише JPEG, PNG і WebP.");
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError("Файл завеликий: максимум 2 МБ.");
+      return;
+    }
+
+    setLogoBusy(true);
+    try {
+      setTeam(await teamsApi.uploadLogo(teamId, file));
+    } catch (caught) {
+      setLogoError(readLogoError(caught, "Не вдалося завантажити логотип."));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    setLogoBusy(true);
+    setLogoError(null);
+    try {
+      await teamsApi.deleteLogo(teamId);
+      setTeam((prev) => (prev ? { ...prev, logoPath: null } : prev));
+    } catch (caught) {
+      setLogoError(readLogoError(caught, "Не вдалося прибрати логотип."));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   useEffect(() => {
     playersApi
@@ -263,6 +311,17 @@ const TeamDetail = () => {
 
   return (
     <>
+      {/* Логотип стоїть поруч із заголовком, а не всередині нього: PageHeader
+          спільний для всіх сторінок і приймає лише рядок. */}
+      <div className="flex items-center gap-4">
+        <Avatar
+          url={team?.logoPath}
+          shape="square"
+          size="lg"
+          fallback={teamInitials(team?.name, team?.tag)}
+          alt={`Логотип ${team?.name ?? "команди"}`}
+        />
+        <div className="min-w-0 flex-1">
       <PageHeader
         eyebrow={team?.tag}
         title={team?.name ?? `Команда #${id}`}
@@ -298,6 +357,59 @@ const TeamDetail = () => {
           ) : undefined
         }
       />
+        </div>
+      </div>
+
+      {canManageLogo && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2 className="section-title">Логотип</h2>
+          </div>
+          <div className="panel-body space-y-4">
+            <div className="flex flex-wrap items-center gap-5">
+              <Avatar
+                url={team?.logoPath}
+                shape="square"
+                size="lg"
+                fallback={teamInitials(team?.name, team?.tag)}
+                alt=""
+              />
+              <div className="space-y-2">
+                <label className="btn btn-secondary btn-sm cursor-pointer">
+                  {logoBusy ? "Завантаження..." : "Вибрати файл"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={logoBusy}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        uploadLogo(file);
+                      }
+                      // Скидаємо значення, щоб повторний вибір того самого файлу
+                      // теж викликав onChange.
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                {team?.logoPath && (
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    disabled={logoBusy}
+                    className="btn btn-ghost btn-sm"
+                  >
+                    Прибрати
+                  </button>
+                )}
+                <p className="field-hint">JPEG, PNG або WebP, до 2 МБ.</p>
+              </div>
+            </div>
+            {logoError && <div className="notice notice-error">{logoError}</div>}
+          </div>
+        </section>
+      )}
 
       {actionError && (
         <div className="notice notice-error">
@@ -590,7 +702,6 @@ const TeamDetail = () => {
 
       {team && <TournamentInvitationsPanel teamId={team.id} isCaptain={isCaptain || isAdmin} />}
 
-      {team && <ChallengePanel teamId={team.id} isCaptain={isCaptain} isAdmin={isAdmin} />}
     </>
   );
 };

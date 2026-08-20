@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using TForge.DTOs;
 
 namespace TForge.Validators
@@ -18,6 +18,10 @@ namespace TForge.Validators
             RuleFor(x => x.Age)
                 .PlayerAge()
                 .When(x => x.Age > 0);
+
+            RuleFor(x => x.RiotId).PlayerRiotId();
+            RuleFor(x => x.SteamId64).PlayerSteamId();
+            RuleFor(x => x.BattleTag).PlayerBattleTag();
         }
     }
 }

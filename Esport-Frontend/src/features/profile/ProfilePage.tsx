@@ -4,6 +4,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { authApi } from "../../api/authApi";
 import { playersApi } from "../../api/playersApi";
+import { COUNTRY_NAMES } from "../../constants/countries";
+import { GAME_ID_FIELDS, emptyToUndefined, isValidGameId } from "../../constants/gameIds";
 import { usersApi } from "../../api/usersApi";
 import { useAuthStore } from "../../store/authStore";
 import { PageHeader, Skeleton } from "../../components/ui/Primitives";
@@ -31,11 +33,35 @@ const playerSchema = z.object({
     .max(NICKNAME_MAX_LENGTH, `Максимум ${NICKNAME_MAX_LENGTH} символів`)
     .regex(NICKNAME_PATTERN, "Лише літери, цифри та підкреслення"),
   position: z.enum(PLAYER_POSITIONS, { required_error: "Оберіть позицію" }),
-  country: z.string().min(2, "Вкажіть країну").max(100, "Максимум 100 символів"),
+  // Код ISO, а не назва: з нього виводиться прапор, і саме коди пропускає
+  // PlayerRules.PlayerCountry. Вільний текст тут просто не зберігався.
+  country: z
+    .string()
+    .refine((code) => code in COUNTRY_NAMES, { message: "Оберіть країну зі списку" }),
   age: z.coerce
     .number()
     .min(PLAYER_MIN_AGE, `Мінімум ${PLAYER_MIN_AGE} років`)
-    .max(PLAYER_MAX_AGE, `Максимум ${PLAYER_MAX_AGE} років`)
+    .max(PLAYER_MAX_AGE, `Максимум ${PLAYER_MAX_AGE} років`),
+  // Теги мусять їхати разом з рештою: UpdatePlayerDto перезаписує їх цілком,
+  // тож форма без цих полів мовчки стирала б уже збережені.
+  riotId: z
+    .string()
+    .optional()
+    .refine((value) => isValidGameId(GAME_ID_FIELDS[0], value), {
+      message: GAME_ID_FIELDS[0].error
+    }),
+  steamId64: z
+    .string()
+    .optional()
+    .refine((value) => isValidGameId(GAME_ID_FIELDS[1], value), {
+      message: GAME_ID_FIELDS[1].error
+    }),
+  battleTag: z
+    .string()
+    .optional()
+    .refine((value) => isValidGameId(GAME_ID_FIELDS[2], value), {
+      message: GAME_ID_FIELDS[2].error
+    })
 });
 
 const passwordSchema = z
@@ -167,7 +193,10 @@ const ProfilePage = () => {
           nickname: data.nickname,
           position: data.position as PlayerValues["position"],
           country: data.country,
-          age: data.age
+          age: data.age,
+          riotId: data.riotId ?? "",
+          steamId64: data.steamId64 ?? "",
+          battleTag: data.battleTag ?? ""
         });
       })
       .catch(() => isActive && setPlayer(null))
@@ -194,7 +223,12 @@ const ProfilePage = () => {
     }
 
     try {
-      const updated = await playersApi.update(player.id, values);
+      const updated = await playersApi.update(player.id, {
+        ...values,
+        riotId: emptyToUndefined(values.riotId),
+        steamId64: emptyToUndefined(values.steamId64),
+        battleTag: emptyToUndefined(values.battleTag)
+      });
       setPlayer(updated);
       setPlayerNotice({ kind: "ok", text: "Профіль гравця збережено." });
     } catch (error) {
@@ -340,7 +374,14 @@ const ProfilePage = () => {
               </label>
               <label className="field">
                 Країна
-                <input type="text" {...playerForm.register("country")} className="input" />
+                <select {...playerForm.register("country")} className="input" defaultValue="">
+                  <option value="">Оберіть країну</option>
+                  {Object.entries(COUNTRY_NAMES).map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
                 {playerForm.formState.errors.country && (
                   <p className="field-error">{playerForm.formState.errors.country.message}</p>
                 )}
@@ -353,6 +394,32 @@ const ProfilePage = () => {
                 <p className="field-error">{playerForm.formState.errors.age.message}</p>
               )}
             </label>
+
+            <fieldset className="space-y-4 border-t border-line-soft pt-5">
+              <legend className="eyebrow">Ігрові акаунти</legend>
+              <p className="text-micro text-text-faint">
+                Необов'язково. Потрібні, щоб суперник знайшов вас у грі.
+              </p>
+              {GAME_ID_FIELDS.map((tag) => (
+                <label key={tag.name} className="field">
+                  {tag.label}
+                  <span className="ml-2 text-micro font-normal text-text-faint">{tag.hint}</span>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder={tag.placeholder}
+                    {...playerForm.register(tag.name)}
+                    className="input font-mono"
+                  />
+                  {playerForm.formState.errors[tag.name] && (
+                    <p className="field-error">
+                      {playerForm.formState.errors[tag.name]?.message}
+                    </p>
+                  )}
+                </label>
+              ))}
+            </fieldset>
             <NoticeBox notice={playerNotice} />
             <div className="border-t border-line-soft pt-5">
               <button type="submit" disabled={playerForm.formState.isSubmitting} className="btn btn-primary">

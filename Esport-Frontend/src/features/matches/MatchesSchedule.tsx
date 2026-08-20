@@ -4,20 +4,29 @@ import { BarChart3, PlusCircle, Radio, Trash2 } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { subscribeToMatch } from "../../api/matchHub";
 import { useIsRole } from "../../hooks/useEffectiveRole";
+import { useCaptainedTeams } from "../../hooks/useCaptainedTeams";
+import { DuelsPanel } from "../duels/DuelsPanel";
 import { EmptyState, PageHeader, SearchField, Skeleton, StatusPill } from "../../components/ui/Primitives";
+import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { GAMES, GAME_LABELS, gameLabel } from "../../constants/games";
 import type { MatchDto } from "../../types";
 
-const MatchRow = ({
+/** Рядок матчу. Експортується, бо той самий рядок показує і сторінка турніру. */
+export const MatchRow = ({
   match,
   showScore,
   canEdit,
-  onDelete
+  onDelete,
+  onJoin,
+  canJoin = false
 }: {
   match: MatchDto;
   showScore: boolean;
   canEdit: boolean;
   onDelete: (id: number) => void;
+  /** Приєднатися до відкритого матчу. Немає — кнопки теж немає. */
+  onJoin?: (id: number) => void;
+  canJoin?: boolean;
 }) => {
   const homeWon = match.winnerTeam?.id === match.homeTeam?.id;
   const awayWon = match.winnerTeam?.id === match.awayTeam?.id;
@@ -31,10 +40,21 @@ const MatchRow = ({
         </div>
       </div>
 
+      {match.name && (
+        <span className="w-full truncate text-micro text-text-faint">{match.name}</span>
+      )}
+
       {/* Команди вирівняні по центральній осі рахунку, як у турнірній таблиці */}
       <div className="flex min-w-[15rem] flex-1 items-center gap-3">
-        <span className={`flex-1 truncate text-right text-body ${homeWon ? "text-text" : "text-text-muted"}`}>
-          {match.homeTeam?.name ?? "Очікується"}
+        <span className={`flex min-w-0 flex-1 items-center justify-end gap-2 text-body ${homeWon ? "text-text" : "text-text-muted"}`}>
+          <span className="truncate">{match.homeTeam?.name ?? "Очікується"}</span>
+          <Avatar
+            url={match.homeTeam?.logoPath}
+            shape="square"
+            size="sm"
+            fallback={teamInitials(match.homeTeam?.name, match.homeTeam?.tag)}
+            alt=""
+          />
         </span>
         {showScore || match.status === "InProgress" ? (
           <span className="tabular shrink-0 rounded-md border border-line bg-ink-950 px-2.5 py-1 font-mono text-body text-text">
@@ -43,8 +63,17 @@ const MatchRow = ({
         ) : (
           <span className="shrink-0 font-mono text-micro text-text-faint">vs</span>
         )}
-        <span className={`flex-1 truncate text-body ${awayWon ? "text-text" : "text-text-muted"}`}>
-          {match.awayTeam?.name ?? "Очікується"}
+        <span className={`flex min-w-0 flex-1 items-center gap-2 text-body ${awayWon ? "text-text" : "text-text-muted"}`}>
+          <Avatar
+            url={match.awayTeam?.logoPath}
+            shape="square"
+            size="sm"
+            fallback={teamInitials(match.awayTeam?.name, match.awayTeam?.tag)}
+            alt=""
+          />
+          <span className="truncate">
+            {match.awayTeam?.name ?? (match.isOpen ? "Відкритий слот" : "Очікується")}
+          </span>
         </span>
       </div>
 
@@ -89,6 +118,16 @@ const MatchRow = ({
         </Link>
       </div>
 
+      {match.isOpen && canJoin && onJoin && (
+        <button
+          type="button"
+          onClick={() => onJoin(match.id)}
+          className="btn btn-primary btn-sm"
+        >
+          Приєднатися
+        </button>
+      )}
+
       {canEdit && (
         <div className="row-actions ml-auto">
           <Link to={`/matches/${match.id}/edit`} className="btn btn-ghost btn-sm">
@@ -117,9 +156,19 @@ const MatchesSchedule = () => {
   // Дві незалежні осі: тип матчу — це різні змагання, статус — різні погляди
   // на той самий розклад. Тому тип нагорі вкладками, статус — перемикачем
   // усередині кожної.
-  const [kind, setKind] = useState<"tournament" | "friendly">("tournament");
+
   const [tab, setTab] = useState<"scheduled" | "completed">("scheduled");
   const canEdit = useIsRole("Organizer", "Admin");
+
+  // Створити практичний матч може й капітан — це вирішує Team.CaptainId,
+  // а не роль, тож canEdit (права на редагування рядків) тут не підходить.
+  const { teams: myTeams, isCaptain } = useCaptainedTeams();
+  const canCreate = canEdit || isCaptain;
+
+  // Друга вісь сторінки: командний матч чи дуель один на один. Обидва — гра
+  // поза турніром, але це різні сутності з різними показниками, тож і списки
+  // різні (docs/superpowers/specs/2026-08-19-duel-1v1-design.md).
+  const [mode, setMode] = useState<"team" | "duel">("team");
 
   useEffect(() => {
     let isActive = true;
@@ -181,6 +230,17 @@ const MatchesSchedule = () => {
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [liveKey]);
 
+  // Приєднатися можна лише до чужого відкритого матчу — своя команда в ньому
+  // вже грає. Сервер перевіряє те саме; тут ми просто не малюємо кнопку,
+  // яка дасть 403.
+  const joinMatch = async (id: number) => {
+    const joined = await matchesApi.join(id);
+    setScheduled((prev) => prev.map((match) => (match.id === id ? joined : match)));
+  };
+
+  const canJoinMatch = (match: MatchDto) =>
+    isCaptain && myTeams.every((team) => team.id !== match.homeTeam?.id);
+
   const handleDelete = async (id: number) => {
     if (!window.confirm("Видалити матч? Дію не можна скасувати.")) {
       return;
@@ -196,7 +256,7 @@ const MatchesSchedule = () => {
   const isFriendly = (match: MatchDto) => match.tournamentId === null;
 
   const matchesFilters = (match: MatchDto) => {
-    const matchesKind = kind === "friendly" ? isFriendly(match) : !isFriendly(match);
+    const matchesKind = isFriendly(match);
     const matchesGame = !game || match.game === game;
     const matchesTerm =
       !term ||
@@ -218,24 +278,12 @@ const MatchesSchedule = () => {
 
   const visibleScheduled = useMemo(
     () => scheduled.filter(matchesFilters),
-    [scheduled, term, game, kind]
+    [scheduled, term, game]
   );
   const visibleCompleted = useMemo(
     () => completed.filter(matchesFilters),
-    [completed, term, game, kind]
+    [completed, term, game]
   );
-
-  // Лічильники в назвах вкладок рахуються без фільтра за типом — інакше
-  // неактивна вкладка завжди показувала б нуль.
-  const countFor = (target: "tournament" | "friendly") =>
-    [...scheduled, ...completed].filter((match) =>
-      target === "friendly" ? isFriendly(match) : !isFriendly(match)
-    ).length;
-
-  const kinds = [
-    { id: "tournament" as const, label: "Турніри", count: countFor("tournament") },
-    { id: "friendly" as const, label: "Практичні", count: countFor("friendly") }
-  ];
 
   const tabs = [
     { id: "scheduled" as const, label: "Заплановані", count: visibleScheduled.length },
@@ -248,14 +296,15 @@ const MatchesSchedule = () => {
     <>
       <PageHeader
         eyebrow="Розклад"
-        title="Матчі"
+        title="Практичні матчі"
         description={
-          kind === "friendly"
-            ? "Практичні матчі між командами. Рахунок і KDA враховуються, але титулів і рейтингу вони не дають."
-            : "Найближчі ігри та зіграні результати всіх турнірів."
+          mode === "duel"
+            ? "Дуелі один на один. Окремий рахунок: у статистику командних матчів вони не входять і рейтингу не дають."
+            : "Командні матчі поза турнірами. Рахунок і KDA враховуються, але титулів і рейтингу вони не дають. Турнірні матчі — на сторінці свого турніру."
         }
         action={
-          canEdit && (
+          mode === "team" &&
+          canCreate && (
             <Link to="/matches/new" className="btn btn-primary">
               <PlusCircle className="h-4 w-4" />
               Додати матч
@@ -264,6 +313,32 @@ const MatchesSchedule = () => {
         }
       />
 
+      {/* Командний матч і дуель — різні сутності, тож перемикач стоїть над
+          усім іншим: фільтри нижче стосуються лише командного списку. */}
+      <div className="flex gap-1 border-b border-line-soft">
+        {[
+          { id: "team" as const, label: "Командні" },
+          { id: "duel" as const, label: "Один на один" }
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMode(id)}
+            className={`relative px-4 py-2.5 text-lead transition ${
+              mode === id ? "text-text" : "text-text-muted hover:text-text"
+            }`}
+          >
+            {label}
+            {mode === id && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-t bg-ember" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {mode === "duel" && <DuelsPanel />}
+
+      {mode === "team" && (
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[16rem] flex-1">
           <SearchField value={search} onChange={setSearch} placeholder="Команда, формат або стадія" />
@@ -283,34 +358,15 @@ const MatchesSchedule = () => {
         </select>
       </div>
 
-      {loading && <Skeleton rows={4} />}
+      )}
 
-      {!loading && (
+      {mode === "team" && loading && <Skeleton rows={4} />}
+
+      {mode === "team" && !loading && (
         <>
-          {/* Турнірні та практичні — це різні змагання з різними правилами
-              (практичні не дають титулів і не рухають рейтинг), тож вони
-              стоять першою віссю. */}
-          <div className="flex gap-1 border-b border-line-soft">
-            {kinds.map(({ id, label, count }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setKind(id)}
-                className={`relative px-4 py-2.5 text-lead transition ${
-                  kind === id ? "text-text" : "text-text-muted hover:text-text"
-                }`}
-              >
-                {label}
-                <span className="tabular ml-2 font-mono text-micro text-text-faint">{count}</span>
-                {kind === id && (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-t bg-ember" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Заплановані та зіграні — це два погляди на той самий розклад,
-              тож вони другою віссю, всередині обраного типу. */}
+          {/* Заплановані та зіграні — два погляди на той самий розклад.
+              Турнірних матчів тут більше немає: вони належать турніру й
+              живуть на його сторінці, поруч із сіткою. */}
           <div className="flex gap-1.5">
             {tabs.map(({ id, label, count }) => (
               <button
@@ -339,9 +395,7 @@ const MatchesSchedule = () => {
                     hint={
                       term || game
                         ? "Спробуйте іншу назву команди, формат або дисципліну."
-                        : kind === "friendly"
-                          ? "Практичні матчі зʼявляються, коли капітан приймає виклик іншої команди."
-                          : "Матчі створюються вручну або автоматично під час генерації турнірної сітки."
+                        : "Капітан може створити матч кнопкою вгорі або прийнявши виклик іншої команди."
                     }
                   />
                 ) : (
@@ -362,6 +416,8 @@ const MatchesSchedule = () => {
                       match={match}
                       showScore={tab === "completed"}
                       canEdit={canEdit}
+                      canJoin={canJoinMatch(match)}
+                      onJoin={joinMatch}
                       onDelete={handleDelete}
                     />
                   ))}

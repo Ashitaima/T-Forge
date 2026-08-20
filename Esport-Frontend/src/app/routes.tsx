@@ -25,7 +25,9 @@ export const router = createBrowserRouter([
         })
       },
       {
-        element: <ProtectedRoute roles={["Organizer"]} />,
+        // «Admin,Organizer», а не сам «Organizer»: адміністратор стоїть над
+        // кожним правилом власності, і роль тут не мусить його відсікати.
+        element: <ProtectedRoute roles={["Admin", "Organizer"]} />,
         children: [
           {
             path: "tournaments/new",
@@ -40,13 +42,23 @@ export const router = createBrowserRouter([
             })
           },
           {
-            path: "matches/new",
+            // Правка матчу лишається за організатором: PUT /api/matches/{id}
+            // так само рольовий.
+            path: "matches/:id/edit",
             lazy: async () => ({
               Component: (await import("../features/matches/MatchForm")).default
             })
-          },
+          }
+        ]
+      },
+      {
+        // Створення матчу роллю не описується: практичний матч ставить капітан,
+        // а капітанство — це Team.CaptainId. Маршрут лишається за будь-яким
+        // авторизованим, а право вирішує Common/MatchCreationPolicy.cs на сервері.
+        element: <ProtectedRoute />,
+        children: [
           {
-            path: "matches/:id/edit",
+            path: "matches/new",
             lazy: async () => ({
               Component: (await import("../features/matches/MatchForm")).default
             })

@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using TForge.Common;
 
 namespace TForge.Validators
@@ -41,6 +41,29 @@ namespace TForge.Validators
             rule
                 .Must(country => string.IsNullOrEmpty(country) || Countries.IsValid(country))
                 .WithMessage("Оберіть країну зі списку");
+
+        /// <summary>
+        /// Ігрові теги. Формат вирішує Common/GameIdFormats.cs — тут лише
+        /// повідомлення, бо саме правило потрібне ще й тестам без FluentValidation.
+        /// Порожнє значення дозволене: тег необов'язковий.
+        /// </summary>
+        public static IRuleBuilderOptions<T, string?> PlayerRiotId<T>(
+            this IRuleBuilder<T, string?> rule) =>
+            rule
+                .Must(GameIdFormats.IsRiotId)
+                .WithMessage("Riot ID має вигляд «Ім'я#TAG», наприклад Shroud#EUW");
+
+        public static IRuleBuilderOptions<T, string?> PlayerSteamId<T>(
+            this IRuleBuilder<T, string?> rule) =>
+            rule
+                .Must(GameIdFormats.IsSteamId64)
+                .WithMessage("SteamID64 — це 17 цифр, що починаються з 7656119");
+
+        public static IRuleBuilderOptions<T, string?> PlayerBattleTag<T>(
+            this IRuleBuilder<T, string?> rule) =>
+            rule
+                .Must(GameIdFormats.IsBattleTag)
+                .WithMessage("BattleTag має вигляд «Ім'я#1234»");
 
         public static IRuleBuilderOptions<T, int> PlayerAge<T>(
             this IRuleBuilder<T, int> rule) =>

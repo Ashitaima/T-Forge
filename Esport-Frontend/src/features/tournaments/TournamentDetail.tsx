@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Lock, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, Lock, PlusCircle, Users } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { teamsApi } from "../../api/teamsApi";
 import { tournamentInvitationsApi } from "../../api/tournamentInvitationsApi";
@@ -8,7 +8,9 @@ import { tournamentsApi } from "../../api/tournamentsApi";
 import { useAuthStore } from "../../store/authStore";
 import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
+import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { BracketView } from "./BracketView";
+import { MatchRow } from "../matches/MatchesSchedule";
 import type { MatchDto, TeamRowDto, TeamSummaryDto, TournamentDto,
   TournamentInvitationDto, TournamentStandingDto } from "../../types";
 
@@ -111,6 +113,19 @@ const TournamentDetail = () => {
 
   const isInviteOnly = Boolean(tournament?.isInviteOnly);
   const hasBracket = matches.some((match) => match.round > 0);
+
+  // Раунд, потім час: сітка читається згори вниз, а матчі поза сіткою
+  // (Round = 0) стають першими, бо саме їх призначають вручну.
+  const tournamentMatches = [...matches].sort(
+    (left, right) =>
+      left.round - right.round ||
+      new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()
+  );
+
+  const removeMatch = async (matchId: number) => {
+    await matchesApi.remove(matchId);
+    load();
+  };
   const slotsLeft = tournament ? tournament.maxTeams - registered.length : 0;
 
   return (
@@ -195,6 +210,50 @@ const TournamentDetail = () => {
             />
           )}
           {!loading && hasBracket && <BracketView matches={matches} />}
+        </div>
+      </section>
+
+      {/* Матчі турніру живуть тут, а не в загальному розкладі: там вони
+          губилися серед чужих, і «матчі цього турніру» доводилося збирати
+          фільтром. Сітка показує лише пари з раундів, тож список потрібен
+          окремо — матч, доданий організатором поза сіткою, має Round = 0. */}
+      <section className="panel">
+        <div className="panel-header">
+          <h2 className="section-title">Матчі турніру</h2>
+          <div className="flex items-center gap-3">
+            <span className="tabular font-mono text-micro text-text-faint">{matches.length}</span>
+            {canManage && (
+              <Link to="/matches/new" className="btn btn-secondary btn-sm">
+                <PlusCircle className="h-4 w-4" />
+                Додати матч
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="panel-body space-y-3">
+          {loading && <Skeleton rows={3} />}
+
+          {!loading && matches.length === 0 && (
+            <EmptyState
+              title="Матчів ще немає"
+              hint={
+                canManage
+                  ? "Згенеруйте сітку або додайте матч вручну."
+                  : "Вони зʼявляться, щойно організатор складе розклад."
+              }
+            />
+          )}
+
+          {!loading &&
+            tournamentMatches.map((match) => (
+              <MatchRow
+                key={match.id}
+                match={match}
+                showScore={match.status === "Completed"}
+                canEdit={canManage}
+                onDelete={removeMatch}
+              />
+            ))}
         </div>
       </section>
 
@@ -340,6 +399,13 @@ const TournamentDetail = () => {
                   <span className="tabular w-6 shrink-0 font-mono text-micro text-text-faint">
                     {String(index + 1).padStart(2, "0")}
                   </span>
+                  <Avatar
+                    url={team.logoPath}
+                    shape="square"
+                    size="sm"
+                    fallback={teamInitials(team.name, team.tag)}
+                    alt=""
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-body font-medium text-text">{team.name}</div>
                     <div className="font-mono text-micro text-text-faint">

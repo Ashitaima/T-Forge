@@ -1,4 +1,4 @@
-namespace TForge.Common
+﻿namespace TForge.Common
 {
     /// <summary>
     /// Хто має право вести матч: змінювати рахунок, починати й завершувати його,
@@ -14,7 +14,8 @@ namespace TForge.Common
     public static class FriendlyMatchPolicy
     {
         /// <summary>Усі id — це id користувачів (User.Id): Team.CaptainId посилається на User.</summary>
-        public record Context(int? TournamentId, int HomeCaptainUserId, int AwayCaptainUserId);
+        /// <summary>AwayCaptainUserId порожній у відкритому матчі — гостя ще немає.</summary>
+        public record Context(int? TournamentId, int HomeCaptainUserId, int? AwayCaptainUserId);
 
         public static bool IsFriendly(Context context) => context.TournamentId == null;
 

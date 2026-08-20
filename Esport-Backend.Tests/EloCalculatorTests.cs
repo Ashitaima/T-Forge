@@ -16,7 +16,7 @@ public class EloCalculatorTests
     [Fact]
     public void IsRated_TournamentMatchWithWinner_Yes()
     {
-        Assert.True(EloCalculator.IsRated(7, MatchStatus.Completed, winnerTeamId: 3));
+        Assert.True(EloCalculator.IsRated(7, MatchStatus.Completed, winnerTeamId: 3, awayTeamId: 2));
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public class EloCalculatorTests
     {
         // Товариський матч — це TournamentId == null. Два капітани можуть
         // викликати одне одного скільки завгодно, драбини це не стосується.
-        Assert.False(EloCalculator.IsRated(null, MatchStatus.Completed, winnerTeamId: 3));
+        Assert.False(EloCalculator.IsRated(null, MatchStatus.Completed, winnerTeamId: 3, awayTeamId: 2));
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class EloCalculatorTests
     {
         // Нічия не рейтингується — так само, як її не рахують
         // PlayerRecordCalculator і TeamRecordCalculator.
-        Assert.False(EloCalculator.IsRated(7, MatchStatus.Completed, winnerTeamId: null));
+        Assert.False(EloCalculator.IsRated(7, MatchStatus.Completed, winnerTeamId: null, awayTeamId: 2));
     }
 
     [Theory]
@@ -42,7 +42,16 @@ public class EloCalculatorTests
     [InlineData(MatchStatus.Postponed)]
     public void IsRated_UnfinishedMatch_No(string status)
     {
-        Assert.False(EloCalculator.IsRated(7, status, winnerTeamId: 3));
+        Assert.False(EloCalculator.IsRated(7, status, winnerTeamId: 3, awayTeamId: 2));
+    }
+
+    [Fact]
+    public void IsRated_OpenMatchWithNoOpponent_No()
+    {
+        // Відкритий матч, до якого ніхто не приєднався: рахувати очікування
+        // нема проти кого. Правило тут явне, а не тримається на тому, що
+        // відкритими бувають лише практичні матчі.
+        Assert.False(EloCalculator.IsRated(7, MatchStatus.Completed, winnerTeamId: 3, awayTeamId: null));
     }
 
     // ---- Очікуваний результат ----
@@ -184,14 +193,14 @@ public class EloCalculatorTests
 
     [Theory]
     [InlineData(0, RatingTiers.Bronze)]
-    [InlineData(899, RatingTiers.Bronze)]
-    [InlineData(900, RatingTiers.Silver)]
-    [InlineData(1099, RatingTiers.Silver)]
-    [InlineData(1100, RatingTiers.Gold)]
-    [InlineData(1299, RatingTiers.Gold)]
-    [InlineData(1300, RatingTiers.Platinum)]
-    [InlineData(1499, RatingTiers.Platinum)]
-    [InlineData(1500, RatingTiers.Elite)]
+    [InlineData(1099, RatingTiers.Bronze)]
+    [InlineData(1100, RatingTiers.Silver)]
+    [InlineData(1249, RatingTiers.Silver)]
+    [InlineData(1250, RatingTiers.Gold)]
+    [InlineData(1399, RatingTiers.Gold)]
+    [InlineData(1400, RatingTiers.Platinum)]
+    [InlineData(1549, RatingTiers.Platinum)]
+    [InlineData(1550, RatingTiers.Elite)]
     [InlineData(3000, RatingTiers.Elite)]
     public void Tier_ResolvesExactlyAtTheBoundaries(int rating, string expected)
     {
@@ -200,10 +209,19 @@ public class EloCalculatorTests
     }
 
     [Fact]
-    public void Tier_BaseRating_IsSilver()
+    public void Tier_BaseRating_IsBronze()
     {
-        // Новачок починає в середині шкали, а не на її дні.
-        Assert.Equal(RatingTiers.Silver, EloCalculator.Tier(EloCalculator.BaseRating));
+        // Новачок починає на дні шкали, а не всередині: інакше бронза
+        // означала б покарання, а не старт.
+        Assert.Equal(RatingTiers.Bronze, EloCalculator.Tier(EloCalculator.BaseRating));
+    }
+
+    [Fact]
+    public void Tier_BelowTheEloFloor_IsStillBronze()
+    {
+        // Межі лише зростають, тож ліга однозначна навіть нижче підлоги.
+        Assert.Equal(RatingTiers.Bronze, RatingTiers.ForRating(EloCalculator.FloorRating));
+        Assert.Equal(RatingTiers.Bronze, RatingTiers.ForRating(-500));
     }
 
     [Fact]

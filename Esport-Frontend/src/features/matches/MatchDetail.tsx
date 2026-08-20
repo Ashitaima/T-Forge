@@ -8,6 +8,7 @@ import { useIsCaptainOf, useIsRole } from "../../hooks/useEffectiveRole";
 import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import { RatingDelta } from "../../components/ui/Rating";
+import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import type { MatchDto, MatchPlayerDto, MatchRatingDeltaDto } from "../../types";
 
 const MatchDetail = () => {
@@ -308,7 +309,16 @@ const MatchDetail = () => {
             <div className="panel-body">
               <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
                 <div className="text-center sm:text-right">
-                  <div className="text-lead font-medium text-text">{match.homeTeam?.name ?? "Очікується"}</div>
+                  <div className="flex items-center justify-center gap-2.5 sm:justify-end">
+                    <div className="text-lead font-medium text-text">{match.homeTeam?.name ?? "Очікується"}</div>
+                    <Avatar
+                      url={match.homeTeam?.logoPath}
+                      shape="square"
+                      size="md"
+                      fallback={teamInitials(match.homeTeam?.name, match.homeTeam?.tag)}
+                      alt=""
+                    />
+                  </div>
                   <div className="flex items-center justify-center gap-2 sm:justify-end">
                     <span className="font-mono text-micro text-text-faint">{match.homeTeam?.tag}</span>
                     <RatingDelta delta={ratingDelta?.homeDelta} />
@@ -326,7 +336,16 @@ const MatchDetail = () => {
                 </div>
 
                 <div className="text-center sm:text-left">
-                  <div className="text-lead font-medium text-text">{match.awayTeam?.name ?? "Очікується"}</div>
+                  <div className="flex items-center justify-center gap-2.5 sm:justify-start">
+                    <Avatar
+                      url={match.awayTeam?.logoPath}
+                      shape="square"
+                      size="md"
+                      fallback={teamInitials(match.awayTeam?.name, match.awayTeam?.tag)}
+                      alt=""
+                    />
+                    <div className="text-lead font-medium text-text">{match.awayTeam?.name ?? "Очікується"}</div>
+                  </div>
                   <div className="flex items-center justify-center gap-2 sm:justify-start">
                     <span className="font-mono text-micro text-text-faint">{match.awayTeam?.tag}</span>
                     <RatingDelta delta={ratingDelta?.awayDelta} />

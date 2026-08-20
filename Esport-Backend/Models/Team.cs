@@ -24,6 +24,14 @@ namespace TForge.Models
         [StringLength(100)]
         public string Region { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Шлях від кореня до логотипа, як User.AvatarPath. Самі байти лежать
+        /// у wwwroot/uploads/team-logos/. Заповнює сервер — у CreateTeamDto
+        /// та UpdateTeamDto цього поля навмисно немає.
+        /// </summary>
+        [StringLength(255)]
+        public string? LogoPath { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

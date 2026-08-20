@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using TForge.Data.Interfaces;
 using TForge.DTOs;
 using TForge.Models;
@@ -125,6 +125,8 @@ namespace TForge.Services
                 AvatarUrl = p.User.AvatarPath,
                 TeamId = p.TeamId,
                 TeamName = p.Team != null ? p.Team.Name : null,
+                TeamTag = p.Team != null ? p.Team.Tag : null,
+                TeamLogoPath = p.Team != null ? p.Team.LogoPath : null,
                 Matches = p.MatchPlayers.Count(mp =>
                     mp.Match.Status == MatchStatus.Completed && mp.Match.WinnerTeamId != null),
                 Wins = p.MatchPlayers.Count(mp =>

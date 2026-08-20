@@ -1,4 +1,4 @@
-namespace TForge.Common
+﻿namespace TForge.Common
 {
     /// <summary>
     /// Канонічні ролі користувача. Значення повинні збігатися з тими,
@@ -10,10 +10,17 @@ namespace TForge.Common
         public const string Organizer = "Organizer";
         public const string Admin = "Admin";
 
-        /// <summary>Успадкована роль без профілю гравця. Нових таких не створюємо.</summary>
-        public const string User = "User";
+        public static readonly string[] All = { Player, Organizer, Admin };
 
-        public static readonly string[] All = { Player, Organizer, Admin, User };
+        /// <summary>
+        /// Успадкована роль «User» — акаунт без профілю гравця. Її прибрано:
+        /// реєстрація однаково створює профіль, тож роль без нього означала
+        /// лише «щось недороблене». Наявні рядки переводить у Player
+        /// DatabaseInitializer.NormalizeLegacyRolesAsync — один раз, як і з
+        /// країнами; тримати константу заради них не потрібно, бо після
+        /// нормалізації таких рядків не лишається.
+        /// </summary>
+        public const string LegacyUser = "User";
 
         /// <summary>
         /// Ролі, які користувач може отримати самостійно через реєстрацію.

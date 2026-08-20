@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using TForge.Common;
 using TForge.DTOs;
 
@@ -8,15 +8,25 @@ namespace TForge.Validators
     {
         public CreateMatchValidator()
         {
+            // Порожній турнір — це практичний матч, а не помилка.
             RuleFor(x => x.TournamentId)
-                .GreaterThan(0).WithMessage("ID турніру повинен бути більше 0");
+                .GreaterThan(0).WithMessage("ID турніру повинен бути більше 0")
+                .When(x => x.TournamentId.HasValue);
 
+            // Порожня домашня команда означає «візьми мою» — сервіс підставить
+            // її з капітанства; вигадувати id клієнт не мусить.
             RuleFor(x => x.HomeTeamId)
-                .GreaterThan(0).WithMessage("ID домашньої команди повинен бути більше 0");
+                .GreaterThan(0).WithMessage("ID домашньої команди повинен бути більше 0")
+                .When(x => x.HomeTeamId.HasValue);
 
+            // Порожній гість — відкритий матч.
             RuleFor(x => x.AwayTeamId)
                 .GreaterThan(0).WithMessage("ID гостьової команди повинен бути більше 0")
-                .NotEqual(x => x.HomeTeamId).WithMessage("Команди не можуть грати самі проти себе");
+                .NotEqual(x => x.HomeTeamId).WithMessage("Команди не можуть грати самі проти себе")
+                .When(x => x.AwayTeamId.HasValue);
+
+            RuleFor(x => x.Name)
+                .MaximumLength(100).WithMessage("Назва не може перевищувати 100 символів");
 
             RuleFor(x => x.ScheduledAt)
                 .NotEmpty().WithMessage("Час проведення матчу є обов'язковим")

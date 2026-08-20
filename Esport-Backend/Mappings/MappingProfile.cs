@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using TForge.Common;
 using TForge.Models;
 using TForge.DTOs;
@@ -66,9 +66,29 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.Captain, opt => opt.Ignore())
                 .ForMember(dest => dest.Players, opt => opt.Ignore());
 
-            CreateMap<Player, PlayerDto>();
+            // Посилання на Steam будує сервер: клієнтові лишається показати,
+            // а не знати канонічний вигляд адреси.
+            CreateMap<Player, PlayerDto>()
+                .ForMember(dest => dest.SteamProfileUrl,
+                    opt => opt.MapFrom(src => GameIdFormats.SteamProfileUrl(src.SteamId64)));
             CreateMap<Player, PlayerSummaryDto>();
+
+            // Акаунти обох сторін їдуть у DTO, щоб клієнт міг повторити
+            // перевірку DuelPolicy й не малювати кнопку, яка дасть 403.
+            CreateMap<Duel, DuelDto>()
+                .ForMember(dest => dest.ChallengerUserId,
+                    opt => opt.MapFrom(src => src.ChallengerPlayer.UserId))
+                .ForMember(dest => dest.OpponentUserId,
+                    opt => opt.MapFrom(src => (int?)src.OpponentPlayer!.UserId))
+                .ForMember(dest => dest.IsOpen,
+                    opt => opt.MapFrom(src => src.OpponentPlayerId == null));
             CreateMap<CreatePlayerDto, Player>()
+                .ForMember(dest => dest.RiotId,
+                    opt => opt.MapFrom(src => GameIdFormats.Normalize(src.RiotId)))
+                .ForMember(dest => dest.SteamId64,
+                    opt => opt.MapFrom(src => GameIdFormats.Normalize(src.SteamId64)))
+                .ForMember(dest => dest.BattleTag,
+                    opt => opt.MapFrom(src => GameIdFormats.Normalize(src.BattleTag)))
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.UserId, opt => opt.Ignore())
                 .ForMember(dest => dest.TotalMatches, opt => opt.MapFrom(src => 0))
@@ -83,6 +103,12 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.Team, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
             CreateMap<UpdatePlayerDto, Player>()
+                .ForMember(dest => dest.RiotId,
+                    opt => opt.MapFrom(src => GameIdFormats.Normalize(src.RiotId)))
+                .ForMember(dest => dest.SteamId64,
+                    opt => opt.MapFrom(src => GameIdFormats.Normalize(src.SteamId64)))
+                .ForMember(dest => dest.BattleTag,
+                    opt => opt.MapFrom(src => GameIdFormats.Normalize(src.BattleTag)))
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.UserId, opt => opt.Ignore())
                 .ForMember(dest => dest.TotalMatches, opt => opt.Ignore())
@@ -100,10 +126,15 @@ namespace TForge.Mappings
             CreateMap<Match, MatchDto>()
                 .ForMember(dest => dest.HomeTeamCaptainId,
                     opt => opt.MapFrom(src => src.HomeTeam.CaptainId))
+                // Відкритий матч ще не має гостя, тож і капітана в нього немає.
                 .ForMember(dest => dest.AwayTeamCaptainId,
-                    opt => opt.MapFrom(src => src.AwayTeam.CaptainId));
+                    opt => opt.MapFrom(src => src.AwayTeam == null ? (int?)null : src.AwayTeam.CaptainId))
+                .ForMember(dest => dest.IsOpen,
+                    opt => opt.MapFrom(src => src.AwayTeamId == null));
             CreateMap<CreateMatchDto, Match>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
+                // Домашню команду підставляє сервіс: капітан її не надсилає.
+                .ForMember(dest => dest.HomeTeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.HomeTeamScore, opt => opt.MapFrom(src => 0))
                 .ForMember(dest => dest.AwayTeamScore, opt => opt.MapFrom(src => 0))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => MatchStatus.Scheduled))

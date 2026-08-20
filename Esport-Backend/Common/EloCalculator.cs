@@ -1,4 +1,4 @@
-namespace TForge.Common
+﻿namespace TForge.Common
 {
     /// <summary>
     /// Уся арифметика рейтингу. Чистий статичний клас без EF і сервісів —
@@ -34,8 +34,16 @@ namespace TForge.Common
         /// викликати одне одного скільки завгодно, і це не має ставати
         /// способом накрутити драбину.
         /// </summary>
-        public static bool IsRated(int? tournamentId, string? status, int? winnerTeamId) =>
+        /// <param name="awayTeamId">
+        /// Порожній — відкритий матч, до якого ще ніхто не приєднався. Такий
+        /// не рейтингується за визначенням: суперника, проти якого рахувати
+        /// очікування, просто немає. Правило тут, а не в сервісі, щоб воно
+        /// перевірялося тестом і не трималося на збігу, що відкритими бувають
+        /// лише практичні матчі.
+        /// </param>
+        public static bool IsRated(int? tournamentId, string? status, int? winnerTeamId, int? awayTeamId) =>
             tournamentId != null
+            && awayTeamId != null
             && status == MatchStatus.Completed
             && winnerTeamId != null;
 

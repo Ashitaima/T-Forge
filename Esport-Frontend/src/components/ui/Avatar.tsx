@@ -6,12 +6,19 @@ const SIZES = {
   lg: "h-20 w-20 text-body"
 } as const;
 
+const SHAPES = {
+  circle: "rounded-full",
+  square: "rounded-md"
+} as const;
+
 type Props = {
   url?: string | null;
   /** Ініціали, які показуємо, поки аватара немає. */
   fallback: string;
   size?: keyof typeof SIZES;
   alt?: string;
+  /** Логотип команди краще читається квадратним, аватар — круглим. */
+  shape?: keyof typeof SHAPES;
 };
 
 /**
@@ -20,8 +27,8 @@ type Props = {
  * Файли віддає API, а не dev-сервер Vite, тож відносний шлях доводиться
  * доклеювати до базового URL бекенда.
  */
-export const Avatar = ({ url, fallback, size = "md", alt = "" }: Props) => {
-  const classes = `${SIZES[size]} shrink-0 rounded-full object-cover`;
+export const Avatar = ({ url, fallback, size = "md", alt = "", shape = "circle" }: Props) => {
+  const classes = `${SIZES[size]} ${SHAPES[shape]} shrink-0 object-cover`;
 
   if (url) {
     const src = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
@@ -37,3 +44,7 @@ export const Avatar = ({ url, fallback, size = "md", alt = "" }: Props) => {
     </span>
   );
 };
+
+/** Запасні ініціали команди: тег, а якщо його немає — перша літера назви. */
+export const teamInitials = (name?: string | null, tag?: string | null) =>
+  (tag?.trim() || name?.trim()?.[0] || "?").slice(0, 3);

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TForge.Common;
 using TForge.Data.Interfaces;
 using TForge.DTOs;
@@ -56,7 +56,8 @@ namespace TForge.Services
                 .FirstOrDefaultAsync();
 
             var ledgerIsLive = latest != null && latest.Kind == RatingChangeKinds.Applied;
-            var shouldBeRated = EloCalculator.IsRated(match.TournamentId, match.Status, match.WinnerTeamId);
+            var shouldBeRated = EloCalculator.IsRated(
+                match.TournamentId, match.Status, match.WinnerTeamId, match.AwayTeamId);
 
             // Найчастіший випадок: нічого не змінилося. Сюди ж потрапляє
             // повторний виклик після завершення матчу.
@@ -96,7 +97,8 @@ namespace TForge.Services
         private async Task ApplyAsync(Match match, int revision)
         {
             var home = await GetOrCreateTeamRatingAsync(match.HomeTeamId, match.Game);
-            var away = await GetOrCreateTeamRatingAsync(match.AwayTeamId, match.Game);
+            // Сюди не потрапляє матч без гостя: IsRated його вже відсіяв.
+            var away = await GetOrCreateTeamRatingAsync(match.AwayTeamId!.Value, match.Game);
 
             var homeWon = match.WinnerTeamId == match.HomeTeamId;
 

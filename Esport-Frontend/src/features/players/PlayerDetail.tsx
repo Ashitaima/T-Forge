@@ -7,11 +7,13 @@ import { ratingsApi } from "../../api/ratingsApi";
 import { useAuthStore } from "../../store/authStore";
 import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, Skeleton, StatCard } from "../../components/ui/Primitives";
+import { duelsApi } from "../../api/duelsApi";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { RatingPanel } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
 import type {
+  DuelRecordDto,
   MembershipRequestDto,
   PlayerMatchDto,
   PlayerProfileDto,
@@ -68,6 +70,7 @@ const PlayerDetail = () => {
 
   // Історія рейтингу живить графік. Порожня — це нормальний стан: гравець
   // без турнірних матчів рейтингу не має взагалі.
+  const [duelRecord, setDuelRecord] = useState<DuelRecordDto | null>(null);
   const [ratingHistory, setRatingHistory] = useState<RatingChangeDto[]>([]);
 
   useEffect(() => {
@@ -77,12 +80,17 @@ const PlayerDetail = () => {
 
     let isActive = true;
 
+    duelsApi
+      .getRecord(playerId)
+      .then((data) => isActive && setDuelRecord(data))
+      .catch(() => isActive && setDuelRecord(null));
+
     ratingsApi
       .getPlayerHistory(playerId)
       .then((data) => isActive && setRatingHistory(data))
       .catch(() => isActive && setRatingHistory([]));
 
-    return () => {
+  return () => {
       isActive = false;
     };
   }, [playerId]);
@@ -179,6 +187,18 @@ const PlayerDetail = () => {
   const player = profile?.player;
   const canEdit = isAdmin || user?.id === player?.userId;
 
+  // Порожні теги показувати нема сенсу — лишаємо тільки заповнені.
+  const gameIds = [
+    { label: "Riot ID", hint: "Valorant, League of Legends", value: player?.riotId, href: null },
+    {
+      label: "SteamID64",
+      hint: "CS2, Dota 2",
+      value: player?.steamId64,
+      href: player?.steamProfileUrl ?? null
+    },
+    { label: "BattleTag", hint: "Battle.net", value: player?.battleTag, href: null }
+  ].filter((tag): tag is typeof tag & { value: string } => Boolean(tag.value));
+
   return (
     <>
       <PageHeader
@@ -241,6 +261,67 @@ const PlayerDetail = () => {
               history={ratingHistory}
               emptyHint="Він зʼявиться після першого зіграного турнірного матчу — практичні матчі рейтинг не змінюють."
             />
+          </div>
+        </section>
+      )}
+
+      {/* Дуелі рахуються окремо від командних матчів — і це не спрощення, а
+          те, заради чого сутність відокремлювали: у Player.TotalMatches одне
+          джерело, рядки MatchPlayer, і дуель туди не потрапляє.
+          Див. docs/superpowers/specs/2026-08-19-duel-1v1-design.md. */}
+      {!loading && duelRecord && duelRecord.played > 0 && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2 className="section-title">Дуелі</h2>
+            <span className="muted text-micro">Окремо від командних матчів</span>
+          </div>
+          <div className="panel-body">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Зіграно"
+                value={String(duelRecord.played)}
+                hint={`${duelRecord.wins}–${duelRecord.losses}${
+                  duelRecord.draws > 0 ? `–${duelRecord.draws}` : ""
+                }`}
+              />
+              <StatCard label="Перемоги" value={String(duelRecord.wins)} />
+              <StatCard label="Поразки" value={String(duelRecord.losses)} />
+              <StatCard label="Відсоток перемог" value={`${duelRecord.winRate}%`} />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Ігрові акаунти. Показуємо лише заповнені: три порожні рядки —
+          це не інформація. Посиланням стає тільки Steam: у нього адреса
+          профілю однозначна, а Riot ID і BattleTag без регіону й дисципліни
+          нікуди не ведуть, і вгадувати за гравця не варто. */}
+      {!loading && player && gameIds.length > 0 && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2 className="section-title">Ігрові акаунти</h2>
+          </div>
+          <div className="panel-body space-y-3">
+            {gameIds.map((tag) => (
+              <div key={tag.label} className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <div className="text-body text-text">{tag.label}</div>
+                  <div className="muted text-micro">{tag.hint}</div>
+                </div>
+                {tag.href ? (
+                  <a
+                    href={tag.href}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="tabular font-mono text-micro text-ember hover:underline"
+                  >
+                    {tag.value}
+                  </a>
+                ) : (
+                  <span className="tabular font-mono text-micro text-text">{tag.value}</span>
+                )}
+              </div>
+            ))}
           </div>
         </section>
       )}

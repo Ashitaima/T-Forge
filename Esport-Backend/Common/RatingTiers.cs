@@ -20,13 +20,18 @@ namespace TForge.Common
         /// <summary>
         /// Межі лише зростають, тож ліга однозначна для будь-якого рейтингу,
         /// зокрема й нижче підлоги EloCalculator.
+        ///
+        /// Нижня межа навмисно вища за EloCalculator.BaseRating: новачок
+        /// має починати з бронзи. Коли старт потрапляв у срібло, бронза
+        /// діставалася лише поразками й читалася як покарання, а не як
+        /// початок шляху.
         /// </summary>
         public static string ForRating(int rating) => rating switch
         {
-            < 900 => Bronze,
-            < 1100 => Silver,
-            < 1300 => Gold,
-            < 1500 => Platinum,
+            < 1100 => Bronze,
+            < 1250 => Silver,
+            < 1400 => Gold,
+            < 1550 => Platinum,
             _ => Elite
         };
     }

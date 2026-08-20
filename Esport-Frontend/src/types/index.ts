@@ -71,6 +71,7 @@ export type TeamDto = {
   tag: string;
   description: string;
   region: string;
+  logoPath?: string | null;
   isActive: boolean;
   createdAt: string;
   captain?: UserDto | null;
@@ -82,6 +83,7 @@ export type TeamSummaryDto = {
   name: string;
   tag: string;
   region: string;
+  logoPath?: string | null;
   isActive: boolean;
   captain?: UserDto | null;
 };
@@ -118,6 +120,12 @@ export type PlayerDto = {
   joinedAt: string;
   user?: UserDto | null;
   team?: TeamSummaryDto | null;
+  // Ігрові теги — див. Esport-Backend/Common/GameIdFormats.cs
+  riotId: string | null;
+  steamId64: string | null;
+  battleTag: string | null;
+  /** Готове посилання на профіль Steam, або null — будує сервер. */
+  steamProfileUrl: string | null;
 };
 
 export type PlayerSummaryDto = {
@@ -140,6 +148,8 @@ export type PlayerRowDto = {
   avatarUrl: string | null;
   teamId: number | null;
   teamName: string | null;
+  teamTag: string | null;
+  teamLogoPath: string | null;
   matches: number;
   wins: number;
   losses: number;
@@ -159,6 +169,7 @@ export type TeamRowDto = {
   name: string;
   tag: string;
   region: string;
+  logoPath?: string | null;
   isActive: boolean;
   captainId: number;
   captainUsername: string | null;
@@ -188,6 +199,9 @@ export type UpdatePlayerDto = {
   position: string;
   country: string;
   age: number;
+  riotId?: string;
+  steamId64?: string;
+  battleTag?: string;
 };
 
 export type UpdateProfileDto = {
@@ -244,16 +258,28 @@ export type MatchDto = {
   awayTeam?: TeamSummaryDto | null;
   /** Капітани команд — ними визначається, хто веде товариський матч. */
   homeTeamCaptainId: number;
-  awayTeamCaptainId: number;
+  /** null у відкритому матчі — гостя ще немає. */
+  awayTeamCaptainId: number | null;
+  /** Власна назва матчу, якщо її дали. */
+  name: string | null;
+  /** Відкритий матч: приєднатися може капітан іншої команди. */
+  isOpen: boolean;
   winnerTeam?: TeamSummaryDto | null;
   tournament?: TournamentDto | null;
   matchPlayers: MatchPlayerDto[];
 };
 
 export type CreateMatchDto = {
-  tournamentId: number;
-  homeTeamId: number;
-  awayTeamId: number;
+  /** null — практичний матч без турніру. */
+  tournamentId: number | null;
+  /** Задають лише для практичного матчу; у турнірному сервер бере гру з турніру. */
+  game?: string | null;
+  /** null — сервер візьме команду, якою ви капітануєте. */
+  homeTeamId?: number | null;
+  /** null — відкритий матч: суперника назве той, хто приєднається. */
+  awayTeamId?: number | null;
+  /** Власна назва матчу. */
+  name?: string | null;
   scheduledAt: string;
   matchType?: string;
   format?: string;
@@ -474,4 +500,83 @@ export type MembershipRequestDto = {
   status: MembershipRequestStatus;
   createdAt: string;
   respondedAt: string | null;
+};
+
+export type NotificationKind =
+  | "MembershipInviteReceived"
+  | "MembershipInviteAnswered"
+  | "MembershipApplicationReceived"
+  | "MembershipApplicationAnswered"
+  | "ChallengeReceived"
+  | "ChallengeAnswered"
+  | "TournamentInviteReceived"
+  | "TournamentInviteAnswered"
+  | "TournamentApplicationReceived"
+  | "TournamentApplicationAnswered";
+
+/**
+ * Сповіщення не мають своєї таблиці — сервер виводить їх із запитів,
+ * що й так існують (див. Services/NotificationService.cs).
+ */
+export type NotificationDto = {
+  kind: NotificationKind;
+  title: string;
+  body?: string | null;
+  link: string;
+  createdAt: string;
+  isUnread: boolean;
+  isActionable: boolean;
+};
+
+/**
+ * Дуель 1 на 1. Окрема сутність, а не матч без команд — див.
+ * docs/superpowers/specs/2026-08-19-duel-1v1-design.md. Її показники навмисно
+ * не входять у статистику матчів гравця.
+ */
+export type DuelDto = {
+  id: number;
+  challengerPlayer: PlayerSummaryDto | null;
+  opponentPlayer: PlayerSummaryDto | null;
+  game: string;
+  scheduledAt: string;
+  status: string;
+  format: string;
+  message: string;
+  challengerScore: number;
+  opponentScore: number;
+  /** Player.Id переможця; null у завершеній дуелі — нічия. */
+  winnerPlayerId: number | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+  /** Акаунти сторін — щоб клієнт повторив перевірку DuelPolicy. */
+  challengerUserId: number;
+  /** null у відкритому виклику — суперника ще не названо. */
+  opponentUserId: number | null;
+  /** Відкритий виклик: прийняти може будь-хто, крім автора. */
+  isOpen: boolean;
+};
+
+export type CreateDuelDto = {
+  /** null — відкритий виклик, без названого суперника. */
+  opponentPlayerId: number | null;
+  game: string;
+  scheduledAt: string;
+  format?: string;
+  message?: string;
+};
+
+export type CompleteDuelDto = {
+  challengerScore: number;
+  opponentScore: number;
+  winnerPlayerId: number | null;
+};
+
+export type DuelRecordDto = {
+  played: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
 };

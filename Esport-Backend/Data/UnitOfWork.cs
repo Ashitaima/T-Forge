@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore.Storage;
 using TForge.Data.Context;
 using TForge.Data.Interfaces;
 using TForge.Data.Repositories;
@@ -29,6 +29,7 @@ namespace TForge.Data
         private IGenericRepository<PlayerRating>? _playerRatings;
         private IGenericRepository<TeamRatingChange>? _teamRatingChanges;
         private IGenericRepository<PlayerRatingChange>? _playerRatingChanges;
+        private IGenericRepository<Duel>? _duels;
 
         public IUserRepository Users =>
             _users ??= new UserRepository(_context);
@@ -68,6 +69,9 @@ namespace TForge.Data
 
         public IGenericRepository<PlayerRatingChange> PlayerRatingChanges =>
             _playerRatingChanges ??= new GenericRepository<PlayerRatingChange>(_context);
+
+        public IGenericRepository<Duel> Duels =>
+            _duels ??= new GenericRepository<Duel>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

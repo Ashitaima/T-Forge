@@ -36,6 +36,10 @@ export const matchesApi = {
     const response = await apiClient.get<MatchDto>(`${endpoints.matches}/${id}/details`);
     return response.data;
   },
+  join: async (id: number) => {
+    const response = await apiClient.post<MatchDto>(endpoints.matchJoin(id));
+    return response.data;
+  },
   create: async (payload: CreateMatchDto) => {
     const response = await apiClient.post<MatchDto>(endpoints.matches, payload);
     return response.data;

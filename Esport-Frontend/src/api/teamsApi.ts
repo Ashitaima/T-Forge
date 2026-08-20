@@ -37,5 +37,14 @@ export const teamsApi = {
   getSummary: async (id: number) => {
     const response = await apiClient.get<TeamSummaryStatsDto>(endpoints.teamSummary(id));
     return response.data;
+  },
+  uploadLogo: async (teamId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await apiClient.post<TeamDto>(endpoints.teamLogo(teamId), form);
+    return response.data;
+  },
+  deleteLogo: async (teamId: number) => {
+    await apiClient.delete(endpoints.teamLogo(teamId));
   }
 };

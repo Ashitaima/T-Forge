@@ -1,4 +1,4 @@
-using TForge.DTOs;
+﻿using TForge.DTOs;
 using TForge.Services.Interfaces;
 using TForge.Common;
 using TForge.Common.Filters;
@@ -68,12 +68,37 @@ namespace TForge.Controllers
             return Ok(matches);
         }
 
+        /// <summary>
+        /// Створення матчу. Роль тут не вирішує — вирішує MatchCreationPolicy:
+        /// товариський матч ставлять капітани команд-учасниць, турнірний —
+        /// організатор саме цього турніру.
+        /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize]
         public async Task<ActionResult<MatchDto>> CreateMatch([FromBody] CreateMatchDto createDto)
         {
-            var match = await _matchService.CreateAsync(createDto);
+            var context = await _matchService.GetCreateContextAsync(createDto, GetUserIdOrThrow());
+
+            if (!MatchCreationPolicy.CanCreate(context, GetUserIdOrThrow(), IsAdmin, IsOrganizer))
+            {
+                throw new ForbiddenException(MatchCreationPolicy.IsFriendly(context)
+                    ? "Створити товариський матч може лише капітан однієї з команд"
+                    : "Додати матч у турнір може лише його організатор");
+            }
+
+            var match = await _matchService.CreateAsync(createDto, GetUserIdOrThrow());
             return CreatedAtAction(nameof(GetMatch), new { id = match.Id }, match);
+        }
+
+        /// <summary>
+        /// Приєднатися до відкритого матчу. Права перевіряє сам сервіс: тут
+        /// вирішує не роль, а капітанство над командою, що приєднується.
+        /// </summary>
+        [HttpPost("{id}/join")]
+        [Authorize]
+        public async Task<ActionResult<MatchDto>> JoinMatch(int id)
+        {
+            return Ok(await _matchService.JoinAsync(id, GetUserIdOrThrow(), IsAdmin));
         }
 
         [HttpPut("{id}")]

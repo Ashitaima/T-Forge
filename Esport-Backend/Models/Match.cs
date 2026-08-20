@@ -14,11 +14,30 @@ namespace TForge.Models
         /// </summary>
         public int? TournamentId { get; set; }
 
+        /// <summary>
+        /// Власна назва матчу — «Вечірній скрим», «Розминка перед LAN».
+        /// Має сенс для практичного матчу, який ставить капітан: турнірний
+        /// впізнають за турніром і стадією. Порожня — нормальний стан.
+        /// </summary>
+        [StringLength(100)]
+        public string? Name { get; set; }
+
         [Required]
         public int HomeTeamId { get; set; }
 
-        [Required]
-        public int AwayTeamId { get; set; }
+        /// <summary>
+        /// Суперник. Null — відкритий матч: команду-гостя ще не названо, і
+        /// приєднатися може капітан будь-якої іншої команди.
+        ///
+        /// Показникам це не загрожує, і саме тому колонку зроблено
+        /// необов'язковою, хоч дуель свого часу винесли в окрему сутність
+        /// (Models/Duel.cs): дуель без команд лишається такою назавжди, а
+        /// відкритий матч — лише доти, доки хтось не приєднався. Зіграти й
+        /// потрапити в підсумки він за цей час не може: усі калькулятори
+        /// рахують матчі зі статусом Completed, а завершити матч без
+        /// суперника MatchService не дає.
+        /// </summary>
+        public int? AwayTeamId { get; set; }
 
         [Required]
         public DateTime ScheduledAt { get; set; }
@@ -74,7 +93,7 @@ namespace TForge.Models
         // Navigation Properties
         public virtual Tournament? Tournament { get; set; }
         public virtual Team HomeTeam { get; set; } = null!;
-        public virtual Team AwayTeam { get; set; } = null!;
+        public virtual Team? AwayTeam { get; set; }
         public virtual Team? WinnerTeam { get; set; }
         public virtual ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
     }

@@ -1,4 +1,4 @@
-using TForge.Common;
+﻿using TForge.Common;
 using TForge.Data.Context;
 using TForge.Services;
 using TForge.Services.Interfaces;
@@ -21,6 +21,7 @@ namespace TForge.Data
             await ApplyMigrationsAsync(context, logger);
             await NormalizeLegacyStatusesAsync(context, logger);
             await NormalizeLegacyCountriesAsync(context, logger);
+            await NormalizeLegacyRolesAsync(context, logger);
             await DbSeeder.SeedAsync(context, passwordHasher);
 
             // Драбина програється тим самим калькулятором, що й жива гра, тож
@@ -109,6 +110,26 @@ namespace TForge.Data
         /// того, як власник відкриє форму. Невідомі значення лишаємо як є:
         /// стерти чужі дані гірше, ніж показати їх без прапора.
         /// </summary>
+        /// <summary>
+        /// Роль «User» більше не існує (див. Common/UserRoles.cs). Наявні
+        /// акаунти переводимо в Player — інакше вони лишилися б зі значенням,
+        /// яке UserRoles.IsValid уже відхиляє. Профілю гравця їм це не додає:
+        /// його немає й не було, і застосунок такий випадок уже переживає.
+        /// Виклик ідемпотентний — після першого разу оновлювати нема чого.
+        /// </summary>
+        private static async Task NormalizeLegacyRolesAsync(EsportsDbContext context, ILogger logger)
+        {
+            var updated = await context.Users
+                .Where(u => u.Role == UserRoles.LegacyUser)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.Role, UserRoles.Player));
+
+            if (updated > 0)
+            {
+                logger.LogInformation(
+                    "Успадковану роль «User» переведено в «Player»: оновлено акаунтів — {Users}", updated);
+            }
+        }
+
         private static async Task NormalizeLegacyCountriesAsync(EsportsDbContext context, ILogger logger)
         {
             var stored = await context.Players
