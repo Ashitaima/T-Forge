@@ -223,7 +223,7 @@ const TournamentDetail = () => {
           <div className="flex items-center gap-3">
             <span className="tabular font-mono text-micro text-text-faint">{matches.length}</span>
             {canManage && (
-              <Link to="/matches/new" className="btn btn-secondary btn-sm">
+              <Link to={`/tournaments/${tournamentId}/matches/new`} className="btn btn-secondary btn-sm">
                 <PlusCircle className="h-4 w-4" />
                 Додати матч
               </Link>
