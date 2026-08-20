@@ -18,6 +18,8 @@ namespace TForge.Data.Interfaces
         IGenericRepository<TeamRatingChange> TeamRatingChanges { get; }
         IGenericRepository<PlayerRatingChange> PlayerRatingChanges { get; }
         IGenericRepository<Duel> Duels { get; }
+        IGenericRepository<PlayerGameProfile> PlayerGameProfiles { get; }
+        IGenericRepository<OrganizerRequest> OrganizerRequests { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

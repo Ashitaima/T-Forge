@@ -29,7 +29,8 @@ namespace TForge.Controllers
         [HttpGet("paged")]
         public async Task<ActionResult<PagedResponse<PlayerRowDto>>> GetPagedPlayers([FromQuery] PlayerFilter filter)
         {
-            return Ok(await _playerService.GetPagedRowsAsync(filter, filter));
+            return Ok(await _playerService.GetPagedRowsAsync(
+                filter, filter, CurrentUserIdOrNull(), IsAdmin));
         }
 
         /// <summary>
@@ -49,7 +50,7 @@ namespace TForge.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<PlayerDto>> GetPlayer(int id)
         {
-            var player = await _playerService.GetByIdAsync(id);
+            var player = await _playerService.GetByIdAsync(id, CurrentUserIdOrNull(), IsAdmin);
             return Ok(player);
         }
 
@@ -64,7 +65,7 @@ namespace TForge.Controllers
         [HttpGet("{id}/profile")]
         public async Task<ActionResult<PlayerProfileDto>> GetPlayerProfile(int id)
         {
-            return Ok(await _playerService.GetProfileAsync(id));
+            return Ok(await _playerService.GetProfileAsync(id, CurrentUserIdOrNull(), IsAdmin));
         }
 
         /// <summary>Журнал матчів гравця з його власною статистикою за кожен матч.</summary>
@@ -142,6 +143,36 @@ namespace TForge.Controllers
             }
 
             return Ok("Гравець успішно покинув команду");
+        }
+
+        /// <summary>
+        /// Додає гравцеві дисципліну або змінює роль у вже доданій. Повторне
+        /// збереження тієї самої гри оновлює роль — див. Models/PlayerGameProfile.cs.
+        /// </summary>
+        [HttpPut("{playerId}/game-profiles")]
+        [Authorize]
+        public async Task<ActionResult<PlayerGameProfileDto>> SaveGameProfile(
+            int playerId, [FromBody] SavePlayerGameProfileDto dto)
+        {
+            if (!await IsOwnerOrAdminAsync(playerId))
+            {
+                return Forbid();
+            }
+
+            return Ok(await _playerService.SaveGameProfileAsync(playerId, dto));
+        }
+
+        [HttpDelete("{playerId}/game-profiles/{gameProfileId}")]
+        [Authorize]
+        public async Task<ActionResult> RemoveGameProfile(int playerId, int gameProfileId)
+        {
+            if (!await IsOwnerOrAdminAsync(playerId))
+            {
+                return Forbid();
+            }
+
+            await _playerService.RemoveGameProfileAsync(playerId, gameProfileId);
+            return NoContent();
         }
 
         /// <summary>Гравець подає заявку до команди.</summary>

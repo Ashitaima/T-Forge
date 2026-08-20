@@ -1,4 +1,5 @@
 using FluentValidation;
+using TForge.Common;
 using TForge.DTOs;
 
 namespace TForge.Validators
@@ -20,9 +21,11 @@ namespace TForge.Validators
             RuleFor(x => x.Description)
                 .MaximumLength(300).WithMessage("Опис не може перевищувати 300 символів");
 
+            // Список, а не вільний текст: «Europe», «EU» і «Європа» інакше
+            // ставали трьома різними регіонами, за якими нічого не згрупувати.
             RuleFor(x => x.Region)
                 .NotEmpty().WithMessage("Регіон є обов'язковим")
-                .MaximumLength(100).WithMessage("Регіон не може перевищувати 100 символів");
+                .Must(Regions.IsValid).WithMessage("Оберіть регіон зі списку");
         }
     }
 }

@@ -14,8 +14,9 @@ const schema = z
       .string()
       .min(3, "Вкажіть логін")
       .regex(/^[a-zA-Z0-9_]+$/, "Логін може містити лише літери, цифри та підкреслення"),
-    firstName: z.string().min(2, "Вкажіть ім'я"),
-    lastName: z.string().min(2, "Вкажіть прізвище"),
+    // Справжнє ім'я необов'язкове — у складах і таблицях видно нікнейм.
+    firstName: z.string().max(50, "Максимум 50 символів"),
+    lastName: z.string().max(50, "Максимум 50 символів"),
     email: z.string().email("Вкажіть коректну електронну пошту"),
     password: z
       .string()
@@ -24,13 +25,10 @@ const schema = z
     role: z.enum(["Player", "Organizer"], { required_error: "Оберіть роль" }),
     nickname: z.string().optional()
   })
-  // Профіль гравця створюється одразу під час реєстрації — без нікнейма
-  // його нема з чого зробити. Організаторові профіль не створюється.
+  // Профіль гравця створюється при кожній реєстрації — навіть коли просять
+  // роль організатора, бо ту роль видає адміністратор, а до того акаунт живе
+  // гравцем. Тож нікнейм потрібен завжди.
   .superRefine((values, ctx) => {
-    if (values.role !== "Player") {
-      return;
-    }
-
     const nickname = values.nickname?.trim() ?? "";
 
     if (nickname.length < NICKNAME_MIN_LENGTH || nickname.length > NICKNAME_MAX_LENGTH) {
@@ -82,7 +80,7 @@ const RegisterPage = () => {
         email: values.email,
         password: values.password,
         role: values.role,
-        nickname: values.role === "Player" ? (values.nickname?.trim() ?? "") : ""
+        nickname: values.nickname?.trim() ?? ""
       });
       navigate("/");
     } catch (error) {
@@ -132,12 +130,12 @@ const RegisterPage = () => {
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="field">
-            Ім&#39;я
+            Ім&#39;я <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
             <input type="text" autoComplete="given-name" {...register("firstName")} className="input" />
             {errors.firstName && <p className="field-error">{errors.firstName.message}</p>}
           </label>
           <label className="field">
-            Прізвище
+            Прізвище <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
             <input type="text" autoComplete="family-name" {...register("lastName")} className="input" />
             {errors.lastName && <p className="field-error">{errors.lastName.message}</p>}
           </label>
@@ -168,17 +166,25 @@ const RegisterPage = () => {
             <p className="field-hint">Гравець виступає за команду. Організатор проводить турніри.</p>
           )}
         </label>
-        {role === "Player" && (
-          <label className="field">
-            Ігровий нікнейм
-            <input type="text" {...register("nickname")} className="input" />
-            {errors.nickname ? (
-              <p className="field-error">{errors.nickname.message}</p>
-            ) : (
-              <p className="field-hint">Під цим імʼям вас бачитимуть у складах і таблицях.</p>
-            )}
-          </label>
+
+        {/* Роль організатора надає адміністратор: акаунт створюється гравцем,
+            а поруч лягає заявка. Обіцяти роль одразу було б неправдою. */}
+        {role === "Organizer" && (
+          <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
+            Роль організатора надає адміністратор. Акаунт буде створено як гравця, а заявку —
+            подано автоматично; стан видно в профілі.
+          </p>
         )}
+
+        <label className="field">
+          Ігровий нікнейм
+          <input type="text" {...register("nickname")} className="input" />
+          {errors.nickname ? (
+            <p className="field-error">{errors.nickname.message}</p>
+          ) : (
+            <p className="field-hint">Під цим імʼям вас бачитимуть у складах і таблицях.</p>
+          )}
+        </label>
         {submitError && <div className="notice notice-error">{submitError}</div>}
         <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full">
           {isSubmitting ? "Створення..." : "Створити акаунт"}

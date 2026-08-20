@@ -24,6 +24,8 @@ namespace TForge.Data.Context
         public DbSet<TeamRatingChange> TeamRatingChanges { get; set; }
         public DbSet<PlayerRatingChange> PlayerRatingChanges { get; set; }
         public DbSet<Duel> Duels { get; set; }
+        public DbSet<PlayerGameProfile> PlayerGameProfiles { get; set; }
+        public DbSet<OrganizerRequest> OrganizerRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -40,6 +42,63 @@ namespace TForge.Data.Context
             ConfigureTournamentInvitationModel(modelBuilder);
             ConfigureRatingModels(modelBuilder);
             ConfigureDuelModel(modelBuilder);
+            ConfigurePlayerGameProfileModel(modelBuilder);
+            ConfigureOrganizerRequestModel(modelBuilder);
+        }
+
+        /// <summary>
+        /// Заявка на роль організатора. Відповідає будь-який адміністратор,
+        /// тож окремого адресата тут немає (див. Models/OrganizerRequest.cs).
+        /// </summary>
+        private void ConfigureOrganizerRequestModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<OrganizerRequest>(entity =>
+            {
+                entity.ToTable("organizer_requests");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Message).HasMaxLength(500);
+                entity.Property(e => e.ResponseNote).HasMaxLength(500);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(OrganizerRequestStatus.Pending);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Одна заявка на розгляді від користувача: повторні лише
+                // засмічували б чергу адміністратора.
+                entity.HasIndex(e => e.UserId)
+                    .IsUnique()
+                    .HasFilter($"\"Status\" = '{OrganizerRequestStatus.Pending}'");
+
+                entity.HasIndex(e => e.Status);
+            });
+        }
+
+        /// <summary>
+        /// Дисципліни гравця. Пара (PlayerId, Game) унікальна — дві ролі в
+        /// одній грі суперечили б самі собі (див. Models/PlayerGameProfile.cs).
+        /// </summary>
+        private void ConfigurePlayerGameProfileModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<PlayerGameProfile>(entity =>
+            {
+                entity.ToTable("player_game_profiles");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Position).HasMaxLength(50);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.HasOne(e => e.Player)
+                    .WithMany(p => p.GameProfiles)
+                    .HasForeignKey(e => e.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.PlayerId, e.Game }).IsUnique();
+            });
         }
 
         /// <summary>
@@ -330,9 +389,11 @@ namespace TForge.Data.Context
                     .HasForeignKey(c => c.ChallengerTeamId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // Необов'язковий: у відкритому виклику суперника ще немає.
                 entity.HasOne(c => c.OpponentTeam)
                     .WithMany()
                     .HasForeignKey(c => c.OpponentTeamId)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
                 // Матч лишається, навіть якщо виклик колись видалять.
@@ -343,7 +404,9 @@ namespace TForge.Data.Context
 
                 // Лише один відкритий виклик у цьому напрямі. Зустрічний виклик
                 // (суперник викликає у відповідь) відсіює сервіс — індекс його
-                // не бачить, бо пара колонок там у зворотному порядку.
+                // не бачить, бо пара колонок там у зворотному порядку. Виклик
+                // без суперника індекс теж не обмежує: PostgreSQL вважає NULL
+                // різними між собою, тож дублікати відкритих ловить сервіс.
                 entity.HasIndex(c => new { c.ChallengerTeamId, c.OpponentTeamId })
                     .IsUnique()
                     .HasFilter($"\"Status\" = '{MatchChallengeStatus.Pending}'");

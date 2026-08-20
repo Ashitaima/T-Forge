@@ -12,6 +12,9 @@ namespace TForge.DTOs
         /// <summary>Шлях до аватара відносно кореня API, або null.</summary>
         public string? AvatarUrl { get; set; }
 
+        /// <summary>Чи ховати справжнє імʼя від інших — див. Common/ProfileVisibility.cs.</summary>
+        public bool IsNameHidden { get; set; }
+
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastLoginAt { get; set; }

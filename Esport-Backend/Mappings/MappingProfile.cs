@@ -72,6 +72,7 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.SteamProfileUrl,
                     opt => opt.MapFrom(src => GameIdFormats.SteamProfileUrl(src.SteamId64)));
             CreateMap<Player, PlayerSummaryDto>();
+            CreateMap<PlayerGameProfile, PlayerGameProfileDto>();
 
             // Акаунти обох сторін їдуть у DTO, щоб клієнт міг повторити
             // перевірку DuelPolicy й не малювати кнопку, яка дасть 403.
@@ -101,8 +102,12 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.User, opt => opt.Ignore())
                 .ForMember(dest => dest.TeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.Team, opt => opt.Ignore())
-                .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
+                .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore())
+                .ForMember(dest => dest.GameProfiles, opt => opt.Ignore());
             CreateMap<UpdatePlayerDto, Player>()
+                // Позиція більше не належить профілю — її задають подисциплінно.
+                // Ігноруємо явно, щоб уже збережене значення не зникло.
+                .ForMember(dest => dest.Position, opt => opt.Ignore())
                 .ForMember(dest => dest.RiotId,
                     opt => opt.MapFrom(src => GameIdFormats.Normalize(src.RiotId)))
                 .ForMember(dest => dest.SteamId64,
@@ -121,7 +126,8 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.User, opt => opt.Ignore())
                 .ForMember(dest => dest.TeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.Team, opt => opt.Ignore())
-                .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
+                .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore())
+                .ForMember(dest => dest.GameProfiles, opt => opt.Ignore());
 
             CreateMap<Match, MatchDto>()
                 .ForMember(dest => dest.HomeTeamCaptainId,
@@ -181,11 +187,19 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.TeamTag, opt => opt.MapFrom(src => src.Team.Tag))
                 .ForMember(dest => dest.TeamCaptainId, opt => opt.MapFrom(src => src.Team.CaptainId));
 
+            CreateMap<OrganizerRequest, OrganizerRequestDto>()
+                .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.User.Username))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email));
+
             CreateMap<MatchChallenge, MatchChallengeDto>()
                 .ForMember(dest => dest.ChallengerTeamName, opt => opt.MapFrom(src => src.ChallengerTeam.Name))
                 .ForMember(dest => dest.ChallengerTeamTag, opt => opt.MapFrom(src => src.ChallengerTeam.Tag))
-                .ForMember(dest => dest.OpponentTeamName, opt => opt.MapFrom(src => src.OpponentTeam.Name))
-                .ForMember(dest => dest.OpponentTeamTag, opt => opt.MapFrom(src => src.OpponentTeam.Tag));
+                // Відкритий виклик ще не має суперника, тож ані назви, ані тега.
+                .ForMember(dest => dest.OpponentTeamName,
+                    opt => opt.MapFrom(src => src.OpponentTeam == null ? string.Empty : src.OpponentTeam.Name))
+                .ForMember(dest => dest.OpponentTeamTag,
+                    opt => opt.MapFrom(src => src.OpponentTeam == null ? string.Empty : src.OpponentTeam.Tag))
+                .ForMember(dest => dest.IsOpen, opt => opt.MapFrom(src => src.OpponentTeamId == null));
         }
     }
 }

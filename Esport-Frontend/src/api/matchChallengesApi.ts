@@ -17,8 +17,21 @@ export const matchChallengesApi = {
     const response = await apiClient.post<MatchChallengeDto>(endpoints.matchChallenges, payload);
     return response.data;
   },
-  accept: async (id: number) => {
-    const response = await apiClient.post<MatchChallengeDto>(endpoints.matchChallengeAccept(id));
+  /** Відкриті виклики — ті, у яких суперника ще не названо. */
+  getOpen: async (game?: string) => {
+    const response = await apiClient.get<MatchChallengeDto[]>(endpoints.matchChallengesOpen, {
+      params: game ? { game } : undefined
+    });
+    return response.data;
+  },
+  /**
+   * `teamId` потрібен лише для відкритого виклику, та й то лише коли капітан
+   * веде кілька команд — інакше команду визначає сервер.
+   */
+  accept: async (id: number, teamId?: number) => {
+    const response = await apiClient.post<MatchChallengeDto>(endpoints.matchChallengeAccept(id), {
+      teamId: teamId ?? null
+    });
     return response.data;
   },
   decline: async (id: number) => {

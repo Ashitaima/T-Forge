@@ -100,7 +100,10 @@ namespace TForge.Services
         /// тому список не розходиться з профілем гравця.
         /// </summary>
         public async Task<PagedResponse<PlayerRowDto>> GetPagedRowsAsync(
-            PagedRequest request, PlayerFilter? filter = null)
+            PagedRequest request,
+            PlayerFilter? filter = null,
+            int? viewerUserId = null,
+            bool isAdmin = false)
         {
             var query = ApplyPlayerFilters(_unitOfWork.Players.GetQueryable(), filter);
 
@@ -120,7 +123,9 @@ namespace TForge.Services
                 UserId = p.UserId,
                 Nickname = p.Nickname,
                 Position = p.Position,
+                Games = p.GameProfiles.OrderBy(g => g.Game).Select(g => g.Game).ToList(),
                 Country = p.Country,
+                IsCountryHidden = p.IsCountryHidden,
                 IsActive = p.IsActive,
                 AvatarUrl = p.User.AvatarPath,
                 TeamId = p.TeamId,
@@ -161,6 +166,11 @@ namespace TForge.Services
             // дублювати ті самі підзапити в SQL ще раз.
             foreach (var row in data)
             {
+                row.Country = ProfileVisibility.Apply(
+                    row.Country,
+                    row.IsCountryHidden,
+                    ProfileVisibility.CanSeeHidden(row.UserId, viewerUserId, isAdmin));
+
                 row.Losses = row.Matches - row.Wins;
                 row.WinRate = row.Matches == 0
                     ? 0
@@ -194,9 +204,6 @@ namespace TForge.Services
                 PlayerSortKeys.Nickname => descending
                     ? rows.OrderByDescending(r => r.Nickname)
                     : rows.OrderBy(r => r.Nickname),
-                PlayerSortKeys.Position => descending
-                    ? rows.OrderByDescending(r => r.Position)
-                    : rows.OrderBy(r => r.Position),
                 PlayerSortKeys.Country => descending
                     ? rows.OrderByDescending(r => r.Country)
                     : rows.OrderBy(r => r.Country),
@@ -234,22 +241,50 @@ namespace TForge.Services
             var player = await _unitOfWork.Players.GetQueryable()
                 .Include(p => p.Team)
                 .Include(p => p.User)
+                .Include(p => p.GameProfiles)
                 .FirstOrDefaultAsync(p => p.UserId == userId);
 
             return player != null ? _mapper.Map<PlayerDto>(player) : null;
         }
 
-        public async Task<PlayerDto?> GetByIdAsync(int id)
+        public async Task<PlayerDto?> GetByIdAsync(int id, int? viewerUserId = null, bool isAdmin = false)
         {
-            var player = await _unitOfWork.Players.GetByIdAsync(id);
-            return player != null ? _mapper.Map<PlayerDto>(player) : null;
+            var player = await _unitOfWork.Players.GetQueryable()
+                .Include(p => p.User)
+                .Include(p => p.GameProfiles)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            return player != null ? MaskHidden(_mapper.Map<PlayerDto>(player), viewerUserId, isAdmin) : null;
         }
 
-        public async Task<PlayerProfileDto> GetProfileAsync(int id)
+        /// <summary>
+        /// Ховає поля, які гравець позначив приватними. Рішення ухвалює
+        /// Common/ProfileVisibility.cs — тут лише застосування.
+        /// </summary>
+        private static PlayerDto MaskHidden(PlayerDto dto, int? viewerUserId, bool isAdmin)
+        {
+            var canSeeHidden = ProfileVisibility.CanSeeHidden(dto.UserId, viewerUserId, isAdmin);
+
+            dto.Age = ProfileVisibility.Apply(dto.Age, dto.IsAgeHidden, canSeeHidden);
+            dto.Country = ProfileVisibility.Apply(dto.Country, dto.IsCountryHidden, canSeeHidden);
+
+            if (dto.User != null)
+            {
+                dto.User.FirstName =
+                    ProfileVisibility.Apply(dto.User.FirstName, dto.User.IsNameHidden, canSeeHidden);
+                dto.User.LastName =
+                    ProfileVisibility.Apply(dto.User.LastName, dto.User.IsNameHidden, canSeeHidden);
+            }
+
+            return dto;
+        }
+
+        public async Task<PlayerProfileDto> GetProfileAsync(int id, int? viewerUserId = null, bool isAdmin = false)
         {
             var player = await _unitOfWork.Players.GetQueryable()
                 .Include(p => p.User)
                 .Include(p => p.Team)
+                .Include(p => p.GameProfiles)
                 .FirstOrDefaultAsync(p => p.Id == id)
                 ?? throw new EntityNotFoundException("Player", id);
 
@@ -258,7 +293,7 @@ namespace TForge.Services
 
             return new PlayerProfileDto
             {
-                Player = _mapper.Map<PlayerDto>(player),
+                Player = MaskHidden(_mapper.Map<PlayerDto>(player), viewerUserId, isAdmin),
                 Ratings = ratings.ToList(),
                 Matches = career.Matches,
                 Wins = career.Wins,
@@ -437,6 +472,49 @@ namespace TForge.Services
             await _unitOfWork.SaveChangesAsync();
 
             return _mapper.Map<PlayerDto>(player);
+        }
+
+        public async Task<PlayerGameProfileDto> SaveGameProfileAsync(int playerId, SavePlayerGameProfileDto dto)
+        {
+            _ = await _unitOfWork.Players.GetByIdAsync(playerId)
+                ?? throw new EntityNotFoundException("Player", playerId);
+
+            // Пара (гравець, дисципліна) унікальна, тож та сама гра означає
+            // зміну ролі. Покластися на помилку унікального індексу не можна:
+            // клієнт побачив би 500 замість збереження.
+            var existing = await _unitOfWork.PlayerGameProfiles.GetQueryable()
+                .FirstOrDefaultAsync(p => p.PlayerId == playerId && p.Game == dto.Game);
+
+            if (existing != null)
+            {
+                existing.Position = dto.Position;
+                await _unitOfWork.SaveChangesAsync();
+                return _mapper.Map<PlayerGameProfileDto>(existing);
+            }
+
+            var created = new PlayerGameProfile
+            {
+                PlayerId = playerId,
+                Game = dto.Game,
+                Position = dto.Position
+            };
+
+            await _unitOfWork.PlayerGameProfiles.AddAsync(created);
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PlayerGameProfileDto>(created);
+        }
+
+        public async Task RemoveGameProfileAsync(int playerId, int gameProfileId)
+        {
+            // Звіряємо і гравця: інакше знаючи лише id рядка можна було б
+            // прибрати дисципліну в чужому профілі.
+            var profile = await _unitOfWork.PlayerGameProfiles.GetQueryable()
+                .FirstOrDefaultAsync(p => p.Id == gameProfileId && p.PlayerId == playerId)
+                ?? throw new EntityNotFoundException("PlayerGameProfile", gameProfileId);
+
+            _unitOfWork.PlayerGameProfiles.Remove(profile);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<bool> DeleteAsync(int id)

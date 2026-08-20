@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Anvil, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
+import { Anvil, BadgeCheck, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
 import { teamsApi } from "../../api/teamsApi";
@@ -14,7 +14,8 @@ const navItems = [
   { to: "/teams", label: "Команди", icon: UsersRound },
   { to: "/players", label: "Гравці", icon: UserRound },
   { to: "/matches", label: "Матчі", icon: CalendarClock },
-  { to: "/users", label: "Користувачі", icon: Shield, adminOnly: true }
+  { to: "/users", label: "Користувачі", icon: Shield, adminOnly: true },
+  { to: "/organizer-requests", label: "Заявки на роль", icon: BadgeCheck, adminOnly: true }
 ];
 
 const roleLabels: Record<string, string> = {

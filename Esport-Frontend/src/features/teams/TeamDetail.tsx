@@ -12,6 +12,8 @@ import { CountryFlag } from "../../components/ui/CountryFlag";
 import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { RatingPanel } from "../../components/ui/Rating";
 import { TournamentInvitationsPanel } from "../tournaments/TournamentInvitationsPanel";
+import { TeamChallengesPanel } from "./TeamChallengesPanel";
+import { regionLabel } from "../../constants/regions";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
 import type { MatchDto, MembershipRequestDto, PlayerDto,
@@ -426,7 +428,7 @@ const TeamDetail = () => {
         {team?.region && (
           <>
             {" "}
-            · Регіон <span className="text-text">{team.region}</span>
+            · Регіон <span className="text-text">{regionLabel(team.region)}</span>
           </>
         )}
         {" "}
@@ -701,6 +703,10 @@ const TeamDetail = () => {
       )}
 
       {team && <TournamentInvitationsPanel teamId={team.id} isCaptain={isCaptain || isAdmin} />}
+
+      {team && (
+        <TeamChallengesPanel teamId={team.id} teamCaptainId={team.captain?.id ?? null} />
+      )}
 
     </>
   );

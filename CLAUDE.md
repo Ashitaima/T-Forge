@@ -49,7 +49,7 @@ unchanged.
 
 ```bash
 dotnet build T-Forge.sln                                # must be 0 warnings, 0 errors
-dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 301 test cases
+dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 472 test cases
 cd Esport-Frontend && npx tsc --noEmit && npx vite build
 ```
 
@@ -66,11 +66,49 @@ dotnet run --no-launch-profile
 dotnet ef database drop -f
 ```
 
-`psql` is not on PATH.
 
 ## Conventions that matter
 
-- **Never write status, role, position or game strings as literals.** Use `TForge.Common.MatchStatus`, `TournamentStatus`, `MatchTypes`, `ResultType`, `UserRoles`, `PlayerPositions`, `Games`, `MatchChallengeStatus`.
+- **Never write status, role, position or game strings as literals.** Use `TForge.Common.MatchStatus`, `TournamentStatus`, `MatchTypes`, `ResultType`, `UserRoles`, `PlayerPositions`, `Games`, `MatchChallengeStatus`, `OrganizerRequestStatus`.
+- **Multipart uploads must not carry a JSON Content-Type.** `api/apiClient.ts`
+  deliberately sets **no** default `Content-Type`: axios adds `application/json`
+  for a plain object and `multipart/form-data` (with boundary) for `FormData` on
+  its own. A blanket `application/json` default silently made axios serialise
+  `FormData` through `formDataToJSON`, so every avatar and team-logo upload
+  reached the server as text and `IFormFile` bound to null — while the same
+  request from `curl` worked, which is what made it hard to see.
+- **Region is a catalog value, not free text.** `Common/Regions.cs` holds the
+  values, `Esport-Frontend/src/constants/regions.ts` the Ukrainian labels — the
+  same split as `Games` and `Countries`. Free text made «Europe», «EU» and
+  «Європа» three regions nothing could be grouped by. The values match what was
+  already seeded, so no migration was needed.
+- **Positions are per discipline.** `Common/GamePositions.cs` maps a game to its
+  roles — «Support» in Dota 2 and in League of Legends are different jobs, and
+  «AWPer» does not exist in Valorant, so the flat `PlayerPositions` list could
+  only ever offer a player roles their game does not have. `PlayerGameProfile`
+  is one row per (player, discipline), unique on that pair, so a player is
+  Duelist in Valorant and AWPer in CS2 at once. `Player.Position` stays as the
+  single headline position for legacy rows, but nothing edits it any more:
+  `UpdatePlayerDto` deliberately has no `Position`, and `MappingProfile` ignores
+  it, because a form that no longer shows a field would otherwise blank it on
+  every save. The players list shows disciplines instead, and `position` is gone
+  from `PlayerSortKeys`. Mirrored in
+  `Esport-Frontend/src/constants/gamePositions.ts`.
+- **Hiding a profile field is a read-time decision, never a stored blank.**
+  `Common/ProfileVisibility.cs` — pure, like the other policies — answers who may
+  see `User.IsNameHidden`, `Player.IsAgeHidden` and `Player.IsCountryHidden`.
+  Owner and Admin see everything; everyone else, including anonymous readers,
+  gets an empty string (or `0` for age), indistinguishable from «not filled in».
+  Only fields the tables do not depend on can be hidden — nickname, records and
+  rating are always visible. The viewer arrives through
+  `ApiControllerBase.CurrentUserIdOrNull()`, and the service parameters default
+  to «anonymous», so forgetting to pass a viewer hides more, never less.
+- **The Organizer role is granted, not chosen.** Registration always creates a
+  Player with a player profile; asking for Organizer only files an
+  `OrganizerRequest`, and `Common/OrganizerRequestPolicy.cs` gives an Admin the
+  only path that writes `User.Role = Organizer`. That is why the nickname is
+  required for every registration, organizer applicants included. Public
+  registration accepting `Role: "Organizer"` at face value was the bug.
 - **`Match.TournamentId` is nullable, and null means a friendly match** created by accepting a `MatchChallenge` between two captains. Friendlies are stamped `Round = 0` and `MatchType = GroupStage`, which is what keeps `BracketService` away from them and keeps them out of the titles count (only `Final` wins count). They *do* contribute to team and player win/loss records and KDA — that is deliberate, they are real matches with real rosters. Any new query over matches must decide explicitly whether it means "all matches" or "tournament matches only".
 - **`Match.Game` is server-derived**, copied from the tournament wherever a match is created — `MatchService.CreateAsync` and *both* `BracketService` paths. `MappingProfile` explicitly ignores it on `CreateMatchDto -> Match`, which is what stops a client-supplied value from ever being honoured; don't remove that `Ignore`. A match created with an empty game is invisible to the game filter. Frontend and backend must agree on the same values — a past bug had four layers disagreeing (`"InProgress"` vs `"In Progress"` vs `"Active"`), which silently broke live matches and the dashboard.
 - **Player statistics have one source: `MatchPlayer` rows.** `MatchPlayer.TeamId` records the team a player represented *in that match*, stamped at creation and never recalculated, so transfers don't rewrite history. Never decide a result from `Player.TeamId` (current team). `Player.TotalMatches/Wins/Losses/WinRate` is a denormalised cache maintained by `MatchRosterService.ApplyMatchResultAsync`.
@@ -99,6 +137,15 @@ dotnet ef database drop -f
   `UpdateTeamDto` on purpose, and `Esport-Backend.Tests/TeamDtoSurfaceTests.cs`
   pins that. `TeamRowDto` is hand-projected in `TeamService.GetPagedRowsAsync`, so
   a new column has to be added there too or it is null in the list only.
+- **A challenge without an opponent is an open one.** `MatchChallenge.OpponentTeamId`
+  and `Duel.OpponentPlayerId` are both nullable, and null means «anyone but the
+  author may accept» — the opponent is first named at acceptance.
+  `MatchChallengePolicy.CanRespond` refuses the initiator even when they are an
+  Admin, because otherwise a match would exist that no second party agreed to.
+  The unique `(ChallengerTeamId, OpponentTeamId)` index does **not** constrain
+  open rows — PostgreSQL treats NULLs as distinct — so duplicate open challenges
+  are caught in `MatchChallengeService`, not by the index. An open row also
+  addresses nobody in `NotificationService` until it is accepted.
 - **Notifications have no table.** `Services/NotificationService.cs` projects
   `TeamMembershipRequest`, `MatchChallenge` and `TournamentInvitation` rows into
   one DTO, and `Common/NotificationAddressing.cs` — pure, like the other policies —
@@ -184,7 +231,7 @@ Captains now also run their own friendly matches: start, score, complete and the
    tokens, so logout is a no-op and a stolen token is valid until it expires.
    Note that the old JWT key and DB password remain in git history.
 2. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-3. **Test coverage is 301 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+3. **Test coverage is 472 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
 4. **The ledger `Down` migration is not reversible once a result has been corrected.**
    `AddRatingChangeRevisions` cannot restore the old two-column unique index when a
    match already carries more than one revision, and it fails loudly rather than

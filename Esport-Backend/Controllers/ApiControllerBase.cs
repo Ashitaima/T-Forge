@@ -12,6 +12,17 @@ namespace TForge.Controllers
 
         protected bool IsOrganizer => User.IsInRole("Organizer");
 
+        /// <summary>
+        /// Поточний користувач або null, якщо запит анонімний. Читання
+        /// профілів і списків відкрите (див. CLAUDE.md), тож там питати
+        /// «хто прийшов» доводиться, не вимагаючи токена.
+        /// </summary>
+        protected int? CurrentUserIdOrNull()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            return int.TryParse(userIdClaim, out var userId) ? userId : null;
+        }
+
         protected int GetUserIdOrThrow()
         {
             var userIdClaim = User.FindFirst("UserId")?.Value;

@@ -31,7 +31,7 @@ public class RegisterValidatorTests
     [Fact]
     public void Role_Organizer_IsAccepted()
     {
-        Assert.True(_validator.Validate(Valid(UserRoles.Organizer)).IsValid);
+        Assert.True(_validator.Validate(Valid(UserRoles.Organizer, "s1mple")).IsValid);
     }
 
     // Публічна реєстрація не повинна видавати права адміністратора.
@@ -73,10 +73,15 @@ public class RegisterValidatorTests
         Assert.False(_validator.Validate(Valid(UserRoles.Player, new string('a', 31))).IsValid);
     }
 
-    // Організатору профіль гравця не створюється, тож нікнейм йому не потрібен.
+    // Роль організатора видає адміністратор за заявкою, а до того акаунт живе
+    // гравцем — профіль створюється при кожній реєстрації, тож нікнейм
+    // потрібен і тому, хто просить роль організатора.
     [Fact]
-    public void Nickname_MissingForOrganizer_IsAccepted()
+    public void Nickname_MissingForOrganizer_IsRejected()
     {
-        Assert.True(_validator.Validate(Valid(UserRoles.Organizer, "")).IsValid);
+        var result = _validator.Validate(Valid(UserRoles.Organizer, ""));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(RegisterDto.Nickname));
     }
 }

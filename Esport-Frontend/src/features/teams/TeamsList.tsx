@@ -7,6 +7,7 @@ import { EmptyState, PageHeader, Pager, SearchField, Skeleton } from "../../comp
 import { SortableTh, useSortState } from "../../components/ui/SortableTh";
 import { RatingCell } from "../../components/ui/Rating";
 import { Avatar, teamInitials } from "../../components/ui/Avatar";
+import { regionLabel } from "../../constants/regions";
 import { usePagedList } from "../../hooks/usePagedList";
 import type { TeamRowDto } from "../../types";
 
@@ -120,7 +121,7 @@ const TeamsList = () => {
                     </span>
                   </td>
                   <td className="font-mono text-micro">{team.tag}</td>
-                  <td>{team.region || "—"}</td>
+                  <td>{team.region ? regionLabel(team.region) : "—"}</td>
                   <td>{team.captainUsername ? `@${team.captainUsername}` : "Не призначено"}</td>
                   <td className="tabular text-right font-mono text-micro">{team.played}</td>
                   <td className="tabular text-right font-mono text-micro">{team.wins}</td>

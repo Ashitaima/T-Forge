@@ -24,12 +24,10 @@ namespace TForge.Validators
                 .MaximumLength(100).WithMessage("Пароль не може перевищувати 100 символів");
 
             RuleFor(x => x.FirstName)
-                .NotEmpty().WithMessage("Ім'я є обов'язковим")
-                .Length(1, 50).WithMessage("Ім'я повинно містити від 1 до 50 символів");
+                .MaximumLength(50).WithMessage("Ім'я не може перевищувати 50 символів");
 
             RuleFor(x => x.LastName)
-                .NotEmpty().WithMessage("Прізвище є обов'язковим")
-                .Length(1, 50).WithMessage("Прізвище повинно містити від 1 до 50 символів");
+                .MaximumLength(50).WithMessage("Прізвище не може перевищувати 50 символів");
 
             RuleFor(x => x.Role)
                 .NotEmpty().WithMessage("Роль користувача є обов'язковою")

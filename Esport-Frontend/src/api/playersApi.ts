@@ -5,6 +5,7 @@ import type {
   CreatePlayerDto,
   PagedResponse,
   PlayerDto,
+  PlayerGameProfileDto,
   PlayerMatchDto,
   PlayerProfileDto,
   PlayerRowDto,
@@ -54,5 +55,16 @@ export const playersApi = {
   getMe: async () => {
     const response = await apiClient.get<PlayerDto>(endpoints.playersMe);
     return response.data;
+  },
+  /** Та сама дисципліна вдруге змінює роль, а не додає другий рядок. */
+  saveGameProfile: async (playerId: number, payload: { game: string; position: string }) => {
+    const response = await apiClient.put<PlayerGameProfileDto>(
+      `${endpoints.players}/${playerId}/game-profiles`,
+      payload
+    );
+    return response.data;
+  },
+  removeGameProfile: async (playerId: number, gameProfileId: number) => {
+    await apiClient.delete(`${endpoints.players}/${playerId}/game-profiles/${gameProfileId}`);
   }
 };

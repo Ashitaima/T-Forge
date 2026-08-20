@@ -68,6 +68,7 @@ builder.Services.AddScoped<IDuelService, DuelService>();
             builder.Services.AddScoped<IAvatarService, AvatarService>();
             builder.Services.AddScoped<ITeamLogoService, TeamLogoService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IOrganizerRequestService, OrganizerRequestService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();

@@ -13,8 +13,8 @@ namespace TForge.Exceptions
 
     public class EntityNotFoundException : Exception
     {
-        public EntityNotFoundException(object key)
-            : base($"Користувача з логіном '{key}' не знайдено")
+        public EntityNotFoundException(string entityName, object key)
+            : base($" {entityName} з ключем '{key}' не знайдено")
         {
         }
 

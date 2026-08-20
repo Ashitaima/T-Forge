@@ -5,13 +5,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import { teamsApi } from "../../api/teamsApi";
+import { REGIONS, REGION_LABELS } from "../../constants/regions";
 import type { CreateTeamDto, UpdateTeamDto } from "../../types";
 
 const schema = z.object({
   name: z.string().min(2, "Вкажіть назву команди"),
   tag: z.string().min(2, "Вкажіть тег"),
   description: z.string().min(5, "Додайте короткий опис"),
-  region: z.string().min(2, "Вкажіть регіон")
+  // Список, а не вільний текст — дзеркало Common/Regions.cs.
+  region: z.enum(REGIONS, {
+    errorMap: () => ({ message: "Оберіть регіон зі списку" })
+  })
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -42,7 +46,9 @@ const TeamForm = () => {
         setValue("name", data.name);
         setValue("tag", data.tag);
         setValue("description", data.description);
-        setValue("region", data.region);
+        // Старі команди можуть мати регіон поза списком — тоді select
+        // лишиться на «Оберіть регіон», і зберегти без вибору не вийде.
+        setValue("region", data.region as FormValues["region"]);
       } finally {
         setLoading(false);
       }
@@ -118,11 +124,14 @@ const TeamForm = () => {
         </label>
         <label className="field">
           Регіон
-          <input
-            type="text"
-            {...register("region")}
-            className="input"
-          />
+          <select {...register("region")} className="input" defaultValue="">
+            <option value="">Оберіть регіон</option>
+            {REGIONS.map((region) => (
+              <option key={region} value={region}>
+                {REGION_LABELS[region]}
+              </option>
+            ))}
+          </select>
           {errors.region && <p className="field-error">{errors.region.message}</p>}
         </label>
         {!id && (

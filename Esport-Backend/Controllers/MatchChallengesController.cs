@@ -25,11 +25,18 @@ namespace TForge.Controllers
             return Ok(challenge);
         }
 
+        /// <summary>
+        /// Приймає виклик. Тіло потрібне лише для відкритого виклику й лише
+        /// тоді, коли капітан веде кілька команд — інакше команду визначає
+        /// сервер.
+        /// </summary>
         [HttpPost("{id}/accept")]
         [Authorize]
-        public async Task<ActionResult<MatchChallengeDto>> Accept(int id)
+        public async Task<ActionResult<MatchChallengeDto>> Accept(
+            int id, [FromBody] AcceptMatchChallengeDto? acceptDto = null)
         {
-            return Ok(await _challengeService.AcceptAsync(id, GetUserIdOrThrow(), IsAdmin));
+            return Ok(await _challengeService.AcceptAsync(
+                id, GetUserIdOrThrow(), IsAdmin, acceptDto?.TeamId));
         }
 
         [HttpPost("{id}/decline")]
@@ -44,6 +51,16 @@ namespace TForge.Controllers
         public async Task<ActionResult<MatchChallengeDto>> Cancel(int id)
         {
             return Ok(await _challengeService.CancelAsync(id, GetUserIdOrThrow(), IsAdmin));
+        }
+
+        /// <summary>
+        /// Відкриті виклики — ті, у яких суперника ще не названо. Прийняти
+        /// може капітан будь-якої іншої команди, тож список загальний.
+        /// </summary>
+        [HttpGet("open")]
+        public async Task<ActionResult<IEnumerable<MatchChallengeDto>>> GetOpen([FromQuery] string? game)
+        {
+            return Ok(await _challengeService.GetOpenAsync(game));
         }
 
         /// <summary>Виклики, що чекають на відповідь поточного користувача.</summary>

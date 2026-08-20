@@ -31,11 +31,9 @@ namespace TForge.Validators
                 .WithMessage("Пароль повинен містити щонайменше одну велику букву, одну малу букву та одну цифру");
 
             RuleFor(x => x.FirstName)
-                .NotEmpty().WithMessage("Ім'я є обов'язковим")
                 .MaximumLength(50).WithMessage("Ім'я не може перевищувати 50 символів");
 
             RuleFor(x => x.LastName)
-                .NotEmpty().WithMessage("Прізвище є обов'язковим")
                 .MaximumLength(50).WithMessage("Прізвище не може перевищувати 50 символів");
 
             RuleFor(x => x.Nickname).PlayerNickname();
@@ -46,7 +44,9 @@ namespace TForge.Validators
 
             RuleFor(x => x.Country).PlayerCountry();
 
-            RuleFor(x => x.Age).PlayerAge();
+            RuleFor(x => x.Age)
+                .PlayerAge()
+                .When(x => x.Age > 0);
         }
     }
 }

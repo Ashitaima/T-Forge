@@ -13,10 +13,13 @@ namespace TForge.Validators
             RuleFor(x => x.ChallengerTeamId)
                 .GreaterThan(0).WithMessage("Вкажіть команду, яка кидає виклик");
 
+            // Null — відкритий виклик: суперника навмисно не названо. Але
+            // якщо його названо, він мусить бути справжньою чужою командою.
             RuleFor(x => x.OpponentTeamId)
                 .GreaterThan(0).WithMessage("Вкажіть команду-суперника")
                 .NotEqual(x => x.ChallengerTeamId)
-                .WithMessage("Команда не може викликати саму себе");
+                .WithMessage("Команда не може викликати саму себе")
+                .When(x => x.OpponentTeamId.HasValue);
 
             // Товариський матч не має турніру, тож дисципліну обирає капітан —
             // але лише з підтримуваного списку.

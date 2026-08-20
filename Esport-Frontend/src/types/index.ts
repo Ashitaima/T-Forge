@@ -17,6 +17,8 @@ export type UserDto = {
   role: string;
   /** Шлях відносно кореня API, або null. */
   avatarUrl: string | null;
+  /** Справжнє імʼя сховано — для чужого глядача воно вже приходить порожнім. */
+  isNameHidden: boolean;
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string;
@@ -118,6 +120,10 @@ export type PlayerDto = {
   ranking: number;
   isActive: boolean;
   joinedAt: string;
+  // Приховані поля вже приходять порожніми для чужого глядача — прапорці
+  // потрібні лише формі налаштувань.
+  isAgeHidden: boolean;
+  isCountryHidden: boolean;
   user?: UserDto | null;
   team?: TeamSummaryDto | null;
   // Ігрові теги — див. Esport-Backend/Common/GameIdFormats.cs
@@ -126,6 +132,14 @@ export type PlayerDto = {
   battleTag: string | null;
   /** Готове посилання на профіль Steam, або null — будує сервер. */
   steamProfileUrl: string | null;
+  /** Дисципліни гравця й роль у кожній — див. constants/gamePositions.ts. */
+  gameProfiles: PlayerGameProfileDto[];
+};
+
+export type PlayerGameProfileDto = {
+  id: number;
+  game: string;
+  position: string;
 };
 
 export type PlayerSummaryDto = {
@@ -143,7 +157,10 @@ export type PlayerRowDto = {
   userId: number;
   nickname: string;
   position: string;
+  /** Дисципліни гравця — у списку показуємо їх замість позиції. */
+  games: string[];
   country: string;
+  isCountryHidden: boolean;
   isActive: boolean;
   avatarUrl: string | null;
   teamId: number | null;
@@ -195,19 +212,23 @@ export type CreatePlayerDto = {
 };
 
 export type UpdatePlayerDto = {
+  // Позиції тут немає: роль залежить від дисципліни й живе в gameProfiles.
+  // Форма, яка її не редагує, інакше затирала б збережене значення.
   nickname: string;
-  position: string;
   country: string;
   age: number;
   riotId?: string;
   steamId64?: string;
   battleTag?: string;
+  isAgeHidden: boolean;
+  isCountryHidden: boolean;
 };
 
 export type UpdateProfileDto = {
   firstName: string;
   lastName: string;
   email: string;
+  isNameHidden: boolean;
 };
 
 export type CreateFullPlayerDto = {
@@ -461,7 +482,8 @@ export type MatchChallengeDto = {
   challengerTeamId: number;
   challengerTeamName: string;
   challengerTeamTag: string;
-  opponentTeamId: number;
+  /** Null у відкритому виклику — суперника ще не названо. */
+  opponentTeamId: number | null;
   opponentTeamName: string;
   opponentTeamTag: string;
   game: string;
@@ -472,15 +494,35 @@ export type MatchChallengeDto = {
   createdAt: string;
   respondedAt: string | null;
   matchId: number | null;
+  /** Акаунт капітана-ініціатора — щоб повторити перевірку MatchChallengePolicy. */
+  initiatedByUserId: number;
+  /** Відкритий виклик: прийняти може капітан будь-якої іншої команди. */
+  isOpen: boolean;
 };
 
 export type CreateMatchChallengeDto = {
   challengerTeamId: number;
-  opponentTeamId: number;
+  /** Null — відкритий виклик: суперника назве той, хто його прийме. */
+  opponentTeamId: number | null;
   game: string;
   proposedAt: string;
   format: string;
   message: string;
+};
+
+/** Approved, а не Accepted: рішення ухвалює адміністратор, а не друга сторона. */
+export type OrganizerRequestStatus = "Pending" | "Approved" | "Declined" | "Cancelled";
+
+export type OrganizerRequestDto = {
+  id: number;
+  userId: number;
+  username: string;
+  email: string;
+  message: string;
+  status: OrganizerRequestStatus;
+  responseNote: string;
+  createdAt: string;
+  respondedAt: string | null;
 };
 
 export type MembershipRequestDirection = "Invite" | "Application";

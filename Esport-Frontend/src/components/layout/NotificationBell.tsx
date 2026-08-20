@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Bell, X } from "lucide-react";
 import { notificationsApi } from "../../api/notificationsApi";
@@ -59,7 +60,7 @@ export const NotificationBell = () => {
         {count > 0 && <span className="tabular font-mono text-ember">{count}</span>}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 p-4"
           role="dialog"
@@ -117,7 +118,8 @@ export const NotificationBell = () => {
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

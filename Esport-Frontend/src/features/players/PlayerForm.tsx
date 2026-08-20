@@ -10,8 +10,7 @@ import {
   NICKNAME_MIN_LENGTH,
   NICKNAME_PATTERN,
   PLAYER_MAX_AGE,
-  PLAYER_MIN_AGE,
-  PLAYER_POSITIONS
+  PLAYER_MIN_AGE
 } from "../../constants/playerPositions";
 import { GAME_ID_FIELDS, emptyToUndefined, isValidGameId } from "../../constants/gameIds";
 import type { UpdatePlayerDto } from "../../types";
@@ -22,16 +21,17 @@ const schema = z.object({
     .min(NICKNAME_MIN_LENGTH, `Мінімум ${NICKNAME_MIN_LENGTH} символи`)
     .max(NICKNAME_MAX_LENGTH, `Максимум ${NICKNAME_MAX_LENGTH} символів`)
     .regex(NICKNAME_PATTERN, "Лише літери, цифри та підкреслення"),
-  position: z.enum(PLAYER_POSITIONS, { required_error: "Оберіть позицію" }),
-  // Країна зберігається кодом ISO — саме з нього виводиться прапор.
-  // Перелік мусить збігатися з Esport-Backend/Common/Countries.cs.
+  // Позиція, країна й вік необов'язкові — порожнє значення означає
+  // «не вказав». Країна зберігається кодом ISO (з нього виводиться прапор);
+  // перелік мусить збігатися з Esport-Backend/Common/Countries.cs.
   country: z
     .string()
-    .refine((code) => code in COUNTRY_NAMES, { message: "Оберіть країну зі списку" }),
+    .refine((code) => code === "" || code in COUNTRY_NAMES, { message: "Оберіть країну зі списку" }),
   age: z.coerce
     .number()
-    .min(PLAYER_MIN_AGE, `Мінімум ${PLAYER_MIN_AGE} років`)
-    .max(PLAYER_MAX_AGE, `Максимум ${PLAYER_MAX_AGE} років`),
+    .refine((value) => value === 0 || (value >= PLAYER_MIN_AGE && value <= PLAYER_MAX_AGE), {
+      message: `Вік — від ${PLAYER_MIN_AGE} до ${PLAYER_MAX_AGE} років`
+    }),
   // Ігрові теги необов'язкові, але заповнений має бути правильним:
   // за поламаним тегом гравця однаково ніхто не знайде.
   // Формати — дзеркало Esport-Backend/Common/GameIdFormats.cs.
@@ -73,6 +73,10 @@ const PlayerForm = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Приватність налаштовує сам гравець у себе в профілі, а не адміністратор
+  // тут. Але UpdatePlayerDto перезаписує профіль цілком, тож збережені
+  // перемикачі треба провести крізь форму, інакше вона їх мовчки скине.
+  const [privacy, setPrivacy] = useState({ isAgeHidden: false, isCountryHidden: false });
 
   // Створення профілю доступне лише адміністраторові (маршрут закритий роллю),
   // і воно завжди створює повний обліковий запис — звичайний користувач
@@ -97,12 +101,15 @@ const PlayerForm = () => {
       try {
         const data = await playersApi.getById(Number(id));
         setValue("nickname", data.nickname);
-        setValue("position", data.position as FormValues["position"]);
         setValue("country", data.country);
         setValue("age", data.age);
         setValue("riotId", data.riotId ?? "");
         setValue("steamId64", data.steamId64 ?? "");
         setValue("battleTag", data.battleTag ?? "");
+        setPrivacy({
+          isAgeHidden: data.isAgeHidden ?? false,
+          isCountryHidden: data.isCountryHidden ?? false
+        });
       } finally {
         setLoading(false);
       }
@@ -137,24 +144,25 @@ const PlayerForm = () => {
           username,
           email,
           password,
-          // Бекенд вимагає імені та прізвища. Форма їх не збирає, щоб не рости —
-          // власник акаунта виправить їх у себе в профілі.
-          firstName: username,
-          lastName: username,
+          // Справжнє ім'я необов'язкове: власник акаунта заповнить його сам,
+          // якщо схоче.
+          firstName: "",
+          lastName: "",
           nickname: values.nickname,
-          position: values.position,
+          // Позицію задають подисциплінно вже в самому профілі.
+          position: "",
           country: values.country,
           age: values.age
         });
       } else {
         const payload: UpdatePlayerDto = {
           nickname: values.nickname,
-          position: values.position,
           country: values.country,
           age: values.age,
           riotId: emptyToUndefined(values.riotId),
           steamId64: emptyToUndefined(values.steamId64),
-          battleTag: emptyToUndefined(values.battleTag)
+          battleTag: emptyToUndefined(values.battleTag),
+          ...privacy
         };
         await playersApi.update(Number(id), payload);
       }
@@ -203,21 +211,9 @@ const PlayerForm = () => {
           {errors.nickname && <p className="field-error">{errors.nickname.message}</p>}
         </label>
         <label className="field">
-          Позиція
-          <select {...register("position")} className="input">
-            <option value="">Оберіть позицію</option>
-            {PLAYER_POSITIONS.map((position) => (
-              <option key={position} value={position}>
-                {position}
-              </option>
-            ))}
-          </select>
-          {errors.position && <p className="field-error">{errors.position.message}</p>}
-        </label>
-        <label className="field">
-          Країна
+          Країна <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
           <select {...register("country")} className="input" defaultValue="">
-            <option value="">Оберіть країну</option>
+            <option value="">Не вказано</option>
             {COUNTRY_CODES.map((code) => (
               <option key={code} value={code}>
                 {countryFlag(code)} {COUNTRY_NAMES[code]}
@@ -227,7 +223,7 @@ const PlayerForm = () => {
           {errors.country && <p className="field-error">{errors.country.message}</p>}
         </label>
         <label className="field">
-          Вік
+          Вік <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
           <input type="number" {...register("age")} className="input" />
           {errors.age && <p className="field-error">{errors.age.message}</p>}
         </label>

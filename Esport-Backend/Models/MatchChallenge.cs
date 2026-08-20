@@ -16,8 +16,14 @@ namespace TForge.Models
         [Required]
         public int ChallengerTeamId { get; set; }
 
-        [Required]
-        public int OpponentTeamId { get; set; }
+        /// <summary>
+        /// Викликана команда. Null — відкритий виклик: суперника ще не
+        /// названо, і прийняти його може капітан будь-якої іншої команди.
+        /// Щойно хтось погодився, тут стоїть його Team.Id, і далі виклик
+        /// нічим не відрізняється від адресного. Той самий поділ, що в
+        /// Duel.OpponentPlayerId.
+        /// </summary>
+        public int? OpponentTeamId { get; set; }
 
         /// <summary>Дисципліна. Товариський матч не має турніру, тож її обирає капітан.</summary>
         [Required]
@@ -52,7 +58,7 @@ namespace TForge.Models
 
         // Navigation Properties
         public virtual Team ChallengerTeam { get; set; } = null!;
-        public virtual Team OpponentTeam { get; set; } = null!;
+        public virtual Team? OpponentTeam { get; set; }
         public virtual Match? Match { get; set; }
     }
 }

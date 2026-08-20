@@ -41,11 +41,9 @@ namespace TForge.Validators
                 .WithMessage("Пароль повинен містити щонайменше одну велику букву, одну малу букву та одну цифру");
 
             RuleFor(x => x.FirstName)
-                .NotEmpty().WithMessage("Ім'я є обов'язковим")
                 .MaximumLength(50).WithMessage("Ім'я не може перевищувати 50 символів");
 
             RuleFor(x => x.LastName)
-                .NotEmpty().WithMessage("Прізвище є обов'язковим")
                 .MaximumLength(50).WithMessage("Прізвище не може перевищувати 50 символів");
 
             RuleFor(x => x.Role)
@@ -53,11 +51,10 @@ namespace TForge.Validators
                 .Must(UserRoles.IsSelfService)
                 .WithMessage("Зареєструватися можна лише як гравець або організатор");
 
-            // Профіль гравця створюється одразу під час реєстрації, тож нікнейм
-            // потрібен тільки для цієї ролі.
-            RuleFor(x => x.Nickname)
-                .PlayerNickname()
-                .When(x => x.Role == UserRoles.Player);
+            // Профіль гравця створюється при кожній реєстрації — навіть коли
+            // просять роль організатора, бо ту роль видає лише адміністратор,
+            // а до того акаунт живе гравцем. Тож нікнейм потрібен завжди.
+            RuleFor(x => x.Nickname).PlayerNickname();
         }
     }
 }

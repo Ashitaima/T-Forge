@@ -93,4 +93,55 @@ public class MatchChallengePolicyTests
         Assert.True(MatchChallengePolicy.IsPending(Challenge()));
         Assert.False(MatchChallengePolicy.IsPending(Challenge(MatchChallengeStatus.Declined)));
     }
+
+    // ---- Відкритий виклик ----
+    //
+    // Суперника не названо, тож прийняти може капітан будь-якої іншої
+    // команди — той самий поділ, що в DuelPolicy.
+
+    private static MatchChallengePolicy.Context Open(
+        string status = MatchChallengeStatus.Pending) =>
+        new(status, ChallengerCaptain, ChallengerCaptain, null);
+
+    [Fact]
+    public void IsOpen_WhenOpponentIsUnnamed()
+    {
+        Assert.True(MatchChallengePolicy.IsOpen(Open()));
+        Assert.False(MatchChallengePolicy.IsOpen(Challenge()));
+    }
+
+    [Fact]
+    public void Open_HasNoNamedResponder()
+    {
+        Assert.Null(MatchChallengePolicy.ResponderUserId(Open()));
+    }
+
+    [Fact]
+    public void Open_AnyOtherCaptainMayRespond()
+    {
+        Assert.True(MatchChallengePolicy.CanRespond(Open(), Stranger, isAdmin: false));
+        Assert.True(MatchChallengePolicy.CanRespond(Open(), OpponentCaptain, isAdmin: false));
+    }
+
+    // Прийняти власний виклик не можна в жодному разі: інакше згоди другої
+    // сторони не існувало б — і це стосується адміністратора теж.
+    [Fact]
+    public void Open_InitiatorMayNotRespond_EvenAsAdmin()
+    {
+        Assert.False(MatchChallengePolicy.CanRespond(Open(), ChallengerCaptain, isAdmin: false));
+        Assert.False(MatchChallengePolicy.CanRespond(Open(), ChallengerCaptain, isAdmin: true));
+    }
+
+    [Fact]
+    public void Open_TerminalStatus_IsRefused()
+    {
+        Assert.False(MatchChallengePolicy.CanRespond(
+            Open(MatchChallengeStatus.Accepted), Stranger, isAdmin: false));
+    }
+
+    [Fact]
+    public void Open_InitiatorMayStillCancel()
+    {
+        Assert.True(MatchChallengePolicy.CanCancel(Open(), ChallengerCaptain, isAdmin: false));
+    }
 }

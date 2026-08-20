@@ -9,6 +9,8 @@ import { useIsRole } from "../../hooks/useEffectiveRole";
 import { EmptyState, PageHeader, Pager, Skeleton, StatCard } from "../../components/ui/Primitives";
 import { duelsApi } from "../../api/duelsApi";
 import { CountryFlag } from "../../components/ui/CountryFlag";
+import { gameLabel } from "../../constants/games";
+import { positionLabel } from "../../constants/gamePositions";
 import { RatingPanel } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
@@ -261,6 +263,22 @@ const PlayerDetail = () => {
               history={ratingHistory}
               emptyHint="Він зʼявиться після першого зіграного турнірного матчу — практичні матчі рейтинг не змінюють."
             />
+          </div>
+        </section>
+      )}
+
+      {!loading && (player?.gameProfiles?.length ?? 0) > 0 && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2 className="section-title">Дисципліни</h2>
+          </div>
+          <div className="panel-body flex flex-wrap gap-2">
+            {player?.gameProfiles.map((profile) => (
+              <span key={profile.id} className="pill">
+                {gameLabel(profile.game)}
+                {profile.position && ` — ${positionLabel(profile.position)}`}
+              </span>
+            ))}
           </div>
         </section>
       )}

@@ -124,7 +124,7 @@ namespace TForge.Services
             // --- Виклики на товариський матч ---
             var challenges = await _unitOfWork.MatchChallenges.GetQueryable()
                 .Where(c => c.ChallengerTeam.CaptainId == userId
-                            || c.OpponentTeam.CaptainId == userId)
+                            || (c.OpponentTeam != null && c.OpponentTeam.CaptainId == userId))
                 .Select(c => new
                 {
                     c.Status,
@@ -133,17 +133,25 @@ namespace TForge.Services
                     c.RespondedAt,
                     c.Message,
                     c.OpponentTeamId,
-                    OpponentCaptainUserId = c.OpponentTeam.CaptainId,
+                    OpponentCaptainUserId = (int?)c.OpponentTeam!.CaptainId,
                     ChallengerName = c.ChallengerTeam.Name,
-                    OpponentName = c.OpponentTeam.Name
+                    OpponentName = c.OpponentTeam!.Name
                 })
                 .ToListAsync();
 
             foreach (var row in challenges)
             {
+                // Відкритий виклик поки що не адресовано нікому: команди-
+                // суперника ще немає, тож і капітана, якого можна сповістити,
+                // теж. Щойно виклик приймуть, рядок стає звичайним адресним.
+                if (row.OpponentCaptainUserId is not int opponentCaptainUserId)
+                {
+                    continue;
+                }
+
                 var audience = NotificationAddressing.For(
                     NotificationAddressing.Sources.Challenge,
-                    null, row.Status, row.InitiatedByUserId, row.OpponentCaptainUserId);
+                    null, row.Status, row.InitiatedByUserId, opponentCaptainUserId);
 
                 if (audience == null || audience.UserId != userId)
                 {

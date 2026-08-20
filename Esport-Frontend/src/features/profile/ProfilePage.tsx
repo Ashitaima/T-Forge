@@ -10,20 +10,23 @@ import { usersApi } from "../../api/usersApi";
 import { useAuthStore } from "../../store/authStore";
 import { PageHeader, Skeleton } from "../../components/ui/Primitives";
 import { Avatar } from "../../components/ui/Avatar";
+import { GameProfilesPanel } from "./GameProfilesPanel";
+import { OrganizerRequestPanel } from "./OrganizerRequestPanel";
 import {
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
   NICKNAME_PATTERN,
   PLAYER_MAX_AGE,
-  PLAYER_MIN_AGE,
-  PLAYER_POSITIONS
+  PLAYER_MIN_AGE
 } from "../../constants/playerPositions";
 import type { PlayerDto } from "../../types";
 
 const accountSchema = z.object({
-  firstName: z.string().min(2, "Вкажіть ім'я").max(50, "Максимум 50 символів"),
-  lastName: z.string().min(2, "Вкажіть прізвище").max(50, "Максимум 50 символів"),
-  email: z.string().email("Вкажіть коректну електронну пошту")
+  // Справжнє ім'я необов'язкове — усюди в системі видно нікнейм.
+  firstName: z.string().max(50, "Максимум 50 символів"),
+  lastName: z.string().max(50, "Максимум 50 символів"),
+  email: z.string().email("Вкажіть коректну електронну пошту"),
+  isNameHidden: z.boolean()
 });
 
 const playerSchema = z.object({
@@ -32,16 +35,17 @@ const playerSchema = z.object({
     .min(NICKNAME_MIN_LENGTH, `Мінімум ${NICKNAME_MIN_LENGTH} символи`)
     .max(NICKNAME_MAX_LENGTH, `Максимум ${NICKNAME_MAX_LENGTH} символів`)
     .regex(NICKNAME_PATTERN, "Лише літери, цифри та підкреслення"),
-  position: z.enum(PLAYER_POSITIONS, { required_error: "Оберіть позицію" }),
-  // Код ISO, а не назва: з нього виводиться прапор, і саме коди пропускає
-  // PlayerRules.PlayerCountry. Вільний текст тут просто не зберігався.
+  // Позиції тут немає: роль залежить від дисципліни, тож її задають у блоці
+  // «Дисципліни» окремо для кожної гри (див. GameProfilesPanel).
+  // Країна й вік необов'язкові — порожнє значення означає «не вказав».
   country: z
     .string()
-    .refine((code) => code in COUNTRY_NAMES, { message: "Оберіть країну зі списку" }),
+    .refine((code) => code === "" || code in COUNTRY_NAMES, { message: "Оберіть країну зі списку" }),
   age: z.coerce
     .number()
-    .min(PLAYER_MIN_AGE, `Мінімум ${PLAYER_MIN_AGE} років`)
-    .max(PLAYER_MAX_AGE, `Максимум ${PLAYER_MAX_AGE} років`),
+    .refine((value) => value === 0 || (value >= PLAYER_MIN_AGE && value <= PLAYER_MAX_AGE), {
+      message: `Вік — від ${PLAYER_MIN_AGE} до ${PLAYER_MAX_AGE} років`
+    }),
   // Теги мусять їхати разом з рештою: UpdatePlayerDto перезаписує їх цілком,
   // тож форма без цих полів мовчки стирала б уже збережені.
   riotId: z
@@ -61,7 +65,11 @@ const playerSchema = z.object({
     .optional()
     .refine((value) => isValidGameId(GAME_ID_FIELDS[2], value), {
       message: GAME_ID_FIELDS[2].error
-    })
+    }),
+  // Приватність їде разом з рештою: UpdatePlayerDto перезаписує профіль
+  // цілком, тож форма без цих полів скидала б збережені перемикачі.
+  isAgeHidden: z.boolean(),
+  isCountryHidden: z.boolean()
 });
 
 const passwordSchema = z
@@ -174,7 +182,8 @@ const ProfilePage = () => {
     resetAccount({
       firstName: user.firstName,
       lastName: user.lastName,
-      email: user.email
+      email: user.email,
+      isNameHidden: user.isNameHidden ?? false
     });
   }, [user, resetAccount]);
 
@@ -191,12 +200,13 @@ const ProfilePage = () => {
         setPlayer(data);
         resetPlayer({
           nickname: data.nickname,
-          position: data.position as PlayerValues["position"],
           country: data.country,
           age: data.age,
           riotId: data.riotId ?? "",
           steamId64: data.steamId64 ?? "",
-          battleTag: data.battleTag ?? ""
+          battleTag: data.battleTag ?? "",
+          isAgeHidden: data.isAgeHidden ?? false,
+          isCountryHidden: data.isCountryHidden ?? false
         });
       })
       .catch(() => isActive && setPlayer(null))
@@ -312,14 +322,14 @@ const ProfilePage = () => {
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="field">
-              Ім&#39;я
+              Ім&#39;я <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
               <input type="text" {...accountForm.register("firstName")} className="input" />
               {accountForm.formState.errors.firstName && (
                 <p className="field-error">{accountForm.formState.errors.firstName.message}</p>
               )}
             </label>
             <label className="field">
-              Прізвище
+              Прізвище <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
               <input type="text" {...accountForm.register("lastName")} className="input" />
               {accountForm.formState.errors.lastName && (
                 <p className="field-error">{accountForm.formState.errors.lastName.message}</p>
@@ -332,6 +342,19 @@ const ProfilePage = () => {
             {accountForm.formState.errors.email && (
               <p className="field-error">{accountForm.formState.errors.email.message}</p>
             )}
+          </label>
+          <label className="flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              {...accountForm.register("isNameHidden")}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span className="text-body text-text">
+              Приховати справжнє імʼя
+              <span className="field-hint mt-0.5 block">
+                Інші бачитимуть лише нікнейм. Пошта не показується нікому.
+              </span>
+            </span>
           </label>
           <NoticeBox notice={accountNotice} />
           <div className="border-t border-line-soft pt-5">
@@ -359,23 +382,9 @@ const ProfilePage = () => {
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="field">
-                Позиція
-                <select {...playerForm.register("position")} className="input">
-                  <option value="">Оберіть позицію</option>
-                  {PLAYER_POSITIONS.map((position) => (
-                    <option key={position} value={position}>
-                      {position}
-                    </option>
-                  ))}
-                </select>
-                {playerForm.formState.errors.position && (
-                  <p className="field-error">{playerForm.formState.errors.position.message}</p>
-                )}
-              </label>
-              <label className="field">
-                Країна
+                Країна <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
                 <select {...playerForm.register("country")} className="input" defaultValue="">
-                  <option value="">Оберіть країну</option>
+                  <option value="">Не вказано</option>
                   {Object.entries(COUNTRY_NAMES).map(([code, name]) => (
                     <option key={code} value={code}>
                       {name}
@@ -388,12 +397,37 @@ const ProfilePage = () => {
               </label>
             </div>
             <label className="field">
-              Вік
+              Вік <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
               <input type="number" {...playerForm.register("age")} className="input" />
               {playerForm.formState.errors.age && (
                 <p className="field-error">{playerForm.formState.errors.age.message}</p>
               )}
             </label>
+
+            {/* Приховати можна лише те, від чого не залежать таблиці: нікнейм,
+                показники й рейтинг лишаються видимими завжди. */}
+            <fieldset className="space-y-2.5 border-t border-line-soft pt-5">
+              <legend className="eyebrow">Приватність</legend>
+              <label className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  {...playerForm.register("isCountryHidden")}
+                  className="h-4 w-4 shrink-0"
+                />
+                <span className="text-body text-text">Приховати країну</span>
+              </label>
+              <label className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  {...playerForm.register("isAgeHidden")}
+                  className="h-4 w-4 shrink-0"
+                />
+                <span className="text-body text-text">Приховати вік</span>
+              </label>
+              <p className="field-hint">
+                Нікнейм, показники й рейтинг видно завжди — на них тримаються таблиці.
+              </p>
+            </fieldset>
 
             <fieldset className="space-y-4 border-t border-line-soft pt-5">
               <legend className="eyebrow">Ігрові акаунти</legend>
@@ -428,6 +462,14 @@ const ProfilePage = () => {
             </div>
           </form>
         </section>
+      )}
+
+      {!loading && player && (
+        <GameProfilesPanel
+          playerId={player.id}
+          profiles={player.gameProfiles ?? []}
+          onChange={(gameProfiles) => setPlayer({ ...player, gameProfiles })}
+        />
       )}
 
       <section className="panel">
@@ -481,6 +523,11 @@ const ProfilePage = () => {
           </div>
         </form>
       </section>
+
+      {/* Найнижче й згорнуто: ролі просить меншість, тож блок не має тіснити
+          те, чим користуються всі. Роль читаємо справжню, а не переглядову —
+          заявку подають від власного акаунта. */}
+      {user && <OrganizerRequestPanel role={user.role} />}
     </>
   );
 };

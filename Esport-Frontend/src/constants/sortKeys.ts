@@ -7,7 +7,8 @@
  */
 export const PLAYER_SORT_KEYS = [
   "nickname",
-  "position",
+  // «position» тут немає навмисно: роль залежить від дисципліни
+  // (constants/gamePositions.ts), тож у списку замість неї дисципліни.
   "country",
   "team",
   "matches",

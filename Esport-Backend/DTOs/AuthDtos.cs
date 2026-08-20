@@ -31,6 +31,9 @@ namespace TForge.DTOs
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+
+        /// <summary>Чи ховати справжнє імʼя від інших — див. Common/ProfileVisibility.cs.</summary>
+        public bool IsNameHidden { get; set; }
     }
 
     public class AuthResponseDto

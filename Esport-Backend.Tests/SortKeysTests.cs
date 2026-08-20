@@ -7,7 +7,6 @@ public class SortKeysTests
 {
     [Theory]
     [InlineData("nickname")]
-    [InlineData("position")]
     [InlineData("country")]
     [InlineData("team")]
     [InlineData("matches")]
@@ -23,6 +22,8 @@ public class SortKeysTests
     [Theory]
     [InlineData("passwordHash")]
     [InlineData("Nickname")]
+    // Роль залежить від дисципліни, тож однієї колонки «позиція» більше немає.
+    [InlineData("position")]
     [InlineData("")]
     [InlineData(null)]
     public void PlayerSortKeys_Unknown_IsNotValid(string? key)

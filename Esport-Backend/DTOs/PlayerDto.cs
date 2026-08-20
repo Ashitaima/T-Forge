@@ -16,6 +16,12 @@
         public bool IsActive { get; set; }
         public DateTime JoinedAt { get; set; }
 
+        // Налаштування приватності. Їх бачить і власник, і решта: сам факт,
+        // що поле сховано, таємницею не є — інакше порожній профіль було б не
+        // відрізнити від прихованого.
+        public bool IsAgeHidden { get; set; }
+        public bool IsCountryHidden { get; set; }
+
         // Ігрові теги гравця — див. Common/GameIdFormats.cs
         public string? RiotId { get; set; }
         public string? SteamId64 { get; set; }
@@ -25,8 +31,32 @@
         /// щоб клієнт не склеював URL сам.</summary>
         public string? SteamProfileUrl { get; set; }
 
+        /// <summary>
+        /// Дисципліни, у які грає гравець, і роль у кожній. Player.Position
+        /// лишається однією позицією на профіль — див. Models/PlayerGameProfile.cs.
+        /// </summary>
+        public List<PlayerGameProfileDto> GameProfiles { get; set; } = new();
+
         public UserDto? User { get; set; }
         public TeamSummaryDto? Team { get; set; }
+    }
+
+    /// <summary>Дисципліна гравця і його роль саме в ній.</summary>
+    public class PlayerGameProfileDto
+    {
+        public int Id { get; set; }
+        public string Game { get; set; } = string.Empty;
+        public string Position { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Додавання або зміна дисципліни гравця. Гравця визначає маршрут, тож
+    /// PlayerId тут немає — як і скрізь, де є власник.
+    /// </summary>
+    public class SavePlayerGameProfileDto
+    {
+        public string Game { get; set; } = string.Empty;
+        public string Position { get; set; } = string.Empty;
     }
 
     public class PlayerSummaryDto
@@ -57,7 +87,19 @@
         public int UserId { get; set; }
         public string Nickname { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Дисципліни гравця. Замінюють у списку колонку позиції: сама по собі
+        /// позиція вже нічого не означає, бо роль залежить від гри
+        /// (див. Common/GamePositions.cs).
+        /// </summary>
+        public List<string> Games { get; set; } = new();
+
         public string Country { get; set; } = string.Empty;
+
+        /// <summary>Країну сховано — значення вище вже порожнє для чужого глядача.</summary>
+        public bool IsCountryHidden { get; set; }
+
         public bool IsActive { get; set; }
         public string? AvatarUrl { get; set; }
         public int? TeamId { get; set; }
@@ -118,13 +160,22 @@
 
     public class UpdatePlayerDto
     {
+        // Position тут навмисно немає: роль залежить від дисципліни й живе в
+        // PlayerGameProfile. Поле лишається в сутності заради вже збережених
+        // значень, і саме тому його тут бракує — форма, яка його не редагує,
+        // інакше затирала б його порожнім рядком при кожному збереженні.
         public string Nickname { get; set; } = string.Empty;
-        public string Position { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public int Age { get; set; }
         public string? RiotId { get; set; }
         public string? SteamId64 { get; set; }
         public string? BattleTag { get; set; }
+
+        // Приватність редагується разом з рештою профілю: UpdatePlayerDto
+        // перезаписує гравця цілком, тож форма без цих полів мовчки скидала б
+        // уже збережені перемикачі — та сама причина, що й для ігрових тегів.
+        public bool IsAgeHidden { get; set; }
+        public bool IsCountryHidden { get; set; }
     }
 
     public class PlayerStatsDto

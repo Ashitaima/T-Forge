@@ -30,12 +30,14 @@ namespace TForge.Services
             var user = await _unitOfWork.Users.GetByUsernameAsync(loginDto.Username);
             if (user == null)
             {
-                throw new EntityNotFoundException("User", loginDto.Username);
+                // Той самий текст, що й для хибного пароля: інакше форма видає,
+                // чи існує такий логін узагалі.
+                throw new BusinessLogicException("Невірний логін або пароль");
             }
 
             if (!VerifyPassword(loginDto.Password, user.PasswordHash))
             {
-                throw new BusinessLogicException("Некоректний пароль");
+                throw new BusinessLogicException("Невірний логін або пароль");
             }
 
             if (!user.IsActive)
@@ -85,13 +87,19 @@ namespace TForge.Services
                 throw new BusinessLogicException("Користувач з такою поштою вже існує");
             }
 
+            // Роль організатора дає право створювати турніри, тож вибором у
+            // формі вона не видається: акаунт створюється гравцем, а поруч
+            // лягає заявка, яку розглядає адміністратор
+            // (див. Common/OrganizerRequestPolicy.cs).
+            var wantsOrganizer = registerDto.Role == UserRoles.Organizer;
+
             var user = new User
             {
                 Username = registerDto.Username,
                 Email = registerDto.Email,
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName,
-                Role = registerDto.Role,
+                Role = UserRoles.Player,
                 PasswordHash = HashPassword(registerDto.Password),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -105,15 +113,25 @@ namespace TForge.Services
                 await _unitOfWork.Users.AddAsync(user);
                 await _unitOfWork.SaveChangesAsync();
 
-                if (user.Role == UserRoles.Player)
+                await _unitOfWork.Players.AddAsync(new Player
                 {
-                    await _unitOfWork.Players.AddAsync(new Player
+                    UserId = user.Id,
+                    Nickname = registerDto.Nickname,
+                    Ranking = 9999,
+                    IsActive = true,
+                    JoinedAt = DateTime.UtcNow
+                });
+
+                await _unitOfWork.SaveChangesAsync();
+
+                if (wantsOrganizer)
+                {
+                    await _unitOfWork.OrganizerRequests.AddAsync(new OrganizerRequest
                     {
                         UserId = user.Id,
-                        Nickname = registerDto.Nickname,
-                        Ranking = 9999,
-                        IsActive = true,
-                        JoinedAt = DateTime.UtcNow
+                        Message = "Заявка подана під час реєстрації",
+                        Status = OrganizerRequestStatus.Pending,
+                        CreatedAt = DateTime.UtcNow
                     });
 
                     await _unitOfWork.SaveChangesAsync();
@@ -159,6 +177,7 @@ namespace TForge.Services
             user.FirstName = updateDto.FirstName;
             user.LastName = updateDto.LastName;
             user.Email = updateDto.Email;
+            user.IsNameHidden = updateDto.IsNameHidden;
 
             await _unitOfWork.SaveChangesAsync();
 

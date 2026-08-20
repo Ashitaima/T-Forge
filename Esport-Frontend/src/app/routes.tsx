@@ -133,6 +133,12 @@ export const router = createBrowserRouter([
             lazy: async () => ({
               Component: (await import("../features/users/UsersList")).default
             })
+          },
+          {
+            path: "organizer-requests",
+            lazy: async () => ({
+              Component: (await import("../features/users/OrganizerRequestsList")).default
+            })
           }
         ]
       },

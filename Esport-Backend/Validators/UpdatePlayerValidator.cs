@@ -9,10 +9,6 @@ namespace TForge.Validators
         {
             RuleFor(x => x.Nickname).PlayerNickname();
 
-            RuleFor(x => x.Position)
-                .PlayerPosition()
-                .When(x => !string.IsNullOrEmpty(x.Position));
-
             RuleFor(x => x.Country).PlayerCountry();
 
             RuleFor(x => x.Age)

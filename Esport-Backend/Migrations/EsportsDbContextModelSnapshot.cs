@@ -235,7 +235,7 @@ namespace TForge.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
-                    b.Property<int>("OpponentTeamId")
+                    b.Property<int?>("OpponentTeamId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ProposedAt")
@@ -315,6 +315,54 @@ namespace TForge.Migrations
                     b.ToTable("match_players", (string)null);
                 });
 
+            modelBuilder.Entity("TForge.Models.OrganizerRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("RespondedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ResponseNote")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Pending'");
+
+                    b.ToTable("organizer_requests", (string)null);
+                });
+
             modelBuilder.Entity("TForge.Models.Player", b =>
                 {
                     b.Property<int>("Id")
@@ -339,6 +387,12 @@ namespace TForge.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
+
+                    b.Property<bool>("IsAgeHidden")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsCountryHidden")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("JoinedAt")
                         .ValueGeneratedOnAdd()
@@ -395,6 +449,40 @@ namespace TForge.Migrations
                         .IsUnique();
 
                     b.ToTable("players", (string)null);
+                });
+
+            modelBuilder.Entity("TForge.Models.PlayerGameProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Game")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "Game")
+                        .IsUnique();
+
+                    b.ToTable("player_game_profiles", (string)null);
                 });
 
             modelBuilder.Entity("TForge.Models.PlayerRating", b =>
@@ -832,6 +920,9 @@ namespace TForge.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("IsNameHidden")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -951,8 +1042,7 @@ namespace TForge.Migrations
                     b.HasOne("TForge.Models.Team", "OpponentTeam")
                         .WithMany()
                         .HasForeignKey("OpponentTeamId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ChallengerTeam");
 
@@ -988,6 +1078,17 @@ namespace TForge.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("TForge.Models.OrganizerRequest", b =>
+                {
+                    b.HasOne("TForge.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TForge.Models.Player", b =>
                 {
                     b.HasOne("TForge.Models.Team", "Team")
@@ -1004,6 +1105,17 @@ namespace TForge.Migrations
                     b.Navigation("Team");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TForge.Models.PlayerGameProfile", b =>
+                {
+                    b.HasOne("TForge.Models.Player", "Player")
+                        .WithMany("GameProfiles")
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("TForge.Models.PlayerRating", b =>
@@ -1148,6 +1260,8 @@ namespace TForge.Migrations
 
             modelBuilder.Entity("TForge.Models.Player", b =>
                 {
+                    b.Navigation("GameProfiles");
+
                     b.Navigation("MatchPlayers");
                 });
 

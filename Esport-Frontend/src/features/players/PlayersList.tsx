@@ -9,6 +9,7 @@ import { SortableTh, useSortState } from "../../components/ui/SortableTh";
 import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { RatingCell } from "../../components/ui/Rating";
+import { gameLabel } from "../../constants/games";
 import { usePagedList } from "../../hooks/usePagedList";
 import type { PlayerRowDto } from "../../types";
 
@@ -81,16 +82,13 @@ const PlayersList = () => {
               <tr>
                 <th className="w-px text-right">#</th>
                 <SortableTh label="Нікнейм" sortKey="nickname" {...sortProps} />
-                <SortableTh
-                  label="Позиція"
-                  sortKey="position"
-                  className="hidden lg:table-cell"
-                  {...sortProps}
-                />
+                {/* Дисципліни замість позиції: роль залежить від гри, тож
+                    сама по собі позиція в списку нічого не означала. */}
+                <th className="hidden lg:table-cell">Дисципліни</th>
                 <SortableTh
                   label="Країна"
                   sortKey="country"
-                  className="hidden md:table-cell"
+                  className="hidden w-px whitespace-nowrap md:table-cell"
                   {...sortProps}
                 />
                 <SortableTh label="Команда" sortKey="team" {...sortProps} />
@@ -98,19 +96,37 @@ const PlayersList = () => {
                   label="Матчі"
                   sortKey="matches"
                   align="right"
-                  className="hidden xl:table-cell"
+                  className="hidden w-px whitespace-nowrap xl:table-cell"
                   {...sortProps}
                 />
                 <SortableTh
                   label="Перемоги"
                   sortKey="wins"
                   align="right"
-                  className="hidden xl:table-cell"
+                  className="hidden w-px whitespace-nowrap xl:table-cell"
                   {...sortProps}
                 />
-                <SortableTh label="%" sortKey="winRate" align="right" {...sortProps} />
-                <SortableTh label="KDA" sortKey="kda" align="right" {...sortProps} />
-                <SortableTh label="Рейтинг" sortKey="rating" align="right" {...sortProps} />
+                <SortableTh
+                  label="%"
+                  sortKey="winRate"
+                  align="right"
+                  className="w-px whitespace-nowrap"
+                  {...sortProps}
+                />
+                <SortableTh
+                  label="KDA"
+                  sortKey="kda"
+                  align="right"
+                  className="w-px whitespace-nowrap"
+                  {...sortProps}
+                />
+                <SortableTh
+                  label="Рейтинг"
+                  sortKey="rating"
+                  align="right"
+                  className="w-px whitespace-nowrap"
+                  {...sortProps}
+                />
                 <th className="w-px" />
               </tr>
             </thead>
@@ -137,8 +153,20 @@ const PlayersList = () => {
                         {player.nickname}
                       </Link>
                     </td>
-                    <td className="hidden lg:table-cell">{player.position || "—"}</td>
-                    <td className="hidden md:table-cell">
+                    <td className="hidden lg:table-cell">
+                      {player.games.length > 0 ? (
+                        <span className="flex flex-wrap gap-1">
+                          {player.games.map((game) => (
+                            <span key={game} className="pill pill-neutral">
+                              {gameLabel(game)}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-text-faint">—</span>
+                      )}
+                    </td>
+                    <td className="hidden whitespace-nowrap md:table-cell">
                       <CountryFlag code={player.country} />
                     </td>
                     <td>

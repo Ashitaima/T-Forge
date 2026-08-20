@@ -35,8 +35,11 @@ namespace TForge.Services
             var challenger = await _unitOfWork.Teams.GetByIdAsync(createDto.ChallengerTeamId)
                 ?? throw new EntityNotFoundException("Team", createDto.ChallengerTeamId);
 
-            var opponent = await _unitOfWork.Teams.GetByIdAsync(createDto.OpponentTeamId)
-                ?? throw new EntityNotFoundException("Team", createDto.OpponentTeamId);
+            // Відкритий виклик суперника не називає — його прийме будь-хто.
+            var opponent = createDto.OpponentTeamId is int opponentTeamId
+                ? await _unitOfWork.Teams.GetByIdAsync(opponentTeamId)
+                    ?? throw new EntityNotFoundException("Team", opponentTeamId)
+                : null;
 
             // Викликати може лише капітан команди-ініціатора.
             if (!isAdmin && challenger.CaptainId != requestingUserId)
@@ -44,34 +47,52 @@ namespace TForge.Services
                 throw new ForbiddenException("Викликати на матч може лише капітан команди");
             }
 
-            if (challenger.Id == opponent.Id)
+            if (challenger.Id == opponent?.Id)
             {
                 throw new BusinessLogicException("Команда не може викликати саму себе");
             }
 
-            if (!challenger.IsActive || !opponent.IsActive)
+            if (!challenger.IsActive || opponent?.IsActive == false)
             {
                 throw new BusinessLogicException("Обидві команди мають бути активними");
             }
 
-            // Один відкритий виклик на пару — у будь-якому напрямі, інакше дві
-            // команди могли б завалити одна одну дзеркальними дублікатами.
-            // Унікальний індекс ловить лише той самий напрям, тож зустрічний
-            // виклик відсікається саме тут.
-            var hasPending = await _unitOfWork.MatchChallenges.ExistsAsync(c =>
-                c.Status == MatchChallengeStatus.Pending
-                && ((c.ChallengerTeamId == challenger.Id && c.OpponentTeamId == opponent.Id)
-                    || (c.ChallengerTeamId == opponent.Id && c.OpponentTeamId == challenger.Id)));
-
-            if (hasPending)
+            if (opponent == null)
             {
-                throw new BusinessLogicException("Виклик для цієї пари команд уже очікує на відповідь");
+                // Відкритих викликів від однієї команди теж має бути не більше
+                // одного: інакше список заповнили б дублікати від того самого
+                // капітана.
+                var hasOpen = await _unitOfWork.MatchChallenges.ExistsAsync(c =>
+                    c.Status == MatchChallengeStatus.Pending
+                    && c.ChallengerTeamId == challenger.Id
+                    && c.OpponentTeamId == null);
+
+                if (hasOpen)
+                {
+                    throw new BusinessLogicException("Ця команда вже має відкритий виклик");
+                }
+            }
+            else
+            {
+                // Один відкритий виклик на пару — у будь-якому напрямі, інакше дві
+                // команди могли б завалити одна одну дзеркальними дублікатами.
+                // Унікальний індекс ловить лише той самий напрям, тож зустрічний
+                // виклик відсікається саме тут.
+                var hasPending = await _unitOfWork.MatchChallenges.ExistsAsync(c =>
+                    c.Status == MatchChallengeStatus.Pending
+                    && ((c.ChallengerTeamId == challenger.Id && c.OpponentTeamId == opponent.Id)
+                        || (c.ChallengerTeamId == opponent.Id && c.OpponentTeamId == challenger.Id)));
+
+                if (hasPending)
+                {
+                    throw new BusinessLogicException("Виклик для цієї пари команд уже очікує на відповідь");
+                }
             }
 
             var challenge = new MatchChallenge
             {
                 ChallengerTeamId = challenger.Id,
-                OpponentTeamId = opponent.Id,
+                OpponentTeamId = opponent?.Id,
                 Game = createDto.Game,
                 ProposedAt = createDto.ProposedAt,
                 Format = createDto.Format,
@@ -87,7 +108,8 @@ namespace TForge.Services
             return await LoadDtoAsync(challenge.Id);
         }
 
-        public async Task<MatchChallengeDto> AcceptAsync(int challengeId, int requestingUserId, bool isAdmin)
+        public async Task<MatchChallengeDto> AcceptAsync(
+            int challengeId, int requestingUserId, bool isAdmin, int? acceptingTeamId = null)
         {
             await _unitOfWork.BeginTransactionAsync();
 
@@ -100,13 +122,21 @@ namespace TForge.Services
                     throw MakeRespondError(challenge);
                 }
 
+                // Відкритий виклик приймають своєю командою, і саме тут вона
+                // вперше стає відомою. В адресному суперник уже названий.
+                if (challenge.OpponentTeamId == null)
+                {
+                    challenge.OpponentTeamId = await ResolveAcceptingTeamIdAsync(
+                        challenge, requestingUserId, isAdmin, acceptingTeamId);
+                }
+
                 // Товариський матч: без турніру і поза сіткою (Round = 0),
                 // тож BracketService його не чіпає.
                 var match = new Match
                 {
                     TournamentId = null,
                     HomeTeamId = challenge.ChallengerTeamId,
-                    AwayTeamId = challenge.OpponentTeamId,
+                    AwayTeamId = challenge.OpponentTeamId.Value,
                     ScheduledAt = challenge.ProposedAt,
                     Status = MatchStatus.Scheduled,
                     MatchType = MatchTypes.GroupStage,
@@ -215,13 +245,87 @@ namespace TForge.Services
         /// </summary>
         public async Task<IEnumerable<MatchChallengeDto>> GetPendingForUserAsync(int userId)
         {
+            // Відкритий виклик не чекає ні на кого конкретно, тож сюди не
+            // потрапляє — його місце у списку відкритих.
             var rows = await BaseQuery()
                 .Where(c => c.Status == MatchChallengeStatus.Pending
+                            && c.OpponentTeam != null
                             && c.OpponentTeam.CaptainId == userId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<MatchChallengeDto>>(rows);
+        }
+
+        public async Task<IEnumerable<MatchChallengeDto>> GetOpenAsync(string? game)
+        {
+            var query = BaseQuery()
+                .Where(c => c.Status == MatchChallengeStatus.Pending && c.OpponentTeamId == null);
+
+            if (!string.IsNullOrEmpty(game))
+            {
+                if (!Games.IsValid(game))
+                {
+                    throw new BusinessLogicException($"Невідома дисципліна: {game}");
+                }
+
+                query = query.Where(c => c.Game == game);
+            }
+
+            var rows = await query
+                .OrderBy(c => c.ProposedAt)
+                .ThenBy(c => c.Id)
+                .ToListAsync();
+
+            return _mapper.Map<IEnumerable<MatchChallengeDto>>(rows);
+        }
+
+        /// <summary>
+        /// Команда, якою приймають відкритий виклик. Капітан однієї команди
+        /// називати її не мусить — вона в нього одна очевидна; якщо команд
+        /// кілька, вибір неоднозначний і його треба зробити явно.
+        /// </summary>
+        private async Task<int> ResolveAcceptingTeamIdAsync(
+            MatchChallenge challenge, int requestingUserId, bool isAdmin, int? acceptingTeamId)
+        {
+            if (acceptingTeamId is int teamId)
+            {
+                var team = await _unitOfWork.Teams.GetByIdAsync(teamId)
+                    ?? throw new EntityNotFoundException("Team", teamId);
+
+                if (!isAdmin && team.CaptainId != requestingUserId)
+                {
+                    throw new ForbiddenException("Прийняти виклик можна лише своєю командою");
+                }
+
+                if (team.Id == challenge.ChallengerTeamId)
+                {
+                    throw new BusinessLogicException("Команда не може прийняти власний виклик");
+                }
+
+                if (!team.IsActive)
+                {
+                    throw new BusinessLogicException("Обидві команди мають бути активними");
+                }
+
+                return team.Id;
+            }
+
+            var captained = await _unitOfWork.Teams.GetQueryable()
+                .Where(t => t.CaptainId == requestingUserId
+                            && t.IsActive
+                            && t.Id != challenge.ChallengerTeamId)
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            return captained.Count switch
+            {
+                1 => captained[0],
+                0 => throw new BusinessLogicException(
+                    "Прийняти виклик може лише капітан команди"),
+                _ => throw new BusinessLogicException(
+                    "Ви капітан кількох команд — оберіть, якою приймаєте виклик")
+            };
         }
 
         private IQueryable<MatchChallenge> BaseQuery() =>
@@ -240,7 +344,7 @@ namespace TForge.Services
             new(challenge.Status,
                 challenge.InitiatedByUserId,
                 challenge.ChallengerTeam.CaptainId,
-                challenge.OpponentTeam.CaptainId);
+                challenge.OpponentTeam?.CaptainId);
 
         /// <summary>
         /// Розрізняє «виклик уже закрито» (400) і «ви не та сторона» (403),

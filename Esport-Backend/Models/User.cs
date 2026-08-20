@@ -39,6 +39,13 @@ namespace TForge.Models
         /// </summary>
         public DateTime? NotificationsSeenAt { get; set; }
 
+        /// <summary>
+        /// Чи ховати справжнє імʼя від інших. Нікнейм лишається видимим завжди —
+        /// без нього гравця не впізнати ні в складі, ні в таблиці.
+        /// Рішення ухвалює Common/ProfileVisibility.cs.
+        /// </summary>
+        public bool IsNameHidden { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

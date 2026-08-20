@@ -13,7 +13,6 @@ namespace TForge.Common
     public static class PlayerSortKeys
     {
         public const string Nickname = "nickname";
-        public const string Position = "position";
         public const string Country = "country";
         public const string Team = "team";
         public const string Matches = "matches";
@@ -22,9 +21,12 @@ namespace TForge.Common
         public const string Kda = "kda";
         public const string Rating = "rating";
 
+        // Позиції тут немає навмисно: роль залежить від дисципліни
+        // (Common/GamePositions.cs), тож сортувати за однією колонкою
+        // «позиція» більше нема сенсу — у списку замість неї дисципліни.
         public static readonly string[] All =
         {
-            Nickname, Position, Country, Team, Matches, Wins, WinRate, Kda, Rating
+            Nickname, Country, Team, Matches, Wins, WinRate, Kda, Rating
         };
 
         public static bool IsValid(string? key) => key != null && All.Contains(key);

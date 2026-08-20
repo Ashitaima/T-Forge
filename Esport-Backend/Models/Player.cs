@@ -46,6 +46,13 @@ namespace TForge.Models
 
         public int Ranking { get; set; } = 0;
 
+        // Що ховати від інших. Показники — матчі, рейтинг, KDA — приховати не
+        // можна: на них тримаються таблиці. Рішення ухвалює
+        // Common/ProfileVisibility.cs.
+        public bool IsAgeHidden { get; set; }
+
+        public bool IsCountryHidden { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
@@ -54,5 +61,6 @@ namespace TForge.Models
         public virtual User User { get; set; } = null!;
         public virtual Team? Team { get; set; }
         public virtual ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
+        public virtual ICollection<PlayerGameProfile> GameProfiles { get; set; } = new List<PlayerGameProfile>();
     }
 }
