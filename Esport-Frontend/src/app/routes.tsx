@@ -48,6 +48,16 @@ export const router = createBrowserRouter([
             lazy: async () => ({
               Component: (await import("../features/matches/MatchForm")).default
             })
+          },
+          {
+            // Турнір матчу задає маршрут, а не список у формі. Вибір зі списку
+            // пропонував і чужі турніри, у яких MatchCreationPolicy однаково
+            // відмовляє, тож єдиний спосіб додати турнірний матч — прийти сюди
+            // зі сторінки самого турніру.
+            path: "tournaments/:tournamentId/matches/new",
+            lazy: async () => ({
+              Component: (await import("../features/matches/MatchForm")).default
+            })
           }
         ]
       },

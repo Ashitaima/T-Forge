@@ -8,13 +8,11 @@ import { teamsApi } from "../../api/teamsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { GAMES, gameLabel } from "../../constants/games";
 import { MATCH_TYPES, matchTypeLabel } from "../../constants/matchTypes";
-import { useIsRole } from "../../hooks/useEffectiveRole";
 import { DateTimePicker } from "../../components/ui/DateTimePicker";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import type { CreateMatchDto, MatchDto, TeamRowDto, TournamentDto, UpdateMatchDto } from "../../types";
 
 const schema = z.object({
-  tournamentId: z.coerce.number().optional(),
   /** Лише для практичного матчу — у турнірному дисципліну диктує турнір. */
   game: z.string().optional(),
   name: z.string().max(100, "Максимум 100 символів").optional(),
@@ -38,9 +36,18 @@ type FormValues = z.infer<typeof schema>;
 
 const MatchForm = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  // Турнір приходить із маршруту: /tournaments/:tournamentId/matches/new.
+  // Порожній — практичний матч, тобто /matches/new.
+  const { id, tournamentId } = useParams();
+  // Режим форми визначає маршрут, а не завантажений турнір: інакше поки триває
+  // запит (або якщо він упав) форма показувала б практичний матч, а надсилала
+  // турнірний — з грою й командами, яких у ній не було де вказати.
+  const isTournamentMatch = Boolean(tournamentId);
   const [loading, setLoading] = useState(false);
-  const [tournaments, setTournaments] = useState<TournamentDto[]>([]);
+  // undefined — ще вантажиться, null — не завантажився. Розрізняти їх треба:
+  // режим форми диктує маршрут, а не цей об'єкт, тож «немає турніру» і
+  // «турнір не приїхав» — різні випадки, і другий має бути видно.
+  const [selectedTournament, setSelectedTournament] = useState<TournamentDto | null | undefined>(undefined);
   const [teams, setTeams] = useState<TeamRowDto[]>([]);
   const [match, setMatch] = useState<MatchDto | null>(null);
   const {
@@ -49,32 +56,25 @@ const MatchForm = () => {
     handleSubmit,
     setValue,
     setError,
-    watch,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   // Дисципліну визначає турнір — показуємо її лише для читання, щоб було видно,
-  // під яку гру створюється матч.
-  // Турнір веде організатор, тож і матчі в нього додає він. Капітан ставить
-  // тільки практичний матч — вибору турніру він просто не бачить, а сервер
-  // однаково перевіряє те саме через Common/MatchCreationPolicy.cs.
-  const canUseTournament = useIsRole("Admin", "Organizer");
-
-  const selectedTournamentId = watch("tournamentId");
-  const selectedTournament = tournaments.find(
-    (tournament) => tournament.id === Number(selectedTournamentId)
-  );
-
-  // Турніри й команди підвантажуються списками, щоб не вводити ID вручну
+  // під яку гру створюється матч. Сам турнір задає маршрут, а не поле форми:
+  // список пропонував і чужі турніри, у яких Common/MatchCreationPolicy.cs
+  // однаково відмовляє, тож вибирати не було з чого. Право створити матч
+  // сервер перевіряє тим самим правилом незалежно від того, що показує форма.
   useEffect(() => {
     let isActive = true;
 
     Promise.all([
-      tournamentsApi.getAllActive().catch(() => [] as TournamentDto[]),
+      tournamentId
+        ? tournamentsApi.getById(Number(tournamentId)).catch(() => null)
+        : Promise.resolve(null),
       teamsApi.getPaged({ page: 1, pageSize: 100 }).then((r) => r.data).catch(() => [] as TeamRowDto[])
-    ]).then(([tournamentList, teamList]) => {
+    ]).then(([tournament, teamList]) => {
       if (isActive) {
-        setTournaments(tournamentList);
+        setSelectedTournament(tournament);
         setTeams(teamList);
       }
     });
@@ -82,7 +82,7 @@ const MatchForm = () => {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [tournamentId]);
 
   useEffect(() => {
     if (!id) {
@@ -120,7 +120,7 @@ const MatchForm = () => {
     if (!id) {
       // Практичний матч — це матч без турніру. Дисципліну тоді треба назвати:
       // успадкувати її нема від чого, а матч без гри не видно у фільтрі.
-      const isFriendly = !canUseTournament || !values.tournamentId;
+      const isFriendly = !tournamentId;
 
       if (isFriendly && !values.game) {
         setError("game", { message: "Оберіть дисципліну" });
@@ -140,7 +140,7 @@ const MatchForm = () => {
       }
 
       const payload: CreateMatchDto = {
-        tournamentId: isFriendly ? null : (values.tournamentId ?? null),
+        tournamentId: isFriendly ? null : Number(tournamentId),
         game: isFriendly ? values.game : null,
         name: values.name?.trim() || null,
         // Практичний матч капітан ставить від імені своєї команди — її
@@ -200,30 +200,29 @@ const MatchForm = () => {
               {errors.name && <p className="field-error">{errors.name.message}</p>}
             </label>
 
-            {canUseTournament && (
-              <label className="field">
+            {isTournamentMatch && (
+              <div className="field">
                 Турнір
-                <select
-                  {...register("tournamentId")}
-                  className="input"
-                >
-                  <option value="">Без турніру — практичний матч</option>
-                  {tournaments.map((tournament) => (
-                    <option key={tournament.id} value={tournament.id}>
-                      {tournament.name} ({tournament.game})
-                    </option>
-                  ))}
-                </select>
-                {errors.tournamentId && (
-                  <p className="field-error">{errors.tournamentId.message}</p>
+                <div className="input flex items-center text-text-muted">
+                  {selectedTournament?.name ?? "…"}
+                </div>
+                {selectedTournament === null ? (
+                  <p className="notice notice-error">
+                    Не вдалося завантажити турнір. Поверніться на його сторінку
+                    й спробуйте ще раз.
+                  </p>
+                ) : (
+                  <p className="field-hint">
+                    Турнір задає сторінка, з якої ви прийшли — окремо його не обирають.
+                  </p>
                 )}
-              </label>
+              </div>
             )}
-            {canUseTournament && selectedTournament ? (
+            {isTournamentMatch ? (
               <div className="field">
                 Дисципліна
                 <div className="input flex items-center text-text-muted">
-                  {gameLabel(selectedTournament.game)}
+                  {selectedTournament ? gameLabel(selectedTournament.game) : "…"}
                 </div>
                 <p className="field-hint">Дисципліну визначає турнір — окремо її не обирають.</p>
               </div>
@@ -244,7 +243,7 @@ const MatchForm = () => {
                 </p>
               </label>
             )}
-            {!canUseTournament || !selectedTournament ? (
+            {!isTournamentMatch ? (
               <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
                 Матч буде відкритим: за вашу команду його поставить сервер, а
                 суперника назве капітан, який приєднається.
@@ -306,7 +305,7 @@ const MatchForm = () => {
           <>
             {/* Стадія — це місце в турнірній сітці, тож поза турніром її
                 немає: практичному матчу сервер ставить GroupStage сам. */}
-            {canUseTournament && selectedTournament && (
+            {isTournamentMatch && (
               <label className="field">
                 Стадія
                 <select {...register("matchType")} className="input">
