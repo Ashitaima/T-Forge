@@ -137,6 +137,36 @@ namespace TForge.Migrations
                     b.ToTable("duels", (string)null);
                 });
 
+            modelBuilder.Entity("TForge.Models.LftPass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PassedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TeamOpeningId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamOpeningId");
+
+                    b.HasIndex("PlayerId", "TeamOpeningId")
+                        .IsUnique();
+
+                    b.ToTable("lft_passes", (string)null);
+                });
+
             modelBuilder.Entity("TForge.Models.Match", b =>
                 {
                     b.Property<int>("Id")
@@ -783,6 +813,9 @@ namespace TForge.Migrations
                     b.Property<int>("TeamId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("TeamOpeningId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PlayerId");
@@ -792,6 +825,68 @@ namespace TForge.Migrations
                         .HasFilter("\"Status\" = 'Pending'");
 
                     b.ToTable("team_membership_requests", (string)null);
+                });
+
+            modelBuilder.Entity("TForge.Models.TeamOpening", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Game")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("MaxUtcOffsetMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MinRank")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("MinUtcOffsetMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Pitch")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Open");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("Status", "Game");
+
+                    b.ToTable("team_openings", (string)null);
                 });
 
             modelBuilder.Entity("TForge.Models.TeamRating", b =>
@@ -1124,6 +1219,25 @@ namespace TForge.Migrations
                     b.Navigation("OpponentPlayer");
                 });
 
+            modelBuilder.Entity("TForge.Models.LftPass", b =>
+                {
+                    b.HasOne("TForge.Models.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TForge.Models.TeamOpening", "TeamOpening")
+                        .WithMany()
+                        .HasForeignKey("TeamOpeningId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+
+                    b.Navigation("TeamOpening");
+                });
+
             modelBuilder.Entity("TForge.Models.Match", b =>
                 {
                     b.HasOne("TForge.Models.Team", "AwayTeam")
@@ -1322,6 +1436,17 @@ namespace TForge.Migrations
                         .IsRequired();
 
                     b.Navigation("Player");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("TForge.Models.TeamOpening", b =>
+                {
+                    b.HasOne("TForge.Models.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Team");
                 });

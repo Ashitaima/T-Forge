@@ -32,6 +32,8 @@ namespace TForge.Data
         private IGenericRepository<Duel>? _duels;
         private IGenericRepository<PlayerGameProfile>? _playerGameProfiles;
         private IGenericRepository<OrganizerRequest>? _organizerRequests;
+        private IGenericRepository<TeamOpening>? _teamOpenings;
+        private IGenericRepository<LftPass>? _lftPasses;
         private IGenericRepository<MatchDraft>? _matchDrafts;
         private IGenericRepository<DraftStep>? _draftSteps;
 
@@ -82,6 +84,12 @@ namespace TForge.Data
 
         public IGenericRepository<OrganizerRequest> OrganizerRequests =>
             _organizerRequests ??= new GenericRepository<OrganizerRequest>(_context);
+
+        public IGenericRepository<TeamOpening> TeamOpenings =>
+            _teamOpenings ??= new GenericRepository<TeamOpening>(_context);
+
+        public IGenericRepository<LftPass> LftPasses =>
+            _lftPasses ??= new GenericRepository<LftPass>(_context);
 
         public IGenericRepository<MatchDraft> MatchDrafts =>
             _matchDrafts ??= new GenericRepository<MatchDraft>(_context);

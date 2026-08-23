@@ -30,6 +30,14 @@ namespace TForge.Models
         [Required]
         public int InitiatedByUserId { get; set; }
 
+        /// <summary>
+        /// Вакансія, з якої постав запит; null — звичайний шлях, не LFT.
+        /// Потрібна, щоб прийняття закрило саме ту вакансію, яку заповнили:
+        /// команда й гравець цього не визначають, бо вакансій у команди
+        /// може бути дві, у різних дисциплінах.
+        /// </summary>
+        public int? TeamOpeningId { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? RespondedAt { get; set; }

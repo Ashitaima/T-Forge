@@ -28,6 +28,8 @@ namespace TForge.Data.Context
         public DbSet<OrganizerRequest> OrganizerRequests { get; set; }
         public DbSet<MatchDraft> MatchDrafts { get; set; }
         public DbSet<DraftStep> DraftSteps { get; set; }
+        public DbSet<TeamOpening> TeamOpenings { get; set; }
+        public DbSet<LftPass> LftPasses { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -47,6 +49,55 @@ namespace TForge.Data.Context
             ConfigurePlayerGameProfileModel(modelBuilder);
             ConfigureOrganizerRequestModel(modelBuilder);
             ConfigureDraftModel(modelBuilder);
+            ConfigureLftMatchmakingModel(modelBuilder);
+        }
+
+        /// <summary>
+        /// Вакансія команди й змах ліворуч. Один рядок LftPass прибирає пару
+        /// «гравець + вакансія» з обох стрічок одразу — див. Models/LftPass.cs.
+        /// </summary>
+        private void ConfigureLftMatchmakingModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeamOpening>(entity =>
+            {
+                entity.ToTable("team_openings");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Position).HasMaxLength(50);
+                entity.Property(e => e.MinRank).HasMaxLength(50);
+                entity.Property(e => e.Pitch).HasMaxLength(300);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(TeamOpeningStatus.Open);
+
+                entity.HasOne(o => o.Team)
+                    .WithMany()
+                    .HasForeignKey(o => o.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Стрічки завжди фільтрують за станом і дисципліною.
+                entity.HasIndex(o => new { o.Status, o.Game });
+            });
+
+            modelBuilder.Entity<LftPass>(entity =>
+            {
+                entity.ToTable("lft_passes");
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(p => p.Player)
+                    .WithMany()
+                    .HasForeignKey(p => p.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(p => p.TeamOpening)
+                    .WithMany()
+                    .HasForeignKey(p => p.TeamOpeningId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Пара «гравець + вакансія» — один змах ліворуч, не більше.
+                entity.HasIndex(p => new { p.PlayerId, p.TeamOpeningId })
+                    .IsUnique();
+            });
         }
 
         /// <summary>
