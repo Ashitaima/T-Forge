@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Anvil, BadgeCheck, CalendarClock, LayoutGrid, LogOut, Shield, Swords, UserRound, UsersRound } from "lucide-react";
+import { Anvil, BadgeCheck, CalendarClock, LayoutGrid, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
 import { teamsApi } from "../../api/teamsApi";
 import { NotificationBell } from "./NotificationBell";
-import { Avatar } from "../ui/Avatar";
+import { UserMenu } from "./UserMenu";
+import { ROLE_LABELS, roleLabel } from "../../constants/roles";
 import type { TeamRowDto } from "../../types";
 
 const navItems = [
@@ -18,17 +19,9 @@ const navItems = [
   { to: "/organizer-requests", label: "Заявки на роль", icon: BadgeCheck, adminOnly: true }
 ];
 
-const roleLabels: Record<string, string> = {
-  Guest: "Гість",
-  Player: "Гравець",
-  Organizer: "Організатор",
-  Admin: "Адміністратор"
-};
-
 export const AppShell = () => {
   const {
     user,
-    logout,
     hydrate,
     previewRole,
     setPreviewRole,
@@ -69,11 +62,13 @@ export const AppShell = () => {
   const previewedTeam = teams.find((team) => team.id === previewCaptainTeamId);
 
   const visibleItems = navItems.filter((item) => !item.adminOnly || effectiveRole === "Admin");
-  const initials = user ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.trim() || user.username[0] : "?";
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
       <aside className="flex flex-col border-b border-line bg-ink-950/80 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
+        {/* Рядок із клеймом видно за будь-якої ширини, тож акаунт і сповіщення
+            живуть саме тут. Раніше вони стояли внизу бічної панелі під
+            hidden lg:block — і на вузькому екрані вийти з акаунта не було як. */}
         <div className="flex items-center gap-2.5 px-5 py-5">
           {/* Клеймо: розпечений знак кузні */}
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-ember/15 text-ember">
@@ -82,6 +77,19 @@ export const AppShell = () => {
           <span className="font-display text-[1.0625rem] font-extrabold tracking-tight text-text">
             T&#8209;Forge
           </span>
+
+          <div className="ml-auto flex items-center gap-2">
+            {user ? (
+              <>
+                <NotificationBell />
+                <UserMenu user={user} />
+              </>
+            ) : (
+              <NavLink to="/login" className="btn btn-secondary btn-sm">
+                Увійти
+              </NavLink>
+            )}
+          </div>
         </div>
 
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-visible lg:pb-0">
@@ -112,12 +120,10 @@ export const AppShell = () => {
           ))}
         </nav>
 
-        <div className="mt-auto hidden space-y-3 p-3 lg:block">
-          {user && <NotificationBell />}
-
-          {/* Інструмент розробки — лише для адміністратора, унизу й підписаний,
-              щоб не читався як частина продукту */}
-          {isRealAdmin && (
+        {/* Інструмент розробки — лише для адміністратора, унизу й підписаний,
+            щоб не читався як частина продукту */}
+        {isRealAdmin && (
+          <div className="mt-auto hidden p-3 lg:block">
             <div className="surface px-3 py-3">
               <label className="eyebrow mb-2 block" htmlFor="role-preview">
                 Режим розробника
@@ -130,7 +136,7 @@ export const AppShell = () => {
                 style={{ height: "2rem" }}
               >
                 <option value="">Моя роль</option>
-                {Object.entries(roleLabels).map(([value, label]) => (
+                {Object.entries(ROLE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     Показати як: {label}
                   </option>
@@ -157,31 +163,8 @@ export const AppShell = () => {
                 ))}
               </select>
             </div>
-          )}
-
-          <div className="surface px-3 py-3">
-            {user ? (
-              <div className="flex items-center gap-3">
-                <Avatar url={user.avatarUrl} fallback={initials} size="md" />
-                <NavLink to="/profile" className="min-w-0 flex-1 hover:text-ember" title="Мій профіль">
-                  <div className="truncate text-micro font-medium text-text">
-                    {user.firstName} {user.lastName}
-                  </div>
-                  <div className="truncate text-micro text-text-faint">
-                    {roleLabels[effectiveRole] ?? effectiveRole}
-                  </div>
-                </NavLink>
-                <button onClick={logout} className="btn btn-ghost btn-sm px-2" title="Вийти" aria-label="Вийти">
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <NavLink to="/login" className="btn btn-secondary btn-sm w-full">
-                Увійти
-              </NavLink>
-            )}
           </div>
-        </div>
+        )}
       </aside>
 
       <main className="min-w-0 px-5 py-7 lg:px-10 lg:py-9">
@@ -190,7 +173,7 @@ export const AppShell = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ember/40 bg-ember/10 px-4 py-2.5">
               <span className="text-micro text-text">
                 Режим розробника: інтерфейс показано як{" "}
-                <strong className="font-semibold">{roleLabels[effectiveRole] ?? effectiveRole}</strong>
+                <strong className="font-semibold">{roleLabel(effectiveRole)}</strong>
                 {previewCaptainTeamId > 0 && (
                   <>
                     {" "}

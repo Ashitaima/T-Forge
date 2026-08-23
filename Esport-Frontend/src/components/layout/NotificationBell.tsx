@@ -46,18 +46,24 @@ export const NotificationBell = () => {
 
   return (
     <>
+      {/* Дзвінок стоїть у шапці поруч із меню акаунта, тож він значок, а не
+          рядок на всю ширину: число виносимо на бейдж. */}
       <button
         type="button"
         onClick={openBell}
-        className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-micro text-text transition ${
+        aria-label={count > 0 ? `Сповіщення, непрочитаних: ${count}` : "Сповіщення"}
+        className={`relative flex h-8 w-8 items-center justify-center rounded-lg border transition ${
           count > 0
             ? "border-ember/40 bg-ember/10 hover:bg-ember/15"
             : "border-line bg-ink-900 hover:bg-ink-800"
         }`}
       >
         <Bell className={`h-4 w-4 ${count > 0 ? "text-ember" : "text-text-muted"}`} />
-        <span className="flex-1 text-left">Сповіщення</span>
-        {count > 0 && <span className="tabular font-mono text-ember">{count}</span>}
+        {count > 0 && (
+          <span className="tabular absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ember px-1 font-mono text-[0.625rem] font-semibold text-ink-950">
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
       </button>
 
       {open && createPortal(
