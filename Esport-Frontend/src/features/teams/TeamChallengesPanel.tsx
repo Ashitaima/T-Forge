@@ -6,7 +6,8 @@ import { teamsApi } from "../../api/teamsApi";
 import { useAuthStore } from "../../store/authStore";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import { EmptyState, Skeleton } from "../../components/ui/Primitives";
-import { DateTimePicker } from "../../components/ui/DateTimePicker";
+import { DateTimePicker, todayKey } from "../../components/ui/DateTimePicker";
+import { Toggle } from "../../components/ui/Toggle";
 import { GAMES, GAME_LABELS, gameLabel } from "../../constants/games";
 import {
   MATCH_CHALLENGE_STATUS,
@@ -243,51 +244,36 @@ export const TeamChallengesPanel = ({ teamId, teamCaptainId }: Props) => {
           {/* Відкритий виклик — оголошення на дошці: суперника не названо,
               і прийняти його може капітан будь-якої іншої команди. Закритий —
               адресний, як було. */}
-          <div className="field">
-            Кому
-            <div className="mt-1.5 flex gap-1.5">
-              {[
-                { value: false, label: "Конкретній команді" },
-                { value: true, label: "Відкритий виклик" }
-              ].map(({ value, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setIsOpenChallenge(value)}
-                  aria-pressed={isOpenChallenge === value}
-                  className={`rounded-lg px-3 py-1.5 text-micro transition ${
-                    isOpenChallenge === value
-                      ? "bg-ink-800 text-text"
-                      : "text-text-muted hover:bg-ink-900 hover:text-text"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <div className="space-y-3 rounded-lg border border-line bg-ink-800/60 px-3 py-3">
+            <Toggle
+              checked={isOpenChallenge}
+              onChange={setIsOpenChallenge}
+              label="Відкритий виклик"
+              hint={
+                isOpenChallenge
+                  ? "Виклик побачать усі команди. Матч почнеться з тією, що прийме його першою."
+                  : "Виклик побачить лише названа команда."
+              }
+            />
 
-          {isOpenChallenge ? (
-            <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
-              Виклик побачать усі команди. Матч почнеться з тією, що прийме його першою.
-            </p>
-          ) : (
-            <label className="field">
-              Суперник
-              <select
-                value={opponentTeamId}
-                onChange={(event) => setOpponentTeamId(event.target.value)}
-                className="input"
-              >
-                <option value="">Оберіть команду</option>
-                {opponents.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name} ({team.tag})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+            {!isOpenChallenge && (
+              <label className="field">
+                Суперник
+                <select
+                  value={opponentTeamId}
+                  onChange={(event) => setOpponentTeamId(event.target.value)}
+                  className="input"
+                >
+                  <option value="">Оберіть команду</option>
+                  {opponents.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name} ({team.tag})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
 
           <label className="field">
             Дисципліна
@@ -319,7 +305,12 @@ export const TeamChallengesPanel = ({ teamId, teamCaptainId }: Props) => {
           <div className="field">
             Час
             <div className="mt-1.5">
-              <DateTimePicker ariaLabel="Час матчу" value={proposedAt} onChange={setProposedAt} />
+              <DateTimePicker
+                ariaLabel="Час матчу"
+                value={proposedAt}
+                onChange={setProposedAt}
+                minDate={todayKey()}
+              />
             </div>
           </div>
 

@@ -208,6 +208,43 @@ namespace TForge.Services
             };
         }
 
+        /// <summary>
+        /// Кого запрошено в закритий товариський матч. Null — матч відкритий:
+        /// приєднається будь-який капітан.
+        ///
+        /// Запрошення — не участь: команда стає гостем лише тоді, коли її
+        /// капітан приєднається сам (JoinAsync). Тому воно й має сенс лише
+        /// доти, доки гостя ще немає.
+        /// </summary>
+        private async Task<int?> ResolveInvitedTeamIdAsync(CreateMatchDto createDto, int homeTeamId)
+        {
+            if (createDto.InvitedTeamId is not int invitedTeamId)
+            {
+                return null;
+            }
+
+            if (createDto.AwayTeamId != null)
+            {
+                throw new BusinessLogicException(
+                    "Суперника вже названо — запрошувати нема кого");
+            }
+
+            if (invitedTeamId == homeTeamId)
+            {
+                throw new BusinessLogicException("Команда не може запросити саму себе");
+            }
+
+            var exists = await _unitOfWork.Teams.GetQueryable()
+                .AnyAsync(t => t.Id == invitedTeamId);
+
+            if (!exists)
+            {
+                throw new EntityNotFoundException("Team", invitedTeamId);
+            }
+
+            return invitedTeamId;
+        }
+
         public async Task<MatchCreationPolicy.Context> GetCreateContextAsync(
             CreateMatchDto createDto, int requestingUserId)
         {
@@ -259,14 +296,34 @@ namespace TForge.Services
                 .Select(t => t.Id)
                 .ToListAsync();
 
-            var awayTeamId = captained.Count switch
+            // Закритий матч: слот вільний, але призначений одній команді, і
+            // ніхто інший його не займе. Це і є вся різниця між відкритим
+            // матчем і запрошенням — далі шлях той самий.
+            int awayTeamId;
+
+            if (match.InvitedTeamId is int invitedTeamId)
             {
-                1 => captained[0],
-                0 => throw new ForbiddenException(
-                    "Приєднатися до матчу може лише капітан іншої команди"),
-                _ => throw new BusinessLogicException(
-                    "Ви капітан кількох команд — оберіть, яка з них грає")
-            };
+                if (!captained.Contains(invitedTeamId))
+                {
+                    throw new ForbiddenException(
+                        "Матч закритий — приєднатися може лише запрошена команда");
+                }
+
+                // Капітан кількох команд тут нічого не обирає: запрошено одну
+                // конкретну, і саме вона грає.
+                awayTeamId = invitedTeamId;
+            }
+            else
+            {
+                awayTeamId = captained.Count switch
+                {
+                    1 => captained[0],
+                    0 => throw new ForbiddenException(
+                        "Приєднатися до матчу може лише капітан іншої команди"),
+                    _ => throw new BusinessLogicException(
+                        "Ви капітан кількох команд — оберіть, яка з них грає")
+                };
+            }
 
             match.AwayTeamId = awayTeamId;
             await _unitOfWork.SaveChangesAsync();
@@ -307,6 +364,7 @@ namespace TForge.Services
                 match.Game = createDto.Game!;
                 match.Round = 0;
                 match.MatchType = MatchTypes.GroupStage;
+                match.InvitedTeamId = await ResolveInvitedTeamIdAsync(createDto, homeTeamId);
             }
             else
             {
@@ -314,6 +372,12 @@ namespace TForge.Services
                 {
                     throw new BusinessLogicException(
                         "Турнірний матч не буває відкритим — вкажіть обидві команди");
+                }
+
+                if (createDto.InvitedTeamId != null)
+                {
+                    throw new BusinessLogicException(
+                        "Турнірний матч нікого не запрошує — обидві його команди відомі одразу");
                 }
 
                 var tournament = await _unitOfWork.Tournaments.GetByIdAsync(createDto.TournamentId.Value)
@@ -445,6 +509,22 @@ namespace TForge.Services
             var match = await _unitOfWork.Matches.GetByIdAsync(id);
             if (match == null)
                 return false;
+
+            // Зіграний матч не видаляємо. TeamRatingChange і PlayerRatingChange
+            // прив'язані до матчу через Cascade, тож разом із рядком зникли б і
+            // записи журналу — а бали, які вони пояснюють, лишилися б у
+            // TeamRating.CurrentRating. Рейтинг після цього не звести ні з чим:
+            // журнал append-only саме для того й існує. Кешовані лічильники
+            // гравців (Player.TotalMatches і далі) розійшлися б так само.
+            //
+            // Помилковий результат правлять переграванням результату — тоді
+            // RatingService пише пару Reversal, — а зайвий матч скасовують.
+            if (match.Status == MatchStatus.Completed)
+            {
+                throw new BusinessLogicException(
+                    "Зіграний матч не видаляють — скасуйте його або виправте результат: "
+                    + "разом із матчем зник би журнал рейтингу, а нараховані бали лишилися б");
+            }
 
             _unitOfWork.Matches.Remove(match);
             await _unitOfWork.SaveChangesAsync();

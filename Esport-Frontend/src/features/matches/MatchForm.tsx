@@ -8,7 +8,9 @@ import { teamsApi } from "../../api/teamsApi";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { GAMES, gameLabel } from "../../constants/games";
 import { MATCH_TYPES, matchTypeLabel } from "../../constants/matchTypes";
-import { DateTimePicker } from "../../components/ui/DateTimePicker";
+import { DateTimePicker, todayKey } from "../../components/ui/DateTimePicker";
+import { Toggle } from "../../components/ui/Toggle";
+import { useAuthStore } from "../../store/authStore";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import type { CreateMatchDto, MatchDto, TeamRowDto, TournamentDto, UpdateMatchDto } from "../../types";
 
@@ -18,6 +20,7 @@ const schema = z.object({
   name: z.string().max(100, "Максимум 100 символів").optional(),
   homeTeamId: z.coerce.number().optional(),
   awayTeamId: z.coerce.number().optional(),
+  invitedTeamId: z.coerce.number().optional(),
   scheduledAt: z.string().min(1, "Вкажіть час"),
   matchType: z.string().optional(),
   format: z.string().optional(),
@@ -50,6 +53,17 @@ const MatchForm = () => {
   const [selectedTournament, setSelectedTournament] = useState<TournamentDto | null | undefined>(undefined);
   const [teams, setTeams] = useState<TeamRowDto[]>([]);
   const [match, setMatch] = useState<MatchDto | null>(null);
+  // Практичний матч буває відкритим (приєднається будь-хто) або закритим —
+  // тоді його адресують одній команді, і зайняти слот може лише вона.
+  // Це запрошення, а не запис у матч: гостем команда стає, коли її капітан
+  // приєднається сам, як і в дуелі.
+  const [isOpenMatch, setIsOpenMatch] = useState(true);
+  // Свої команди зі списку запрошених прибираємо: одна з них і буде
+  // домашньою, а сама із собою команда не грає. Капітанство читаємо з
+  // реального user.id — режим розробника не повинен давати прав над чужою
+  // командою.
+  const user = useAuthStore((state) => state.user);
+  const invitableTeams = teams.filter((team) => team.captainId !== user?.id);
   const {
     register,
     control,
@@ -139,6 +153,13 @@ const MatchForm = () => {
         return;
       }
 
+      // Закритий матч без адресата — це просто відкритий матч, який ніхто не
+      // побачить як відкритий. Тож команду треба назвати.
+      if (isFriendly && !isOpenMatch && !values.invitedTeamId) {
+        setError("invitedTeamId", { message: "Оберіть команду, яку запрошуєте" });
+        return;
+      }
+
       const payload: CreateMatchDto = {
         tournamentId: isFriendly ? null : Number(tournamentId),
         game: isFriendly ? values.game : null,
@@ -148,6 +169,12 @@ const MatchForm = () => {
         // приєднається.
         homeTeamId: isFriendly ? null : values.homeTeamId,
         awayTeamId: isFriendly ? null : values.awayTeamId,
+        // Запрошення має сенс лише в практичному матчі: у турнірному обидві
+        // команди відомі одразу, і сервер таке поєднання відхиляє.
+        invitedTeamId:
+          isFriendly && !isOpenMatch && values.invitedTeamId
+            ? Number(values.invitedTeamId)
+            : null,
         scheduledAt: values.scheduledAt,
         matchType: values.matchType ?? "GroupStage",
         format: values.format ?? "BO1",
@@ -244,10 +271,44 @@ const MatchForm = () => {
               </label>
             )}
             {!isTournamentMatch ? (
-              <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
-                Матч буде відкритим: за вашу команду його поставить сервер, а
-                суперника назве капітан, який приєднається.
-              </p>
+              <div className="space-y-3 rounded-lg border border-line bg-ink-800/60 px-3 py-3">
+                <Toggle
+                  checked={isOpenMatch}
+                  onChange={setIsOpenMatch}
+                  label="Відкритий матч"
+                  hint={
+                    isOpenMatch
+                      ? "Матч побачать усі. Суперником стане капітан, який приєднається першим."
+                      : "Приєднатися зможе лише запрошена команда."
+                  }
+                />
+
+                {!isOpenMatch && (
+                  <label className="field">
+                    Кого запросити
+                    <select {...register("invitedTeamId")} className="input" defaultValue="">
+                      <option value="">Оберіть команду</option>
+                      {invitableTeams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name} ({team.tag})
+                        </option>
+                      ))}
+                    </select>
+                    {errors.invitedTeamId ? (
+                      <p className="field-error">{errors.invitedTeamId.message}</p>
+                    ) : (
+                      <p className="field-hint">
+                        Запрошення не записує команду в матч — вона стає суперником,
+                        коли її капітан приєднається.
+                      </p>
+                    )}
+                  </label>
+                )}
+
+                <p className="muted text-micro">
+                  За вашу команду матч поставить сервер — обирати її не треба.
+                </p>
+              </div>
             ) : (
             <div className="grid gap-4 md:grid-cols-2">
               <label className="field">
@@ -295,6 +356,9 @@ const MatchForm = () => {
                   ariaLabel="Час початку матчу"
                   value={field.value ?? ""}
                   onChange={field.onChange}
+                  // Новий матч не призначають на вчора. У редагуванні межі
+                  // немає: організатор інколи вносить те, що вже відбулося.
+                  minDate={id ? undefined : todayKey()}
                 />
               )}
             />

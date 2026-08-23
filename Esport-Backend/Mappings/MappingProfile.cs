@@ -135,8 +135,12 @@ namespace TForge.Mappings
                 // Відкритий матч ще не має гостя, тож і капітана в нього немає.
                 .ForMember(dest => dest.AwayTeamCaptainId,
                     opt => opt.MapFrom(src => src.AwayTeam == null ? (int?)null : src.AwayTeam.CaptainId))
+                // Відкритий — той, куди може прийти будь-хто. Матч із
+                // запрошенням теж має вільний слот, але зайняти його може лише
+                // адресат, тож відкритим він не є. «Слот вільний» клієнт читає
+                // з AwayTeam, а не звідси.
                 .ForMember(dest => dest.IsOpen,
-                    opt => opt.MapFrom(src => src.AwayTeamId == null));
+                    opt => opt.MapFrom(src => src.AwayTeamId == null && src.InvitedTeamId == null));
             CreateMap<CreateMatchDto, Match>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 // Домашню команду підставляє сервіс: капітан її не надсилає.
@@ -151,9 +155,14 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.StartedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.EndedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
+                // Запрошення ставить сервіс, а не мапер: у турнірному матчі
+                // його не буває взагалі, і без цього Ignore клієнт міг би
+                // причепити його туди разом із двома названими командами.
+                .ForMember(dest => dest.InvitedTeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.Tournament, opt => opt.Ignore())
                 .ForMember(dest => dest.HomeTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.AwayTeam, opt => opt.Ignore())
+                .ForMember(dest => dest.InvitedTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.WinnerTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
             CreateMap<UpdateMatchDto, Match>()
@@ -161,12 +170,14 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.TournamentId, opt => opt.Ignore())
                 .ForMember(dest => dest.HomeTeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.AwayTeamId, opt => opt.Ignore())
+                .ForMember(dest => dest.InvitedTeamId, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchType, opt => opt.Ignore())
                 .ForMember(dest => dest.Format, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.Tournament, opt => opt.Ignore())
                 .ForMember(dest => dest.HomeTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.AwayTeam, opt => opt.Ignore())
+                .ForMember(dest => dest.InvitedTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.WinnerTeam, opt => opt.Ignore())
                 .ForMember(dest => dest.MatchPlayers, opt => opt.Ignore());
 

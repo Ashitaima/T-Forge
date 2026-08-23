@@ -139,6 +139,9 @@ namespace TForge.Migrations
                     b.Property<int>("HomeTeamScore")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("InvitedTeamId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("MatchType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -190,6 +193,8 @@ namespace TForge.Migrations
                     b.HasIndex("AwayTeamId");
 
                     b.HasIndex("HomeTeamId");
+
+                    b.HasIndex("InvitedTeamId");
 
                     b.HasIndex("TournamentId");
 
@@ -1007,6 +1012,11 @@ namespace TForge.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("TForge.Models.Team", "InvitedTeam")
+                        .WithMany()
+                        .HasForeignKey("InvitedTeamId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("TForge.Models.Tournament", "Tournament")
                         .WithMany("Matches")
                         .HasForeignKey("TournamentId")
@@ -1020,6 +1030,8 @@ namespace TForge.Migrations
                     b.Navigation("AwayTeam");
 
                     b.Navigation("HomeTeam");
+
+                    b.Navigation("InvitedTeam");
 
                     b.Navigation("Tournament");
 

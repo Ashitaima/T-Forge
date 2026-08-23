@@ -28,9 +28,13 @@ namespace TForge.Validators
             RuleFor(x => x.Name)
                 .MaximumLength(100).WithMessage("Назва не може перевищувати 100 символів");
 
+            // Порівнюємо через ScheduleRules, а не з DateTime.Now: сюди дата
+            // приходить уже в UTC (див. Common/UtcDateTimeConverter.cs), і
+            // місцевий час у правій частині відсікав усе на найближчі години.
             RuleFor(x => x.ScheduledAt)
                 .NotEmpty().WithMessage("Час проведення матчу є обов'язковим")
-                .GreaterThan(DateTime.Now).WithMessage("Час проведення матчу повинен бути в майбутньому");
+                .Must(scheduledAt => ScheduleRules.IsInFuture(scheduledAt))
+                .WithMessage(ScheduleRules.PastMessage);
 
             RuleFor(x => x.MatchType)
                 .NotEmpty().WithMessage("Тип матчу є обов'язковим")

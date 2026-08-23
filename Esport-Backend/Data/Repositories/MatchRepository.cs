@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TForge.Data.Context;
 using TForge.Data.Interfaces;
 using TForge.Models;
@@ -39,6 +39,9 @@ namespace TForge.Data.Repositories
             return await _dbSet
                 .Include(m => m.HomeTeam)
                 .Include(m => m.AwayTeam)
+                // Запрошену команду видно в розкладі — без цього Include вона
+                // була б порожня саме в списку й заповнена на сторінці матчу.
+                .Include(m => m.InvitedTeam)
                 .Include(m => m.Tournament)
                 .Where(m => m.Status == status)
                 .OrderBy(m => m.ScheduledAt)
@@ -57,6 +60,7 @@ namespace TForge.Data.Repositories
                 .Include(m => m.Tournament)
                 .Include(m => m.HomeTeam)
                 .Include(m => m.AwayTeam)
+                .Include(m => m.InvitedTeam)
                 .Include(m => m.WinnerTeam);
         }
 
@@ -65,6 +69,7 @@ namespace TForge.Data.Repositories
             return await _dbSet
                 .Include(m => m.HomeTeam)
                 .Include(m => m.AwayTeam)
+                .Include(m => m.InvitedTeam)
                 .Include(m => m.Tournament)
                 .Include(m => m.WinnerTeam)
                 .Include(m => m.MatchPlayers)
@@ -90,6 +95,7 @@ namespace TForge.Data.Repositories
             return await _dbSet
                 .Include(m => m.HomeTeam)
                 .Include(m => m.AwayTeam)
+                .Include(m => m.InvitedTeam)
                 .Include(m => m.Tournament)
                 .Where(m => m.ScheduledAt > DateTime.UtcNow && m.Status == "Scheduled")
                 .OrderBy(m => m.ScheduledAt)

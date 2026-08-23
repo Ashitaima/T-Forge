@@ -39,6 +39,21 @@ namespace TForge.Models
         /// </summary>
         public int? AwayTeamId { get; set; }
 
+        /// <summary>
+        /// Кого запрошено, поки гостя ще немає. Null — матч відкритий: до нього
+        /// приєднується будь-який капітан. Заповнена — матч закритий, і
+        /// приєднатися може лише капітан саме цієї команди.
+        ///
+        /// Це запрошення, а не участь: команда стає гостем тоді, коли її
+        /// капітан сам приєднається, — так само, як у дуелі названий суперник
+        /// стає учасником лише після відповіді (Models/Duel.cs). Записати
+        /// когось у матч без його згоди не може ніхто.
+        ///
+        /// Після приєднання колонка більше нічого не вирішує: гостя визначає
+        /// AwayTeamId, і саме з нього читають усі підсумки.
+        /// </summary>
+        public int? InvitedTeamId { get; set; }
+
         [Required]
         public DateTime ScheduledAt { get; set; }
 
@@ -94,6 +109,7 @@ namespace TForge.Models
         public virtual Tournament? Tournament { get; set; }
         public virtual Team HomeTeam { get; set; } = null!;
         public virtual Team? AwayTeam { get; set; }
+        public virtual Team? InvitedTeam { get; set; }
         public virtual Team? WinnerTeam { get; set; }
         public virtual ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
     }

@@ -6,7 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { GAMES, GAME_LABELS } from "../../constants/games";
-import { DateTimePicker } from "../../components/ui/DateTimePicker";
+import { DateTimePicker, todayKey } from "../../components/ui/DateTimePicker";
 import type { CreateTournamentDto, UpdateTournamentDto } from "../../types";
 
 const schema = z.object({
@@ -116,7 +116,8 @@ const TournamentForm = () => {
     }
   };
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Місцева дата, а не UTC: див. todayKey у DateTimePicker.
+  const today = todayKey();
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

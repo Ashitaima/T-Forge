@@ -30,6 +30,14 @@ const pad = (value: number) => String(value).padStart(2, "0");
 const toDateKey = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
+/**
+ * Сьогоднішня дата в тому ж форматі, що й minDate. Живе поруч із порівнянням
+ * навмисно: форми рахували її через toISOString, тобто в UTC, і в місцевому
+ * поясі попереду UTC перші години після опівночі «сьогодні» означало вчора —
+ * тобто минулий день лишався доступним.
+ */
+export const todayKey = () => toDateKey(new Date());
+
 const parseValue = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(value.trim());
   if (!match) {

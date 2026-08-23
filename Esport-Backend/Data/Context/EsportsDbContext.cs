@@ -303,6 +303,17 @@ namespace TForge.Data.Context
                     .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                // Запрошена команда — теж необов'язкова й теж без зворотної
+                // навігації: це не участь, а адресат запрошення, і в підсумки
+                // команди вона не входить. WithMany() без властивості саме
+                // тому, що додавати Team.InvitedMatches означало б колекцію,
+                // яку ніхто не рахує.
+                entity.HasOne(m => m.InvitedTeam)
+                    .WithMany()
+                    .HasForeignKey(m => m.InvitedTeamId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 // Зв'язок з командою-переможцем (nullable)
                 entity.HasOne(m => m.WinnerTeam)
                     .WithMany()

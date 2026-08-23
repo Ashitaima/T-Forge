@@ -283,8 +283,14 @@ export type MatchDto = {
   awayTeamCaptainId: number | null;
   /** Власна назва матчу, якщо її дали. */
   name: string | null;
-  /** Відкритий матч: приєднатися може капітан іншої команди. */
+  /**
+   * Відкритий матч: приєднатися може капітан будь-якої іншої команди. Матч із
+   * запрошенням теж має вільний слот, але відкритим не є — зайняти його може
+   * лише запрошена команда. «Слот вільний» читайте з awayTeam.
+   */
   isOpen: boolean;
+  /** Кого запрошено в закритий матч. null — матч відкритий або гостя вже названо. */
+  invitedTeam?: TeamSummaryDto | null;
   winnerTeam?: TeamSummaryDto | null;
   tournament?: TournamentDto | null;
   matchPlayers: MatchPlayerDto[];
@@ -299,6 +305,12 @@ export type CreateMatchDto = {
   homeTeamId?: number | null;
   /** null — відкритий матч: суперника назве той, хто приєднається. */
   awayTeamId?: number | null;
+  /**
+   * Кого запросити. null — матч відкритий для всіх; заповнене — приєднатися
+   * зможе лише капітан цієї команди. Запрошення не робить команду учасницею:
+   * нею вона стає, коли її капітан приєднається сам.
+   */
+  invitedTeamId?: number | null;
   /** Власна назва матчу. */
   name?: string | null;
   scheduledAt: string;

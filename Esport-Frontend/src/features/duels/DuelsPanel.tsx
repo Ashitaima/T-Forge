@@ -5,7 +5,8 @@ import { playersApi } from "../../api/playersApi";
 import { useAuthStore } from "../../store/authStore";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import { EmptyState, Skeleton } from "../../components/ui/Primitives";
-import { DateTimePicker } from "../../components/ui/DateTimePicker";
+import { DateTimePicker, todayKey } from "../../components/ui/DateTimePicker";
+import { Toggle } from "../../components/ui/Toggle";
 import { GAMES, GAME_LABELS, gameLabel } from "../../constants/games";
 import {
   DUEL_STATUS,
@@ -314,52 +315,38 @@ export const DuelsPanel = () => {
         <section className="panel panel-body space-y-4">
           {/* Відкритий виклик — оголошення на дошці: суперника не названо,
               і прийняти його може будь-хто, крім автора. Закритий — адресний,
-              як було. */}
-          <div className="field">
-            Кому
-            <div className="mt-1.5 flex gap-1.5">
-              {[
-                { open: false, label: "Конкретному гравцю" },
-                { open: true, label: "Відкритий виклик" }
-              ].map(({ open, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setIsOpenChallenge(open)}
-                  aria-pressed={isOpenChallenge === open}
-                  className={`rounded-lg px-3 py-1.5 text-micro transition ${
-                    isOpenChallenge === open
-                      ? "bg-ink-800 text-text"
-                      : "text-text-muted hover:bg-ink-900 hover:text-text"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+              як було. Той самий перемикач стоїть у формі практичного матчу:
+              вибір один і той самий, тож і контрол один. */}
+          <div className="space-y-3 rounded-lg border border-line bg-ink-800/60 px-3 py-3">
+            <Toggle
+              checked={isOpenChallenge}
+              onChange={setIsOpenChallenge}
+              label="Відкритий виклик"
+              hint={
+                isOpenChallenge
+                  ? "Виклик побачать усі гравці. Дуель почнеться з тим, хто прийме його першим."
+                  : "Виклик побачить лише названий гравець."
+              }
+            />
 
-          {isOpenChallenge ? (
-            <p className="rounded-lg border border-line bg-ink-800/60 px-3 py-2.5 text-micro text-text-muted">
-              Виклик побачать усі гравці. Дуель почнеться з тим, хто прийме його першим.
-            </p>
-          ) : (
-            <label className="field">
-              Суперник
-              <select
-                value={opponentPlayerId}
-                onChange={(event) => setOpponentPlayerId(event.target.value)}
-                className="input"
-              >
-                <option value="">Оберіть гравця</option>
-                {opponents.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.nickname}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+            {!isOpenChallenge && (
+              <label className="field">
+                Суперник
+                <select
+                  value={opponentPlayerId}
+                  onChange={(event) => setOpponentPlayerId(event.target.value)}
+                  className="input"
+                >
+                  <option value="">Оберіть гравця</option>
+                  {opponents.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.nickname}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
 
           <label className="field">
             Дисципліна
@@ -380,6 +367,7 @@ export const DuelsPanel = () => {
                 ariaLabel="Час дуелі"
                 value={scheduledAt}
                 onChange={setScheduledAt}
+                minDate={todayKey()}
               />
             </div>
           </div>

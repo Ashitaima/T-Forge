@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using TForge.Common;
 using TForge.DTOs;
 
@@ -28,7 +28,8 @@ namespace TForge.Validators
                 .Must(Games.IsValid).WithMessage("Оберіть одну з підтримуваних дисциплін");
 
             RuleFor(x => x.ProposedAt)
-                .GreaterThan(_ => DateTime.UtcNow).WithMessage("Час матчу має бути в майбутньому");
+                .Must(proposedAt => ScheduleRules.IsInFuture(proposedAt))
+                .WithMessage(ScheduleRules.PastMessage);
 
             RuleFor(x => x.Format)
                 .Must(format => Formats.Contains(format))

@@ -109,10 +109,21 @@ namespace TForge.Controllers
             return Ok(match);
         }
 
+        /// <summary>
+        /// Видалити матч. Роль тут не вирішує — вирішує FriendlyMatchPolicy,
+        /// той самий, що й для ведення матчу: товариський матч поставили самі
+        /// капітани, тож і прибрати його можуть вони. Атрибут «Admin,Organizer»
+        /// означав, що капітан не може прибрати навіть власний матч, і єдиним
+        /// виходом лишалося просити організатора.
+        ///
+        /// Зіграний матч не видаляється взагалі — див. MatchService.DeleteAsync.
+        /// </summary>
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize]
         public async Task<ActionResult> DeleteMatch(int id)
         {
+            await EnsureCanManageAsync(id);
+
             var result = await _matchService.DeleteAsync(id);
             if (!result)
             {
@@ -231,10 +242,16 @@ namespace TForge.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Скасувати матч. Права ті самі, що й на його ведення: скасування —
+        /// це кінець матчу, а не адміністративна дія над чужим.
+        /// </summary>
         [HttpPost("{id}/cancel")]
-        [Authorize(Roles = "Admin,Organizer")]
+        [Authorize]
         public async Task<ActionResult> CancelMatch(int id, [FromBody] CancelMatchRequest request)
         {
+            await EnsureCanManageAsync(id);
+
             var result = await _matchService.CancelMatchAsync(id, request.Reason);
             if (!result)
             {
