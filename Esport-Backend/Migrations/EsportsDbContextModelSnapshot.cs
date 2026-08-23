@@ -540,6 +540,9 @@ namespace TForge.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("UtcOffsetMinutes")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("WinRate")
                         .HasColumnType("decimal(5,2)");
 
@@ -577,10 +580,18 @@ namespace TForge.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<bool>("IsLookingForTeam")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("PlayerId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Rank")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");

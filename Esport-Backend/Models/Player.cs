@@ -36,6 +36,16 @@ namespace TForge.Models
         [StringLength(GameIdFormats.MaxLength)]
         public string? BattleTag { get; set; }
 
+        /// <summary>
+        /// Зсув від UTC у хвилинах; null — гравець не вказав. Перелік і
+        /// перевірка — Common/TimeZones.cs.
+        ///
+        /// Число, а не підпис: за цим полем стрічка LFT відбирає гравців у
+        /// вікні зсувів, і порівнює його сам SQL. Країна не підходить —
+        /// Росія охоплює одинадцять зон.
+        /// </summary>
+        public int? UtcOffsetMinutes { get; set; }
+
         // Статистика
         public int TotalMatches { get; set; } = 0;
         public int Wins { get; set; } = 0;

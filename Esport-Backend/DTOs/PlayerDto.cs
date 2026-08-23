@@ -31,6 +31,8 @@
         /// щоб клієнт не склеював URL сам.</summary>
         public string? SteamProfileUrl { get; set; }
 
+        public int? UtcOffsetMinutes { get; set; }
+
         /// <summary>
         /// Дисципліни, у які грає гравець, і роль у кожній. Player.Position
         /// лишається однією позицією на профіль — див. Models/PlayerGameProfile.cs.
@@ -47,6 +49,8 @@
         public int Id { get; set; }
         public string Game { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
+        public string Rank { get; set; } = string.Empty;
+        public bool IsLookingForTeam { get; set; }
     }
 
     /// <summary>
@@ -57,6 +61,8 @@
     {
         public string Game { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
+        public string Rank { get; set; } = string.Empty;
+        public bool IsLookingForTeam { get; set; }
     }
 
     public class PlayerSummaryDto
@@ -170,6 +176,8 @@
         public string? RiotId { get; set; }
         public string? SteamId64 { get; set; }
         public string? BattleTag { get; set; }
+
+        public int? UtcOffsetMinutes { get; set; }
 
         // Приватність редагується разом з рештою профілю: UpdatePlayerDto
         // перезаписує гравця цілком, тож форма без цих полів мовчки скидала б

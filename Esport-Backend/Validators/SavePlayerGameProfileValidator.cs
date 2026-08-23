@@ -20,6 +20,12 @@ namespace TForge.Validators
             RuleFor(x => x.Position)
                 .Must((dto, position) => GamePositions.IsValidFor(dto.Game, position))
                 .WithMessage("Ця позиція не належить обраній дисципліні");
+
+            // Ранг перевіряємо разом із дисципліною з тієї ж причини, що й
+            // позицію: «Radiant» — правильний ранг, але не в CS2.
+            RuleFor(x => x.Rank)
+                .Must((dto, rank) => GameRanks.IsValidFor(dto.Game, rank))
+                .WithMessage("Цей ранг не належить обраній дисципліні");
         }
     }
 }

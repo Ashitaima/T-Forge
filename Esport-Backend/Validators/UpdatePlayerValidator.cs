@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using TForge.Common;
 using TForge.DTOs;
 
 namespace TForge.Validators
@@ -18,6 +19,10 @@ namespace TForge.Validators
             RuleFor(x => x.RiotId).PlayerRiotId();
             RuleFor(x => x.SteamId64).PlayerSteamId();
             RuleFor(x => x.BattleTag).PlayerBattleTag();
+
+            RuleFor(x => x.UtcOffsetMinutes)
+                .Must(TimeZones.IsValid)
+                .WithMessage("Невідомий часовий пояс");
         }
     }
 }
