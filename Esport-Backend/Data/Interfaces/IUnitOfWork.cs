@@ -19,6 +19,8 @@ namespace TForge.Data.Interfaces
         IGenericRepository<PlayerRatingChange> PlayerRatingChanges { get; }
         IGenericRepository<Duel> Duels { get; }
         IGenericRepository<PlayerGameProfile> PlayerGameProfiles { get; }
+        IGenericRepository<MatchDraft> MatchDrafts { get; }
+        IGenericRepository<DraftStep> DraftSteps { get; }
         IGenericRepository<OrganizerRequest> OrganizerRequests { get; }
 
         Task<int> SaveChangesAsync();

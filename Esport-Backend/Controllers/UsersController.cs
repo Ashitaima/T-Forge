@@ -89,10 +89,22 @@ namespace TForge.Controllers
             return Ok(user);
         }
 
+        /// <summary>
+        /// Видалити акаунт — свій або, для адміністратора, будь-чий. Право те
+        /// саме, що й на аватар вище: власник або адміністратор.
+        ///
+        /// Видалення знеособлює рядок, а не прибирає його — див.
+        /// UserService.DeleteAsync і Common/AccountAnonymizer.cs.
+        /// </summary>
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<ActionResult> DeleteUser(int id)
         {
+            if (!IsAdmin && id != GetUserIdOrThrow())
+            {
+                return Forbid();
+            }
+
             var result = await _userService.DeleteAsync(id);
             if (!result)
             {

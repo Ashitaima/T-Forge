@@ -60,6 +60,10 @@ builder.Services.AddScoped<IDuelService, DuelService>();
             builder.Services.AddScoped<IBracketService, BracketService>();
             builder.Services.AddScoped<IStandingsService, StandingsService>();
             builder.Services.AddScoped<IMatchRosterService, MatchRosterService>();
+            builder.Services.AddScoped<IDraftService, DraftService>();
+            // Серверний годинник драфту: без нього хід згорає лише тоді, коли
+            // на драфт хтось дивиться.
+            builder.Services.AddHostedService<DraftTimeoutService>();
             builder.Services.AddScoped<IMembershipRequestService, MembershipRequestService>();
             builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
             builder.Services.AddScoped<ITournamentInvitationService, TournamentInvitationService>();

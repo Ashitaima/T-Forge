@@ -634,3 +634,28 @@ export type DuelRecordDto = {
   draws: number;
   winRate: number;
 };
+
+export type DraftStepDto = {
+  stepIndex: number;
+  action: string;
+  actingTeamId: number | null;
+  chosenValue: string | null;
+  chosenAt: string | null;
+  /** true — вибрав таймер, не капітан. */
+  wasAutoPicked: boolean;
+};
+
+export type DraftDto = {
+  id: number;
+  matchId: number;
+  game: string;
+  format: string;
+  status: string;
+  firstTurnTeamId: number;
+  currentStepIndex: number;
+  turnDeadline: string | null;
+  turnSeconds: number;
+  /** Час сервера в мить відповіді — з нього рахуємо різницю з локальним годинником. */
+  serverTime: string;
+  steps: DraftStepDto[];
+};

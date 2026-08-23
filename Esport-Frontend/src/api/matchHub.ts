@@ -17,6 +17,29 @@ export type StatusUpdate = {
   winnerTeamId?: number | null;
 };
 
+export type DraftStepUpdate = {
+  matchId: number;
+  draftId: number;
+  stepIndex: number;
+  action: string;
+  actingTeamId: number | null;
+  chosenValue: string | null;
+  wasAutoPicked: boolean;
+  status: string;
+  currentStepIndex: number;
+  turnDeadline: string | null;
+  serverTime: string;
+};
+
+export type DraftStatusUpdate = {
+  matchId: number;
+  draftId: number;
+  status: string;
+  currentStepIndex: number;
+  turnDeadline: string | null;
+  serverTime: string;
+};
+
 /**
  * Одне зʼєднання на всю вкладку: підписки на окремі матчі — це групи на сервері,
  * тож відкриття кількох сторінок не створює зайвих сокетів.
@@ -60,7 +83,12 @@ const ensureStarted = async () => {
  */
 export const subscribeToMatch = (
   matchId: number,
-  handlers: { onScore?: (update: ScoreUpdate) => void; onStatus?: (update: StatusUpdate) => void }
+  handlers: {
+    onScore?: (update: ScoreUpdate) => void;
+    onStatus?: (update: StatusUpdate) => void;
+    onDraftStep?: (update: DraftStepUpdate) => void;
+    onDraftStatus?: (update: DraftStatusUpdate) => void;
+  }
 ) => {
   let cancelled = false;
 
@@ -76,6 +104,18 @@ export const subscribeToMatch = (
     }
   };
 
+  const draftStep = (update: DraftStepUpdate) => {
+    if (update.matchId === matchId) {
+      handlers.onDraftStep?.(update);
+    }
+  };
+
+  const draftStatus = (update: DraftStatusUpdate) => {
+    if (update.matchId === matchId) {
+      handlers.onDraftStatus?.(update);
+    }
+  };
+
   ensureStarted()
     .then(async (hub) => {
       if (cancelled) {
@@ -83,6 +123,8 @@ export const subscribeToMatch = (
       }
       hub.on("ScoreUpdated", score);
       hub.on("MatchStatusChanged", status);
+      hub.on("DraftStepCompleted", draftStep);
+      hub.on("DraftStatusChanged", draftStatus);
       await hub.invoke("SubscribeToMatch", matchId);
     })
     // Живі оновлення — покращення, а не умова роботи сторінки:
@@ -94,6 +136,8 @@ export const subscribeToMatch = (
     const hub = getConnection();
     hub.off("ScoreUpdated", score);
     hub.off("MatchStatusChanged", status);
+    hub.off("DraftStepCompleted", draftStep);
+    hub.off("DraftStatusChanged", draftStatus);
 
     if (hub.state === HubConnectionState.Connected) {
       hub.invoke("UnsubscribeFromMatch", matchId).catch(() => undefined);

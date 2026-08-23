@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { AlertCircle, BarChart3, Minus, Plus, Radio, Trash2, UserPlus } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { AlertCircle, BarChart3, Ban, Minus, Plus, Radio, Trash2, UserPlus } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { ratingsApi } from "../../api/ratingsApi";
 import { subscribeToMatch } from "../../api/matchHub";
@@ -9,11 +9,13 @@ import { useAuthStore } from "../../store/authStore";
 import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/ui/Primitives";
 import { RatingDelta } from "../../components/ui/Rating";
 import { Avatar, teamInitials } from "../../components/ui/Avatar";
+import DraftPanel from "./draft/DraftPanel";
 import type { MatchDto, MatchPlayerDto, MatchRatingDeltaDto } from "../../types";
 
 const MatchDetail = () => {
   const { id } = useParams();
   const matchId = Number(id);
+  const navigate = useNavigate();
   const isStaff = useIsRole("Admin", "Organizer");
   const { user } = useAuthStore();
 
@@ -103,6 +105,26 @@ const MatchDetail = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  const cancelMatch = () => {
+    if (!window.confirm("Скасувати матч? Він лишиться в списку зі статусом «Скасовано».")) {
+      return;
+    }
+    run(async () => {
+      await matchesApi.cancel(matchId, { reason: null });
+      setMatch(await matchesApi.getById(matchId));
+    });
+  };
+
+  const deleteMatch = () => {
+    if (!window.confirm("Видалити матч? Дію не можна скасувати.")) {
+      return;
+    }
+    run(async () => {
+      await matchesApi.remove(matchId);
+      navigate("/matches", { replace: true });
+    });
   };
 
   const adjustScore = (homeDelta: number, awayDelta: number) => {
@@ -269,10 +291,30 @@ const MatchDetail = () => {
                 Статистика матчу
               </a>
             )}
-            {canScore && (
+            {/* Саме isStaff, а не canScore: PUT /api/matches/{id} рольовий
+                («Admin,Organizer»), і маршрут /matches/:id/edit теж. Капітан із
+                canScore бачив кнопку, яка викидала його на головну. */}
+            {isStaff && (
               <Link to={`/matches/${matchId}/edit`} className="btn btn-secondary">
                 Редагувати
               </Link>
+            )}
+            {/* Скасування й видалення дзеркалять серверний
+                FriendlyMatchPolicy.CanManage — той самий дозвіл, що на ведення
+                матчу, тож тут canScore правильний. */}
+            {canScore && match && match.status !== "Completed" && match.status !== "Cancelled" && (
+              <button type="button" onClick={cancelMatch} disabled={busy} className="btn btn-secondary">
+                <Ban className="h-4 w-4" />
+                Скасувати
+              </button>
+            )}
+            {/* Зіграний матч не видаляється: разом із ним зник би журнал
+                рейтингу (див. MatchService.DeleteAsync), тож кнопки там немає. */}
+            {canScore && match && match.status !== "Completed" && (
+              <button type="button" onClick={deleteMatch} disabled={busy} className="btn btn-danger">
+                <Trash2 className="h-4 w-4" />
+                Видалити
+              </button>
             )}
           </div>
         }
@@ -454,6 +496,19 @@ const MatchDetail = () => {
               )}
             </div>
           </section>
+
+          {match.homeTeam && (
+            <DraftPanel
+              matchId={match.id}
+              homeTeam={{ id: match.homeTeam.id, name: match.homeTeam.name }}
+              awayTeam={
+                match.awayTeam ? { id: match.awayTeam.id, name: match.awayTeam.name } : null
+              }
+              isHomeCaptain={isHomeCaptain}
+              isAwayCaptain={isAwayCaptain}
+              canManage={isStaff || isCaptainHere}
+            />
+          )}
 
           {canScore && (
             <section className="panel">

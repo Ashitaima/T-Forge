@@ -22,6 +22,46 @@ namespace TForge.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TForge.Models.DraftStep", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActingTeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime?>("ChosenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChosenValue")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("DraftId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StepIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("WasAutoPicked")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DraftId", "StepIndex")
+                        .IsUnique();
+
+                    b.ToTable("draft_steps", (string)null);
+                });
+
             modelBuilder.Entity("TForge.Models.Duel", b =>
                 {
                     b.Property<int>("Id")
@@ -270,6 +310,69 @@ namespace TForge.Migrations
                         .HasFilter("\"Status\" = 'Pending'");
 
                     b.ToTable("match_challenges", (string)null);
+                });
+
+            modelBuilder.Entity("TForge.Models.MatchDraft", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentStepIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FirstTurnTeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("BO1");
+
+                    b.Property<string>("Game")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("MatchId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<DateTime?>("TurnDeadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TurnSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MatchId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "TurnDeadline");
+
+                    b.ToTable("match_drafts", (string)null);
                 });
 
             modelBuilder.Entity("TForge.Models.MatchPlayer", b =>
@@ -981,6 +1084,17 @@ namespace TForge.Migrations
                     b.ToTable("TeamTournament");
                 });
 
+            modelBuilder.Entity("TForge.Models.DraftStep", b =>
+                {
+                    b.HasOne("TForge.Models.MatchDraft", "Draft")
+                        .WithMany("Steps")
+                        .HasForeignKey("DraftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Draft");
+                });
+
             modelBuilder.Entity("TForge.Models.Duel", b =>
                 {
                     b.HasOne("TForge.Models.Player", "ChallengerPlayer")
@@ -1061,6 +1175,17 @@ namespace TForge.Migrations
                     b.Navigation("Match");
 
                     b.Navigation("OpponentTeam");
+                });
+
+            modelBuilder.Entity("TForge.Models.MatchDraft", b =>
+                {
+                    b.HasOne("TForge.Models.Match", "Match")
+                        .WithOne()
+                        .HasForeignKey("TForge.Models.MatchDraft", "MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Match");
                 });
 
             modelBuilder.Entity("TForge.Models.MatchPlayer", b =>
@@ -1268,6 +1393,11 @@ namespace TForge.Migrations
             modelBuilder.Entity("TForge.Models.Match", b =>
                 {
                     b.Navigation("MatchPlayers");
+                });
+
+            modelBuilder.Entity("TForge.Models.MatchDraft", b =>
+                {
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("TForge.Models.Player", b =>

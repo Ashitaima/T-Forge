@@ -66,9 +66,6 @@ export const AppShell = () => {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
       <aside className="flex flex-col border-b border-line bg-ink-950/80 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
-        {/* Рядок із клеймом видно за будь-якої ширини, тож акаунт і сповіщення
-            живуть саме тут. Раніше вони стояли внизу бічної панелі під
-            hidden lg:block — і на вузькому екрані вийти з акаунта не було як. */}
         <div className="flex items-center gap-2.5 px-5 py-5">
           {/* Клеймо: розпечений знак кузні */}
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-ember/15 text-ember">
@@ -77,19 +74,6 @@ export const AppShell = () => {
           <span className="font-display text-[1.0625rem] font-extrabold tracking-tight text-text">
             T&#8209;Forge
           </span>
-
-          <div className="ml-auto flex items-center gap-2">
-            {user ? (
-              <>
-                <NotificationBell />
-                <UserMenu user={user} />
-              </>
-            ) : (
-              <NavLink to="/login" className="btn btn-secondary btn-sm">
-                Увійти
-              </NavLink>
-            )}
-          </div>
         </div>
 
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-visible lg:pb-0">
@@ -120,11 +104,16 @@ export const AppShell = () => {
           ))}
         </nav>
 
-        {/* Інструмент розробки — лише для адміністратора, унизу й підписаний,
-            щоб не читався як частина продукту */}
-        {isRealAdmin && (
-          <div className="mt-auto hidden p-3 lg:block">
-            <div className="surface px-3 py-3">
+        {/* Акаунт і сповіщення живуть унизу панелі — там, де на них є місце:
+            у рядку з клеймом на 15rem вони не вміщалися й налазили на вміст
+            сторінки. Блок видно за будь-якої ширини: під hidden lg:block на
+            вузькому екрані не було ні виходу з акаунта, ні сповіщень. */}
+        <div className="mt-auto space-y-3 p-3">
+          {/* Інструмент розробки — лише для адміністратора, унизу й підписаний,
+              щоб не читався як частина продукту. На вузькому екрані його немає:
+              це не частина продукту, і місця там і без нього обмаль. */}
+          {isRealAdmin && (
+            <div className="surface hidden px-3 py-3 lg:block">
               <label className="eyebrow mb-2 block" htmlFor="role-preview">
                 Режим розробника
               </label>
@@ -163,8 +152,22 @@ export const AppShell = () => {
                 ))}
               </select>
             </div>
-          </div>
-        )}
+          )}
+
+          {user ? (
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              {/* min-w-0 — інакше довге ім'я розсуває рядок */}
+              <div className="min-w-0 flex-1">
+                <UserMenu user={user} />
+              </div>
+            </div>
+          ) : (
+            <NavLink to="/login" className="btn btn-secondary btn-sm w-full">
+              Увійти
+            </NavLink>
+          )}
+        </div>
       </aside>
 
       <main className="min-w-0 px-5 py-7 lg:px-10 lg:py-9">

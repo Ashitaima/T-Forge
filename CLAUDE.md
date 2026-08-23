@@ -49,7 +49,7 @@ unchanged.
 
 ```bash
 dotnet build T-Forge.sln                                # must be 0 warnings, 0 errors
-dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 472 test cases
+dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 653 test cases
 cd Esport-Frontend && npx tsc --noEmit && npx vite build
 ```
 
@@ -190,6 +190,31 @@ dotnet ef database drop -f
   calculator the profile and the lists read. Incrementing was correct exactly once
   and drifted on every roster edit or re-`PUT`; recomputing makes the method
   idempotent, so there is nothing left to drift from.
+- **A draft's steps are generated in full at creation, and an Admin may not
+  ban.** `MatchDraft` + `DraftStep`: every step's acting team is stamped when
+  the draft is made, which is why the coin flip decides only `FirstTurnTeamId`
+  and side is a separate step — the real rule (flip winner chooses side *or*
+  first pick) forks who acts on all later steps, and a pre-generated row cannot
+  express a fork. Pre-generating is also what stops a re-tuned
+  `Common/DraftSequences.cs` from silently re-labelling drafts already played,
+  the same reason `MatchPlayer.TeamId` is stamped and never recalculated.
+  `Common/DraftPolicy.cs` splits two rights: `CanAct` (ban/pick) **takes no
+  `isAdmin` parameter at all** — a deliberate exception to "Admin is above every
+  ownership rule", because an admin banning for a team leaves a record that lies
+  about what happened — while `CanManage` (create/cancel/restart) honours it as
+  usual. Same shape as `MatchChallengePolicy.CanRespond`. A `Side` choice does
+  **not** consume from the pool («CT» recurs on every map); `Ban`/`Pick`/
+  `Decider` do, and `DraftActions.ConsumesFromPool` is the single place that
+  says so. `Decider` has no actor and is filled by the server inside the action
+  that closes the previous step — leaving it to wait for a request that can
+  never come would stall every map veto one step from the end.
+  `Common/GameHeroes.cs` and `Esport-Frontend/src/constants/gameHeroes.ts` are
+  **generated** by `tools/generate-hero-catalog.ps1` from OpenDota and Data
+  Dragon: CDN ids are irregular (`MonkeyKing` for Wukong, `Chogath` for
+  Cho'Gath) and hand-transcription produces invisible broken portraits. Map
+  pools in `Common/GameMaps.cs` are a point-in-time snapshot and need a manual
+  check when Valve or Riot rotate them; the count must stay 7 or the sequences
+  no longer add up.
 - **Date and time are picked with `components/ui/DateTimePicker.tsx`**, never `input[type=datetime-local]` — its segment-by-segment mask was the complaint that prompted the change. `mode="date"` drops the time half. The emitted string matches the native control's, so form wiring is unchanged, and the text field still accepts typing.
 
 ## Current state
@@ -215,6 +240,12 @@ Phase 5 is done: avatars (upload, serve, remove) and stream links, with the matc
 7. Status is gone from tournament creation — the server always starts one at `Registration`. The field appears only when editing.
 8. An empty discipline now reads «Оберіть дисципліну». The fix is a zod `errorMap`, not `required_error`: an empty `<select>` is an invalid enum value, not a missing field, so `required_error` never fired.
 
+The match draft landed on 2026-08-23: captains ban and pick maps (CS2,
+Valorant) or heroes (Dota 2, LoL) on a screen both sides see live, with a
+server-owned countdown that auto-picks an expired turn. See
+`docs/superpowers/specs/2026-08-23-match-draft-veto-design.md` and the plan
+beside it.
+
 Plus the ranked ladder from `docs/superpowers/specs/2026-08-16-elo-ranked-ladder-design.md`: Elo per team and player per discipline, an append-only ledger, tier badges, sortable rating columns in both lists, rating panels with a sparkline on both profiles, and a per-match delta on the match page. Backfill replays completed tournament matches on startup through the production calculator.
 
 Captains now also run their own friendly matches: start, score, complete and the stream link. `Common/FriendlyMatchPolicy.cs` decides who may — organizers and admins keep their rights over every match, while a *friendly* may additionally be run by either team's captain. A captain still cannot touch a tournament match, which would let them award themselves a title.
@@ -231,7 +262,7 @@ Captains now also run their own friendly matches: start, score, complete and the
    tokens, so logout is a no-op and a stolen token is valid until it expires.
    Note that the old JWT key and DB password remain in git history.
 2. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-3. **Test coverage is 472 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+3. **Test coverage is 653 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
 4. **The ledger `Down` migration is not reversible once a result has been corrected.**
    `AddRatingChangeRevisions` cannot restore the old two-column unique index when a
    match already carries more than one revision, and it fails loudly rather than

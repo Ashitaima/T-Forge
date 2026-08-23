@@ -8,6 +8,12 @@ type Props = {
   label: string;
   /** До якого краю кнопки притискаємо панель. */
   align?: "start" | "end";
+  /**
+   * Вертикальне положення панелі. Типово — під кнопкою; меню, що стоїть
+   * унизу бічної панелі, мусить розкриватися вгору, інакше воно йде за край
+   * екрана.
+   */
+  panelPosition?: string;
   triggerClassName?: string;
   /** Ширина панелі та інші правки саме цього меню. */
   className?: string;
@@ -31,6 +37,7 @@ export const Menu = ({
   trigger,
   label,
   align = "end",
+  panelPosition = "top-full mt-2",
   triggerClassName = "",
   className = "",
   children
@@ -93,7 +100,7 @@ export const Menu = ({
         <div
           role="menu"
           aria-label={label}
-          className={`surface-raised absolute top-full z-50 mt-2 overflow-hidden py-1 ${
+          className={`surface-raised absolute z-50 overflow-hidden py-1 ${panelPosition} ${
             align === "end" ? "right-0" : "left-0"
           } ${className}`}
         >

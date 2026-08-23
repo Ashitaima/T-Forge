@@ -26,6 +26,8 @@ namespace TForge.Data.Context
         public DbSet<Duel> Duels { get; set; }
         public DbSet<PlayerGameProfile> PlayerGameProfiles { get; set; }
         public DbSet<OrganizerRequest> OrganizerRequests { get; set; }
+        public DbSet<MatchDraft> MatchDrafts { get; set; }
+        public DbSet<DraftStep> DraftSteps { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -44,6 +46,55 @@ namespace TForge.Data.Context
             ConfigureDuelModel(modelBuilder);
             ConfigurePlayerGameProfileModel(modelBuilder);
             ConfigureOrganizerRequestModel(modelBuilder);
+            ConfigureDraftModel(modelBuilder);
+        }
+
+        /// <summary>
+        /// Драфт матчу і його кроки. Унікальність тут несе два різні сенси:
+        /// один драфт на матч, і один рядок на кожен індекс кроку. Останнє й
+        /// робить подвійне застосування ходу структурно неможливим — так само,
+        /// як (TeamId, MatchId, Revision) у реєстрі рейтингу.
+        /// </summary>
+        private void ConfigureDraftModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<MatchDraft>(entity =>
+            {
+                entity.ToTable("match_drafts");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Game).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Format).IsRequired().HasMaxLength(10).HasDefaultValue("BO1");
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(DraftStatuses.Pending);
+                entity.Property(e => e.TurnSeconds).HasDefaultValue(30);
+
+                entity.HasOne(d => d.Match)
+                    .WithOne()
+                    .HasForeignKey<MatchDraft>(d => d.MatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Один драфт на матч. Серія теж отримує рівно один — див. спеку.
+                entity.HasIndex(d => d.MatchId).IsUnique();
+
+                // Фонова служба шукає саме за цією парою.
+                entity.HasIndex(d => new { d.Status, d.TurnDeadline });
+            });
+
+            modelBuilder.Entity<DraftStep>(entity =>
+            {
+                entity.ToTable("draft_steps");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Action).IsRequired().HasMaxLength(10);
+                entity.Property(e => e.ChosenValue).HasMaxLength(50);
+
+                entity.HasOne(s => s.Draft)
+                    .WithMany(d => d.Steps)
+                    .HasForeignKey(s => s.DraftId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(s => new { s.DraftId, s.StepIndex }).IsUnique();
+            });
         }
 
         /// <summary>

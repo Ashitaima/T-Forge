@@ -32,6 +32,8 @@ namespace TForge.Data
         private IGenericRepository<Duel>? _duels;
         private IGenericRepository<PlayerGameProfile>? _playerGameProfiles;
         private IGenericRepository<OrganizerRequest>? _organizerRequests;
+        private IGenericRepository<MatchDraft>? _matchDrafts;
+        private IGenericRepository<DraftStep>? _draftSteps;
 
         public IUserRepository Users =>
             _users ??= new UserRepository(_context);
@@ -80,6 +82,12 @@ namespace TForge.Data
 
         public IGenericRepository<OrganizerRequest> OrganizerRequests =>
             _organizerRequests ??= new GenericRepository<OrganizerRequest>(_context);
+
+        public IGenericRepository<MatchDraft> MatchDrafts =>
+            _matchDrafts ??= new GenericRepository<MatchDraft>(_context);
+
+        public IGenericRepository<DraftStep> DraftSteps =>
+            _draftSteps ??= new GenericRepository<DraftStep>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

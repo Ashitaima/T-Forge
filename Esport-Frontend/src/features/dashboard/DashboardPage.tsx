@@ -143,7 +143,11 @@ const DashboardPage = () => {
             )}
             {!loading &&
               live.map((match) => (
-                <div key={match.id} className="surface-raised mb-3 px-4 py-3 last:mb-0">
+                <Link
+                  key={match.id}
+                  to={`/matches/${match.id}`}
+                  className="surface-raised mb-3 block px-4 py-3 transition hover:border-ember/40 hover:bg-ink-700 last:mb-0"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <span className="truncate text-body text-text">{match.homeTeam?.name ?? "—"}</span>
                     <span className="tabular font-mono text-h3 text-ember">{match.homeTeamScore}</span>
@@ -156,7 +160,7 @@ const DashboardPage = () => {
                     <StatusPill status={match.status} />
                     <span className="font-mono text-micro text-text-faint">{match.format}</span>
                   </div>
-                </div>
+                </Link>
               ))}
           </div>
         </section>

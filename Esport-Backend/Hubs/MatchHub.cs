@@ -22,5 +22,11 @@ namespace TForge.Hubs
     {
         public const string ScoreUpdated = "ScoreUpdated";
         public const string MatchStatusChanged = "MatchStatusChanged";
+
+        /// <summary>Крок драфту зроблено — ким завгодно, зокрема таймером.</summary>
+        public const string DraftStepCompleted = "DraftStepCompleted";
+
+        /// <summary>Драфт створено, запущено, скасовано або завершено.</summary>
+        public const string DraftStatusChanged = "DraftStatusChanged";
     }
 }

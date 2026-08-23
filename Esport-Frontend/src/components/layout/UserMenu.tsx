@@ -1,4 +1,4 @@
-import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole } from "../../hooks/useEffectiveRole";
@@ -35,14 +35,21 @@ export const UserMenu = ({ user }: { user: UserInfo }) => {
       label="Меню облікового запису"
       align="end"
       className="w-56"
-      triggerClassName="flex items-center gap-2 rounded-lg border border-line bg-ink-900 py-1 pl-1 pr-2 text-micro text-text transition hover:bg-ink-800"
+      // Унизу бічної панелі місця під меню немає, тож на десктопі воно
+      // розкривається вгору. На вузькому екрані панель — це смуга вгорі
+      // сторінки, і там навпаки: вгору йти нікуди.
+      panelPosition="top-full mt-2 lg:bottom-full lg:top-auto lg:mb-2 lg:mt-0"
+      triggerClassName="flex w-full items-center gap-2.5 rounded-lg border border-line bg-ink-900 px-2 py-2 text-left transition hover:bg-ink-800"
       trigger={
         <>
-          <Avatar url={user.avatarUrl} fallback={initials} size="sm" />
-          {/* На вузькому екрані лишається сам аватар: інакше рядок із логотипом
-              і дзвінком переноситься. */}
-          <span className="hidden max-w-[8rem] truncate sm:block">{displayName}</span>
-          <ChevronDown className="h-3.5 w-3.5 text-text-faint" />
+          <Avatar url={user.avatarUrl} fallback={initials} size="md" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-micro font-medium text-text">{displayName}</span>
+            <span className="block truncate text-micro text-text-faint">
+              {roleLabel(effectiveRole)}
+            </span>
+          </span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-text-faint" />
         </>
       }
     >

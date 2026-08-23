@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -107,7 +108,8 @@ const NoticeBox = ({ notice }: { notice: Notice }) =>
   ) : null;
 
 const ProfilePage = () => {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
+  const navigate = useNavigate();
   const [player, setPlayer] = useState<PlayerDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [accountNotice, setAccountNotice] = useState<Notice>(null);
@@ -115,6 +117,8 @@ const ProfilePage = () => {
   const [passwordNotice, setPasswordNotice] = useState<Notice>(null);
   const [avatarNotice, setAvatarNotice] = useState<Notice>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState<Notice>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const initials =
     `${user?.firstName?.[0] ?? ""}${user?.lastName?.[0] ?? ""}`.trim() || user?.username?.[0] || "?";
@@ -243,6 +247,35 @@ const ProfilePage = () => {
       setPlayerNotice({ kind: "ok", text: "Профіль гравця збережено." });
     } catch (error) {
       setPlayerNotice({ kind: "error", text: readApiError(error, "Не вдалося зберегти профіль гравця.") });
+    }
+  };
+
+  const deleteAccount = async () => {
+    if (!user) {
+      return;
+    }
+
+    // Знеособлення незворотне, тож питаємо прямо й називаємо наслідки.
+    const confirmed = window.confirm(
+      "Видалити акаунт? Особисті дані буде стерто, увійти більше не вийде. " +
+        "Історія матчів залишиться — без неї не звести підсумки команд."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteBusy(true);
+    setDeleteNotice(null);
+    try {
+      await usersApi.remove(user.id);
+      // Лишатися в системі видаленим акаунтом нема сенсу: токен ще живий,
+      // але за ним уже нікого немає.
+      logout();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setDeleteNotice({ kind: "error", text: readApiError(error, "Не вдалося видалити акаунт.") });
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -528,6 +561,25 @@ const ProfilePage = () => {
           те, чим користуються всі. Роль читаємо справжню, а не переглядову —
           заявку подають від власного акаунта. */}
       {user && <OrganizerRequestPanel role={user.role} />}
+
+      {/* Найнижче й окремо: незворотну дію не можна ставити поруч зі
+          звичайним «Зберегти», бо туди тиснуть не дивлячись. */}
+      <section className="panel border-danger/30">
+        <div className="panel-header">
+          <h2 className="section-title">Небезпечна зона</h2>
+        </div>
+        <div className="panel-body space-y-4">
+          <p className="muted text-micro">
+            Видалення стирає особисті дані: імʼя, пошту, аватар та ігрові теги. Увійти після цього
+            неможливо. Матчі, у яких ви грали, лишаються — інакше підсумки команд і суперників
+            перестали б збігатися.
+          </p>
+          <NoticeBox notice={deleteNotice} />
+          <button type="button" onClick={deleteAccount} disabled={deleteBusy} className="btn btn-danger">
+            {deleteBusy ? "Видалення..." : "Видалити акаунт"}
+          </button>
+        </div>
+      </section>
     </>
   );
 };

@@ -78,5 +78,7 @@ export const endpoints = {
   duelRespond: (id: number) => `/api/duels/${id}/respond`,
   duelCancel: (id: number) => `/api/duels/${id}/cancel`,
   duelStart: (id: number) => `/api/duels/${id}/start`,
-  duelComplete: (id: number) => `/api/duels/${id}/complete`
+  duelComplete: (id: number) => `/api/duels/${id}/complete`,
+  matchDraft: (matchId: number) => `/api/matches/${matchId}/draft`,
+  drafts: "/api/drafts"
 };

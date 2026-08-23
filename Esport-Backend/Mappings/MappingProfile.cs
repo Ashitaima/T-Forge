@@ -74,6 +74,14 @@ namespace TForge.Mappings
             CreateMap<Player, PlayerSummaryDto>();
             CreateMap<PlayerGameProfile, PlayerGameProfileDto>();
 
+            // ServerTime заповнює сервіс, а не мапер: його треба зняти в ту
+            // саму мить, що й відповідь, інакше відлік на клієнті поїде.
+            CreateMap<MatchDraft, DraftDto>()
+                .ForMember(dest => dest.ServerTime, opt => opt.Ignore())
+                .ForMember(dest => dest.Steps, opt => opt.Ignore());
+
+            CreateMap<DraftStep, DraftStepDto>();
+
             // Акаунти обох сторін їдуть у DTO, щоб клієнт міг повторити
             // перевірку DuelPolicy й не малювати кнопку, яка дасть 403.
             CreateMap<Duel, DuelDto>()
