@@ -68,6 +68,7 @@ builder.Services.AddScoped<IDuelService, DuelService>();
             builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
             builder.Services.AddScoped<ITournamentInvitationService, TournamentInvitationService>();
             builder.Services.AddScoped<ITeamOpeningService, TeamOpeningService>();
+            builder.Services.AddScoped<ILftService, LftService>();
             builder.Services.AddScoped<IRatingService, RatingService>();
             builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
             builder.Services.AddScoped<IAvatarService, AvatarService>();
