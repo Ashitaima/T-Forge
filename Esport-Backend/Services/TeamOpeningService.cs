@@ -74,6 +74,37 @@ namespace TForge.Services
                 throw new BusinessLogicException("Закриту вакансію змінити не можна");
             }
 
+            // UpdateTeamOpeningDto навмисно не несе Game (дисципліну на живій
+            // вакансії не міняють), тож Position і MinRank звіряємо з нею тут,
+            // де opening.Game вже завантажено — валідатор цієї пари побачити
+            // не може. Те саме правило, що CreateTeamOpeningValidator звіряє
+            // проти dto.Game.
+            if (!GamePositions.IsValidFor(opening.Game, dto.Position))
+            {
+                throw new BusinessLogicException("Ця позиція не належить обраній дисципліні");
+            }
+
+            if (!GameRanks.IsValidFor(opening.Game, dto.MinRank))
+            {
+                throw new BusinessLogicException("Цей ранг не належить обраній дисципліні");
+            }
+
+            // Той самий запобіжник, що й у CreateAsync: капітан міг
+            // відредагувати Position так, що вона зіткнулася з іншою
+            // відкритою вакансією тієї самої команди й гри. Власний рядок
+            // виключаємо — інакше вакансія конфліктувала б сама з собою.
+            var duplicate = await _unitOfWork.TeamOpenings.GetQueryable()
+                .AnyAsync(o => o.Id != id
+                            && o.TeamId == opening.TeamId
+                            && o.Game == opening.Game
+                            && o.Position == dto.Position
+                            && o.Status == TeamOpeningStatus.Open);
+
+            if (duplicate)
+            {
+                throw new BusinessLogicException("Така вакансія вже відкрита");
+            }
+
             _mapper.Map(dto, opening);
             await _unitOfWork.SaveChangesAsync();
 
@@ -104,9 +135,11 @@ namespace TForge.Services
 
         public async Task<PagedResponse<TeamOpeningDto>> GetPagedAsync(TeamOpeningFilter filter)
         {
-            var query = _unitOfWork.TeamOpenings.GetQueryable()
-                .Include(o => o.Team)
-                .AsQueryable();
+            // Явно типізуємо як IQueryable<TeamOpening>: без цього var
+            // застигає на IIncludableQueryable з Include, і подальші
+            // query = query.Where(...) нижче не компілюються.
+            IQueryable<TeamOpening> query = _unitOfWork.TeamOpenings.GetQueryable()
+                .Include(o => o.Team);
 
             if (!string.IsNullOrEmpty(filter.Game))
             {
