@@ -18,6 +18,7 @@ namespace TForge.Controllers
         private readonly IMatchChallengeService _matchChallengeService;
         private readonly ITournamentInvitationService _tournamentInvitationService;
         private readonly ITeamLogoService _teamLogoService;
+        private readonly ITeamOpeningService _openingService;
         private readonly ILogger<TeamsController> _logger;
 
         public TeamsController(
@@ -27,6 +28,7 @@ namespace TForge.Controllers
             IMatchChallengeService matchChallengeService,
             ITournamentInvitationService tournamentInvitationService,
             ITeamLogoService teamLogoService,
+            ITeamOpeningService openingService,
             ILogger<TeamsController> logger)
         {
             _teamService = teamService;
@@ -35,6 +37,7 @@ namespace TForge.Controllers
             _matchChallengeService = matchChallengeService;
             _tournamentInvitationService = tournamentInvitationService;
             _teamLogoService = teamLogoService;
+            _openingService = openingService;
             _logger = logger;
         }
 
@@ -252,5 +255,9 @@ namespace TForge.Controllers
         {
             return Ok(await _tournamentInvitationService.GetForTeamAsync(teamId, status));
         }
+
+        [HttpGet("{id:int}/openings")]
+        public async Task<IActionResult> GetOpenings(int id) =>
+            Ok(await _openingService.GetByTeamAsync(id));
     }
 }

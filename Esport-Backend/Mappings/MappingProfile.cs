@@ -219,6 +219,25 @@ namespace TForge.Mappings
                 .ForMember(dest => dest.OpponentTeamTag,
                     opt => opt.MapFrom(src => src.OpponentTeam == null ? string.Empty : src.OpponentTeam.Tag))
                 .ForMember(dest => dest.IsOpen, opt => opt.MapFrom(src => src.OpponentTeamId == null));
+
+            CreateMap<TeamOpening, TeamOpeningDto>();
+
+            // Статус і власника задає сервер — клієнтське значення сюди
+            // потрапити не повинно, як і Match.Game із CreateMatchDto.
+            CreateMap<CreateTeamOpeningDto, TeamOpening>()
+                .ForMember(d => d.Status, o => o.Ignore())
+                .ForMember(d => d.CreatedByUserId, o => o.Ignore())
+                .ForMember(d => d.ClosedAt, o => o.Ignore());
+
+            // Дисципліну на живій вакансії не міняють: вимоги й уже зроблені
+            // змахи стосуються саме тієї гри.
+            CreateMap<UpdateTeamOpeningDto, TeamOpening>()
+                .ForMember(d => d.Game, o => o.Ignore())
+                .ForMember(d => d.TeamId, o => o.Ignore())
+                .ForMember(d => d.Status, o => o.Ignore())
+                .ForMember(d => d.CreatedByUserId, o => o.Ignore())
+                .ForMember(d => d.CreatedAt, o => o.Ignore())
+                .ForMember(d => d.ClosedAt, o => o.Ignore());
         }
     }
 }
