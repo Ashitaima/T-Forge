@@ -132,6 +132,8 @@ export type PlayerDto = {
   battleTag: string | null;
   /** Готове посилання на профіль Steam, або null — будує сервер. */
   steamProfileUrl: string | null;
+  /** null — не вказано. Використовується для пошуку гравців у сумісному часовому поясі. */
+  utcOffsetMinutes: number | null;
   /** Дисципліни гравця й роль у кожній — див. constants/gamePositions.ts. */
   gameProfiles: PlayerGameProfileDto[];
 };
@@ -140,6 +142,8 @@ export type PlayerGameProfileDto = {
   id: number;
   game: string;
   position: string;
+  rank: string;
+  isLookingForTeam: boolean;
 };
 
 export type PlayerSummaryDto = {
@@ -220,6 +224,8 @@ export type UpdatePlayerDto = {
   riotId?: string;
   steamId64?: string;
   battleTag?: string;
+  /** null — не вказано, не «UTC+00:00». */
+  utcOffsetMinutes: number | null;
   isAgeHidden: boolean;
   isCountryHidden: boolean;
 };
