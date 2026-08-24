@@ -1,4 +1,5 @@
 import { choiceLabel, choicePortraitUrl } from "../../../constants/draft";
+import { gameHasMaps } from "../../../constants/gameMaps";
 
 type Props = {
   game: string;
@@ -48,7 +49,7 @@ export const DraftBoard = ({
               src={portrait}
               alt=""
               loading="lazy"
-              className="h-12 w-12 rounded-md object-cover"
+              className={`${gameHasMaps(game) ? "h-12 w-20" : "h-12 w-12"} rounded-md object-cover`}
               // Зовнішній CDN, що відмовив, псує вигляд, але не ламає драфт:
               // лишається підпис.
               onError={(event) => {

@@ -30,3 +30,23 @@ export const mapLabel = (game: string, value: string) => MAP_NAMES[game]?.[value
 
 /** Дисципліна драфтить карти (а не героїв). */
 export const gameHasMaps = (game: string) => game in MAP_NAMES;
+
+/**
+ * Картинки карт лежать у репозиторії, а не на CDN.
+ *
+ * У героїв є Data Dragon і CDN Valve, у карт — нічого рівноцінного:
+ * лишалися б фанатські вікі, які переїжджають і закривають хотлінк. Файли
+ * названі рівно значеннями з Common/GameMaps.cs — Dust2.jpg, не dust-ii.jpg.
+ *
+ * eager: Vite підставляє готові URL і додає хеш. Якщо файла немає —
+ * undefined, а не помилка збірки: плитка лишиться з підписом, як і при
+ * відмові CDN у героїв.
+ */
+const MAP_IMAGES = import.meta.glob("../assets/maps/*/*.jpg", {
+  eager: true,
+  query: "?url",
+  import: "default"
+}) as Record<string, string>;
+
+export const mapImageUrl = (game: string, value: string): string | null =>
+  MAP_IMAGES[`../assets/maps/${game}/${value}.jpg`] ?? null;

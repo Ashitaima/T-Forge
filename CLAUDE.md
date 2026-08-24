@@ -216,6 +216,41 @@ dotnet ef database drop -f
   check when Valve or Riot rotate them; the count must stay 7 or the sequences
   no longer add up.
 - **Date and time are picked with `components/ui/DateTimePicker.tsx`**, never `input[type=datetime-local]` — its segment-by-segment mask was the complaint that prompted the change. `mode="date"` drops the time half. The emitted string matches the native control's, so form wiring is unchanged, and the text field still accepts typing.
+- **A discipline lives on the `TeamOpening`, not on the `Team`.** `TeamOpening.Game` is
+  its own column — a team can be looking for a CS2 player and a Dota 2 player at once,
+  so the game could never be a property of the team. Anything that filters or matches
+  openings reads `TeamOpening.Game`, never a team's roster to infer it.
+- **`Common/GameRanks.AtOrAbove(game, minRank)` returns the set of acceptable rank
+  values, not an index.** «Not below Ascendant 2» is a position in an ordered array,
+  and `IndexOf` cannot run inside a SQL query; a denormalised rank-tier column would
+  drift from the catalog on the next rank added. So the floor is translated once into
+  an explicit list and the query becomes `IN (...)`. An empty `minRank` means «any
+  rank» and appends the empty string, since an opening with no requirement must still
+  match a player who never set one; an unrecognised rank means nothing and returns an
+  empty set — it is not treated as «any».
+- **`Common/LftEligibility` is one expression, compiled twice.** Who a vacancy shows in
+  a player's feed and who a captain sees in their candidate feed is the same rule
+  looked at from two directions, and written twice it would inevitably drift — so it is
+  an `Expression<Func<...>>` that EF translates to SQL for both feeds, and `.Compile()`
+  gives the identical predicate for the swipe-time check. Same shape as
+  `PlayerSortKeys`, where a sort key hands back an expression rather than a switch
+  statement. Every condition is a hard filter — no weights, no «percentage match»,
+  because neither can be computed in SQL or meaningfully tuned.
+- **`Common/LftPolicy.CanSwipeAsPlayer` deliberately takes no `isAdmin`** — the same
+  exception to «Admin is above every ownership rule» as `DraftPolicy.CanAct`. A swipe
+  is one side's consent; an admin swiping on a player's behalf would leave a roster
+  entry that lies about who agreed to it. A captain cannot swipe on their own opening
+  for the matching reason `MatchChallengePolicy.CanRespond` refuses the initiator.
+- **Map images are committed files, not a CDN URL.** Heroes have Data Dragon and
+  Valve's CDN; there is no equivalent for maps, only fan wikis that reorganise and
+  block hotlinking. `Esport-Frontend/src/assets/maps/{CS2,Valorant}/*.jpg`, named
+  exactly for the `Common/GameMaps.cs` values (`Dust2.jpg`, not `dust-ii.jpg`), are
+  read by `mapImageUrl` in `constants/gameMaps.ts` via an eager
+  `import.meta.glob(..., { query: "?url" })`; a missing file resolves to `null` rather
+  than failing the build, and `DraftBoard`'s existing `onError` handling means the tile
+  falls back to its label exactly as a failed hero portrait does. `tools/fetch-map-images.ps1`
+  fetches them from a source-URL table that ships empty on purpose — choosing where
+  the artwork comes from is the repo owner's call, not something to hardcode.
 
 ## Current state
 
