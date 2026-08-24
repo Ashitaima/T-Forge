@@ -47,6 +47,11 @@ namespace TForge.Services
             var query = _unitOfWork.TeamOpenings.GetQueryable()
                 .Include(o => o.Team)
                 .Where(o => o.Status == TeamOpeningStatus.Open)
+                // Вимкнену команду звичайний шлях заявки не пропускає, тож і
+                // тут не пропускаємо: вакансії самі собою не закриваються,
+                // коли команду деактивують, і картка інакше лишалась би у
+                // стрічці, ведучи в склад, куди прийняти вже не можна.
+                .Where(o => o.Team.IsActive)
                 // Власна команда у стрічці ні до чого, і капітан не змахує
                 // по власній вакансії — LftPolicy.CanSwipeAsPlayer.
                 .Where(o => o.Team.CaptainId != userId)
@@ -143,6 +148,15 @@ namespace TForge.Services
                 throw new BusinessLogicException("Вакансію вже закрито");
             }
 
+            // Те саме, що перевіряє MembershipRequestService.CreateAsync:
+            // у вимкнену команду не беруть. Вакансії команди, яку щойно
+            // деактивували, лишаються Open, тож без цієї умови змах привів би
+            // у склад повз правило, яке звичайний шлях заявки дотримує.
+            if (!opening.Team.IsActive)
+            {
+                throw new BusinessLogicException("Команда неактивна");
+            }
+
             // Бік визначає право, а не тіло запиту: назвати кандидата може лише
             // той, хто має право на вакансію. Решті це поле ігнорується, і змах
             // записується від їхнього власного імені — id з токена.
@@ -176,19 +190,23 @@ namespace TForge.Services
                 return new SwipeResultDto { Matched = false };
             }
 
-            // Змах праворуч — це згода, тож придатність звіряємо ще раз, тим
-            // самим правилом, що й обидві стрічки. Стрічка непридатну картку
-            // не покаже, але endpoint кличуть і напряму, а капітан ще й
-            // називає гравця сам. Змах ліворуч вище перевірки не проходить
-            // навмисно: він лише прибирає картку й зіпсувати нічого не може.
-            if (!LftEligibility.Predicate(LftEligibility.From(opening)).Compile()(player))
-            {
-                throw new BusinessLogicException("Гравець не підходить під цю вакансію");
-            }
-
             // Зустрічна заявка вже є — приймаємо її, а не створюємо другу.
             // ResponderUserId сам ставить капітана відповідачем на Application,
             // а гравця — на Invite, тож окремої перевірки тут не треба.
+            //
+            // Шукаємо за парою (команда, гравець), а не за вакансією, — саме
+            // так пару бачить часткова унікальність у team_membership_requests
+            // і саме так її бачить NotificationService. Тому взаємна згода в
+            // принципі може закрити іншу вакансію тієї самої команди, ніж та,
+            // по якій щойно змахнули: закриється та, з якої постав запит, —
+            // тобто та, на яку гравець насправді погоджувався. Це навмисно, і
+            // не варто «виправляти» це на пошук за TeamOpeningId: тоді на пару
+            // з'явився б другий Pending-рядок, якого індекс не пустить.
+            //
+            // Перевірку придатності нижче цей шлях обходить свідомо: рядок уже
+            // існує, обидві сторони на нього погодились, і той самий рядок
+            // приймається зі сповіщень без жодних умов. Умова тут дала б дві
+            // різні відповіді на один і той самий запит.
             var counterpart = await _unitOfWork.MembershipRequests.GetQueryable()
                 .FirstOrDefaultAsync(r => r.TeamId == opening.TeamId
                                        && r.PlayerId == player.Id
@@ -198,6 +216,17 @@ namespace TForge.Services
             {
                 var matched = await _membershipRequests.AcceptAsync(counterpart.Id, userId, isAdmin);
                 return new SwipeResultDto { Matched = true, MembershipRequestId = matched.Id };
+            }
+
+            // Новий запит — це згода з чистого аркуша, тож придатність
+            // звіряємо тим самим правилом, що й обидві стрічки. Стрічка
+            // непридатну картку не покаже, але endpoint кличуть і напряму, а
+            // капітан ще й називає гравця сам. Змах ліворуч цієї перевірки не
+            // проходить навмисно: він лише прибирає картку й зіпсувати нічого
+            // не може.
+            if (!LftEligibility.Predicate(LftEligibility.From(opening)).Compile()(player))
+            {
+                throw new BusinessLogicException("Гравець не підходить під цю вакансію");
             }
 
             var request = new TeamMembershipRequest
