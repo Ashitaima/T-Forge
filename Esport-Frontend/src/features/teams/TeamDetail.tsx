@@ -13,6 +13,7 @@ import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import { RatingPanel } from "../../components/ui/Rating";
 import { TournamentInvitationsPanel } from "../tournaments/TournamentInvitationsPanel";
 import { TeamChallengesPanel } from "./TeamChallengesPanel";
+import { OpeningsPanel } from "../lft/OpeningsPanel";
 import { regionLabel } from "../../constants/regions";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
@@ -615,6 +616,8 @@ const TeamDetail = () => {
           )}
         </div>
       </section>
+
+      <OpeningsPanel teamId={teamId} captainId={team?.captain?.id ?? 0} />
 
       {(isCaptain || isAdmin) && (
         <section className="panel panel-body mt-6">
