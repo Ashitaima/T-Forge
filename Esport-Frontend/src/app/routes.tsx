@@ -99,6 +99,15 @@ export const router = createBrowserRouter([
             })
           },
           {
+            // Свайп — це згода, тож увесь /api/lft — [Authorize]; маршрут лишається
+            // за будь-яким авторизованим, а сторону (гравець/капітан) вирішує
+            // LftPage сама, за наявністю відкритої вакансії.
+            path: "lft",
+            lazy: async () => ({
+              Component: (await import("../features/lft/LftPage")).default
+            })
+          },
+          {
             path: "players/:id/edit",
             lazy: async () => ({
               Component: (await import("../features/players/PlayerForm")).default

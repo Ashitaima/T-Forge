@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Anvil, BadgeCheck, CalendarClock, LayoutGrid, Shield, Swords, UserRound, UsersRound } from "lucide-react";
+import { Anvil, BadgeCheck, CalendarClock, Heart, LayoutGrid, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
 import { teamsApi } from "../../api/teamsApi";
@@ -15,6 +15,9 @@ const navItems = [
   { to: "/teams", label: "Команди", icon: UsersRound },
   { to: "/players", label: "Гравці", icon: UserRound },
   { to: "/matches", label: "Матчі", icon: CalendarClock },
+  // Кожен ендпойнт /api/lft — [Authorize]: свайп це згода, тож пункт видно
+  // лише увійшовши, окремо від адмінських пунктів нижче.
+  { to: "/lft", label: "Пошук складу", icon: Heart, authOnly: true },
   { to: "/users", label: "Користувачі", icon: Shield, adminOnly: true },
   { to: "/organizer-requests", label: "Заявки на роль", icon: BadgeCheck, adminOnly: true }
 ];
@@ -61,7 +64,9 @@ export const AppShell = () => {
 
   const previewedTeam = teams.find((team) => team.id === previewCaptainTeamId);
 
-  const visibleItems = navItems.filter((item) => !item.adminOnly || effectiveRole === "Admin");
+  const visibleItems = navItems.filter(
+    (item) => (!item.adminOnly || effectiveRole === "Admin") && (!item.authOnly || Boolean(user))
+  );
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
