@@ -3,6 +3,7 @@ import { Plus, X } from "lucide-react";
 import { playersApi } from "../../api/playersApi";
 import { GAMES, gameLabel } from "../../constants/games";
 import { positionLabel, positionsFor } from "../../constants/gamePositions";
+import { rankLabel, ranksFor } from "../../constants/gameRanks";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import type { PlayerGameProfileDto } from "../../types";
 
@@ -23,10 +24,13 @@ type Props = {
 export const GameProfilesPanel = ({ playerId, profiles, onChange }: Props) => {
   const [game, setGame] = useState<string>("");
   const [position, setPosition] = useState<string>("");
+  const [rank, setRank] = useState<string>("");
+  const [lookingForTeam, setLookingForTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const submitError = useSubmitError();
 
   const positions = positionsFor(game);
+  const ranks = ranksFor(game);
 
   const save = async () => {
     if (!game) {
@@ -36,13 +40,17 @@ export const GameProfilesPanel = ({ playerId, profiles, onChange }: Props) => {
     setBusy(true);
     submitError.clear();
     try {
-      const saved = await playersApi.saveGameProfile(playerId, { game, position });
+      const saved = await playersApi.saveGameProfile(playerId, {
+        game, position, rank, isLookingForTeam: lookingForTeam
+      });
       // Та сама дисципліна оновлює роль, а не додає рядок — тож замінюємо
       // наявний запис, якщо він уже був.
       const rest = profiles.filter((item) => item.game !== saved.game);
       onChange([...rest, saved]);
       setGame("");
       setPosition("");
+      setRank("");
+      setLookingForTeam(false);
     } catch (error) {
       submitError.capture(error, "Не вдалося зберегти дисципліну.");
     } finally {
@@ -81,9 +89,14 @@ export const GameProfilesPanel = ({ playerId, profiles, onChange }: Props) => {
                 className="surface-raised flex items-center gap-3 px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="text-body text-text">{gameLabel(profile.game)}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-body text-text">{gameLabel(profile.game)}</span>
+                    {profile.isLookingForTeam && <span className="pill">Шукає команду</span>}
+                  </div>
                   <div className="muted text-micro">
                     {profile.position ? positionLabel(profile.position) : "Роль не вказано"}
+                    {" · "}
+                    {rankLabel(profile.game, profile.rank)}
                   </div>
                 </div>
                 <button
@@ -100,16 +113,17 @@ export const GameProfilesPanel = ({ playerId, profiles, onChange }: Props) => {
           </ul>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
           <label className="field">
             Дисципліна
             <select
               value={game}
               onChange={(event) => {
                 setGame(event.target.value);
-                // Позиції залежать від гри: збережена роль від попередньої
-                // дисципліни тут не пройшла б валідацію.
+                // Позиції й ранг залежать від гри: збережені значення від
+                // попередньої дисципліни тут не пройшли б валідацію.
                 setPosition("");
+                setRank("");
               }}
               className="input"
             >
@@ -139,6 +153,21 @@ export const GameProfilesPanel = ({ playerId, profiles, onChange }: Props) => {
             </select>
           </label>
 
+          <label className="field">
+            Ранг <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
+            <select
+              className="input"
+              value={rank}
+              onChange={(event) => setRank(event.target.value)}
+              disabled={!game || busy}
+            >
+              <option value="">Ранг не вказано</option>
+              {ranks.map((value) => (
+                <option key={value} value={value}>{rankLabel(game, value)}</option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
             onClick={save}
@@ -149,6 +178,16 @@ export const GameProfilesPanel = ({ playerId, profiles, onChange }: Props) => {
             Додати
           </button>
         </div>
+
+        <label className="flex items-center gap-2 text-micro">
+          <input
+            type="checkbox"
+            checked={lookingForTeam}
+            onChange={(event) => setLookingForTeam(event.target.checked)}
+            disabled={busy}
+          />
+          Шукаю команду в цій дисципліні
+        </label>
 
         {submitError.error && <div className="notice notice-error">{submitError.error}</div>}
       </div>

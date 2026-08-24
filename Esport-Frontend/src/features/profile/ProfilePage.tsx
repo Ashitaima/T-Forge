@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { authApi } from "../../api/authApi";
 import { playersApi } from "../../api/playersApi";
 import { COUNTRY_NAMES } from "../../constants/countries";
 import { GAME_ID_FIELDS, emptyToUndefined, isValidGameId } from "../../constants/gameIds";
+import { UTC_OFFSETS, offsetLabel } from "../../constants/timeZones";
 import { usersApi } from "../../api/usersApi";
 import { useAuthStore } from "../../store/authStore";
 import { PageHeader, Skeleton } from "../../components/ui/Primitives";
@@ -47,6 +48,9 @@ const playerSchema = z.object({
     .refine((value) => value === 0 || (value >= PLAYER_MIN_AGE && value <= PLAYER_MAX_AGE), {
       message: `Вік — від ${PLAYER_MIN_AGE} до ${PLAYER_MAX_AGE} років`
     }),
+  // null — не вказано; 0 — реальна відповідь (UTC+00:00), тож порожній вибір
+  // не можна звести до нуля.
+  utcOffsetMinutes: z.number().nullable(),
   // Теги мусять їхати разом з рештою: UpdatePlayerDto перезаписує їх цілком,
   // тож форма без цих полів мовчки стирала б уже збережені.
   riotId: z
@@ -209,6 +213,7 @@ const ProfilePage = () => {
           riotId: data.riotId ?? "",
           steamId64: data.steamId64 ?? "",
           battleTag: data.battleTag ?? "",
+          utcOffsetMinutes: data.utcOffsetMinutes ?? null,
           isAgeHidden: data.isAgeHidden ?? false,
           isCountryHidden: data.isCountryHidden ?? false
         });
@@ -435,6 +440,29 @@ const ProfilePage = () => {
               {playerForm.formState.errors.age && (
                 <p className="field-error">{playerForm.formState.errors.age.message}</p>
               )}
+            </label>
+            <label className="field">
+              Часовий пояс{" "}
+              <span className="text-micro font-normal text-text-faint">— необов&#39;язково</span>
+              <Controller
+                control={playerForm.control}
+                name="utcOffsetMinutes"
+                render={({ field }) => (
+                  <select
+                    className="input"
+                    value={field.value ?? ""}
+                    onChange={(event) =>
+                      field.onChange(event.target.value === "" ? null : Number(event.target.value))
+                    }
+                  >
+                    <option value="">Часовий пояс не вказано</option>
+                    {UTC_OFFSETS.map((minutes) => (
+                      <option key={minutes} value={minutes}>{offsetLabel(minutes)}</option>
+                    ))}
+                  </select>
+                )}
+              />
+              <p className="field-hint">Допомагає підібрати команду в зручному для гри часі.</p>
             </label>
 
             {/* Приховати можна лише те, від чого не залежать таблиці: нікнейм,

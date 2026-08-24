@@ -1,4 +1,4 @@
-import { gameHasMaps, mapLabel } from "./gameMaps";
+import { gameHasMaps, mapImageUrl, mapLabel } from "./gameMaps";
 import { sideLabel } from "./gameSides";
 import { heroName, heroPortraitUrl } from "./gameHeroes";
 
@@ -52,6 +52,10 @@ export const choiceLabel = (game: string, action: string, value: string) => {
   return gameHasMaps(game) ? mapLabel(game, value) : heroName(game, value);
 };
 
-/** Портрет героя; для карт і сторін зображення немає. */
-export const choicePortraitUrl = (game: string, action: string, value: string) =>
-  action !== DRAFT_ACTION.side && !gameHasMaps(game) ? heroPortraitUrl(game, value) : null;
+/** Зображення вибору: карта, портрет героя або нічого для кроку сторони. */
+export const choicePortraitUrl = (game: string, action: string, value: string) => {
+  if (action === DRAFT_ACTION.side) {
+    return null;
+  }
+  return gameHasMaps(game) ? mapImageUrl(game, value) : heroPortraitUrl(game, value);
+};

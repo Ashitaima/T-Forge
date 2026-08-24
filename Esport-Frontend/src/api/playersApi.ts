@@ -57,7 +57,10 @@ export const playersApi = {
     return response.data;
   },
   /** Та сама дисципліна вдруге змінює роль, а не додає другий рядок. */
-  saveGameProfile: async (playerId: number, payload: { game: string; position: string }) => {
+  saveGameProfile: async (
+    playerId: number,
+    payload: { game: string; position: string; rank: string; isLookingForTeam: boolean }
+  ) => {
     const response = await apiClient.put<PlayerGameProfileDto>(
       `${endpoints.players}/${playerId}/game-profiles`,
       payload

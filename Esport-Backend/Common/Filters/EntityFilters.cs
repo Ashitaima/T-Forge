@@ -54,4 +54,12 @@ namespace TForge.Common.Filters
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
     }
+
+    public class TeamOpeningFilter : PagedRequest
+    {
+        public string? Game { get; set; }
+        public string? Position { get; set; }
+        public string? Status { get; set; }
+        public int? TeamId { get; set; }
+    }
 }

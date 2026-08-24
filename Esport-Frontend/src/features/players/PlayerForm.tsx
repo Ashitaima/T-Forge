@@ -77,6 +77,9 @@ const PlayerForm = () => {
   // тут. Але UpdatePlayerDto перезаписує профіль цілком, тож збережені
   // перемикачі треба провести крізь форму, інакше вона їх мовчки скине.
   const [privacy, setPrivacy] = useState({ isAgeHidden: false, isCountryHidden: false });
+  // Часовий пояс так само редагує сам гравець у себе в профілі — тут його
+  // лише проносимо крізь форму з тієї самої причини, що й приватність.
+  const [utcOffsetMinutes, setUtcOffsetMinutes] = useState<number | null>(null);
 
   // Створення профілю доступне лише адміністраторові (маршрут закритий роллю),
   // і воно завжди створює повний обліковий запис — звичайний користувач
@@ -110,6 +113,7 @@ const PlayerForm = () => {
           isAgeHidden: data.isAgeHidden ?? false,
           isCountryHidden: data.isCountryHidden ?? false
         });
+        setUtcOffsetMinutes(data.utcOffsetMinutes ?? null);
       } finally {
         setLoading(false);
       }
@@ -162,6 +166,7 @@ const PlayerForm = () => {
           riotId: emptyToUndefined(values.riotId),
           steamId64: emptyToUndefined(values.steamId64),
           battleTag: emptyToUndefined(values.battleTag),
+          utcOffsetMinutes,
           ...privacy
         };
         await playersApi.update(Number(id), payload);

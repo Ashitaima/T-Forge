@@ -30,6 +30,23 @@ namespace TForge.Models
         [StringLength(50)]
         public string Position { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Ранг у цій дисципліні. Порожній — гравець його не вказав.
+        /// Перевіряє Common/GameRanks.cs: ранг мусить належати саме цій грі.
+        /// Значення самозаявлене — жодної перевірки через API ігор тут немає.
+        /// </summary>
+        [StringLength(50)]
+        public string Rank { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Чи шукає гравець команду саме в цій дисципліні.
+        ///
+        /// Прапорець на дисципліну, а не на гравця: можна шукати склад у
+        /// Valorant, лишаючись у своїй команді з CS2, — одним полем у Player
+        /// цього не сказати.
+        /// </summary>
+        public bool IsLookingForTeam { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation Properties

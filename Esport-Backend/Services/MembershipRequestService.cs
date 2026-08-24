@@ -150,6 +150,19 @@ namespace TForge.Services
                 request.RespondedAt = DateTime.UtcNow;
                 request.RespondedByUserId = requestingUserId;
 
+                // Вакансію закриваємо саме тут, а не у змаху: запит, що почався
+                // зі змаху, можна прийняти й зі сповіщень, і вакансія, яка
+                // тихо лишилась Open, пропонувала б місце, якого вже немає.
+                if (request.TeamOpeningId.HasValue)
+                {
+                    var opening = await _unitOfWork.TeamOpenings.GetByIdAsync(request.TeamOpeningId.Value);
+                    if (opening != null && opening.Status == TeamOpeningStatus.Open)
+                    {
+                        opening.Status = TeamOpeningStatus.Filled;
+                        opening.ClosedAt = DateTime.UtcNow;
+                    }
+                }
+
                 // Інші відкриті запити цього гравця вже неможливо прийняти,
                 // тож закриваємо їх, щоб капітани не бачили мертвих заявок.
                 var otherPending = await _unitOfWork.MembershipRequests.FindAsync(r =>

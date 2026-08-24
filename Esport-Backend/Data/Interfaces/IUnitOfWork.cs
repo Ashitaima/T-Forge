@@ -22,6 +22,8 @@ namespace TForge.Data.Interfaces
         IGenericRepository<MatchDraft> MatchDrafts { get; }
         IGenericRepository<DraftStep> DraftSteps { get; }
         IGenericRepository<OrganizerRequest> OrganizerRequests { get; }
+        IGenericRepository<TeamOpening> TeamOpenings { get; }
+        IGenericRepository<LftPass> LftPasses { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

@@ -11,6 +11,8 @@ import { duelsApi } from "../../api/duelsApi";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { gameLabel } from "../../constants/games";
 import { positionLabel } from "../../constants/gamePositions";
+import { rankLabel } from "../../constants/gameRanks";
+import { offsetLabel } from "../../constants/timeZones";
 import { RatingPanel } from "../../components/ui/Rating";
 import { usePagedList } from "../../hooks/usePagedList";
 import { MatchResultBadge } from "../matches/MatchResultBadge";
@@ -271,12 +273,18 @@ const PlayerDetail = () => {
         <section className="panel">
           <div className="panel-header">
             <h2 className="section-title">Дисципліни</h2>
+            {player?.utcOffsetMinutes != null && (
+              <span className="muted text-micro">{offsetLabel(player.utcOffsetMinutes)}</span>
+            )}
           </div>
           <div className="panel-body flex flex-wrap gap-2">
             {player?.gameProfiles.map((profile) => (
-              <span key={profile.id} className="pill">
-                {gameLabel(profile.game)}
-                {profile.position && ` — ${positionLabel(profile.position)}`}
+              <span key={profile.id} className="contents">
+                <span className="pill">
+                  {gameLabel(profile.game)}
+                  {profile.position && ` — ${positionLabel(profile.position)}`}
+                </span>
+                {profile.rank && <span className="pill">{rankLabel(profile.game, profile.rank)}</span>}
               </span>
             ))}
           </div>

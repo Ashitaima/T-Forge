@@ -488,6 +488,8 @@ namespace TForge.Services
             if (existing != null)
             {
                 existing.Position = dto.Position;
+                existing.Rank = dto.Rank;
+                existing.IsLookingForTeam = dto.IsLookingForTeam;
                 await _unitOfWork.SaveChangesAsync();
                 return _mapper.Map<PlayerGameProfileDto>(existing);
             }
@@ -496,7 +498,9 @@ namespace TForge.Services
             {
                 PlayerId = playerId,
                 Game = dto.Game,
-                Position = dto.Position
+                Position = dto.Position,
+                Rank = dto.Rank,
+                IsLookingForTeam = dto.IsLookingForTeam
             };
 
             await _unitOfWork.PlayerGameProfiles.AddAsync(created);
