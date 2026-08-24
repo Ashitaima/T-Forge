@@ -665,3 +665,23 @@ export type DraftDto = {
   serverTime: string;
   steps: DraftStepDto[];
 };
+
+export type TeamOpeningDto = {
+  id: number;
+  teamId: number;
+  team?: TeamSummaryDto;
+  game: string;
+  position: string;
+  minRank: string;
+  minUtcOffsetMinutes: number | null;
+  maxUtcOffsetMinutes: number | null;
+  pitch: string;
+  status: string;
+  createdAt: string;
+  closedAt: string | null;
+};
+
+export type SwipeResultDto = {
+  matched: boolean;
+  membershipRequestId: number | null;
+};
