@@ -22,6 +22,7 @@ namespace TForge.Data
             if (await context.Users.AnyAsync())
             {
                 await EnsureScheduledMatchesAsync(context);
+                await EnsureChessDemoAsync(context, passwordHasher);
                 return; // База данных уже засеяна
             }
 
@@ -385,7 +386,181 @@ namespace TForge.Data
             await context.MatchPlayers.AddRangeAsync(matchPlayers);
             await context.SaveChangesAsync();
 
+            await EnsureChessDemoAsync(context, passwordHasher);
+
             Console.WriteLine("База данных успешно заполнена тестовыми данными!");
+        }
+
+        /// <summary>
+        /// Шахове демо: дві команди по чотири гравці з рейтингами й дошками,
+        /// турнір із парою зіграних і одним майбутнім матчем, і дві дуелі —
+        /// щоб драбина Ело й панелі прогнозу мали що показати. Ідемпотентно:
+        /// не повторюється, якщо шаховий турнір уже є. Акаунти chess1..chess8
+        /// мають той самий DevPassword.
+        /// </summary>
+        private static async Task EnsureChessDemoAsync(EsportsDbContext context, IPasswordHasher passwordHasher)
+        {
+            if (await context.Tournaments.AnyAsync(t => t.Game == Games.Chess))
+            {
+                return;
+            }
+
+            var organizer = await context.Users.FirstOrDefaultAsync(u => u.Role == UserRoles.Organizer);
+            if (organizer == null)
+            {
+                return;
+            }
+
+            var specs = new (string Username, string Nickname, int Rating)[]
+            {
+                ("chess1", "Kasparyk", 2210), ("chess2", "Rookie", 1980),
+                ("chess3", "Bishopka", 1840), ("chess4", "PawnStorm", 1700),
+                ("chess5", "Gambit", 2050), ("chess6", "Fianchetto", 1920),
+                ("chess7", "Zugzwang", 1760), ("chess8", "Sicilian", 1610)
+            };
+
+            var users = specs.Select(s => new User
+            {
+                Username = s.Username,
+                Email = $"{s.Username}@esports.com",
+                PasswordHash = passwordHasher.Hash(DevPassword),
+                FirstName = s.Nickname,
+                LastName = "Chess",
+                Role = UserRoles.Player,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                LastLoginAt = DateTime.UtcNow
+            }).ToList();
+            await context.Users.AddRangeAsync(users);
+            await context.SaveChangesAsync();
+
+            var teams = new[]
+            {
+                new Team { Name = "Knights of Kyiv", Tag = "KOK", Description = "Командні шахи", CaptainId = users[0].Id, Region = "Europe", IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Team { Name = "Lviv Endgame", Tag = "LVE", Description = "Командні шахи", CaptainId = users[4].Id, Region = "Europe", IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+            await context.Teams.AddRangeAsync(teams);
+            await context.SaveChangesAsync();
+
+            var players = specs.Select((s, i) => new Player
+            {
+                UserId = users[i].Id,
+                Nickname = s.Nickname,
+                Country = "UA",
+                Age = 20 + i,
+                TeamId = teams[i / 4].Id,
+                IsActive = true,
+                JoinedAt = DateTime.UtcNow
+            }).ToList();
+            await context.Players.AddRangeAsync(players);
+            await context.SaveChangesAsync();
+
+            await context.PlayerGameProfiles.AddRangeAsync(specs.Select((s, i) => new PlayerGameProfile
+            {
+                PlayerId = players[i].Id,
+                Game = Games.Chess,
+                Position = GamePositions.Chess[i % 4],
+                Rating = s.Rating,
+                Rank = ChessRatings.BandFor(s.Rating)
+            }));
+
+            var tournament = new Tournament
+            {
+                Name = "T-Forge Chess Cup",
+                Description = "Командний рапід на чотирьох дошках",
+                Game = Games.Chess,
+                TimeControl = TimeControls.Rapid,
+                StartDate = DateTime.UtcNow.AddDays(-10),
+                EndDate = DateTime.UtcNow.AddDays(10),
+                MaxTeams = 8,
+                CurrentTeams = 2,
+                PrizePool = 1000,
+                Status = TournamentStatus.InProgress,
+                OrganizerId = organizer.Id,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            tournament.Teams.Add(teams[0]);
+            tournament.Teams.Add(teams[1]);
+            await context.Tournaments.AddAsync(tournament);
+            await context.SaveChangesAsync();
+
+            Match ChessMatch(int home, int away, int daysFromNow, string status, int homeScore = 0, int awayScore = 0)
+            {
+                var played = status == MatchStatus.Completed;
+                var scheduledAt = DateTime.UtcNow.AddDays(daysFromNow);
+                return new Match
+                {
+                    TournamentId = tournament.Id,
+                    Game = Games.Chess,
+                    HomeTeamId = teams[home].Id,
+                    AwayTeamId = teams[away].Id,
+                    ScheduledAt = scheduledAt,
+                    Status = status,
+                    HomeTeamScore = homeScore,
+                    AwayTeamScore = awayScore,
+                    WinnerTeamId = !played || homeScore == awayScore ? null
+                        : homeScore > awayScore ? teams[home].Id : teams[away].Id,
+                    MatchType = MatchTypes.GroupStage,
+                    Format = "BO1",
+                    Round = 1,
+                    StartedAt = played ? scheduledAt : null,
+                    EndedAt = played ? scheduledAt.AddHours(2) : null,
+                    Notes = "Командні шахи, 4 дошки",
+                    CreatedAt = DateTime.UtcNow
+                };
+            }
+
+            var matches = new[]
+            {
+                ChessMatch(0, 1, -6, MatchStatus.Completed, 3, 1),
+                ChessMatch(1, 0, -3, MatchStatus.Completed, 2, 1),
+                ChessMatch(0, 1, 2, MatchStatus.Scheduled)
+            };
+            await context.Matches.AddRangeAsync(matches);
+            await context.SaveChangesAsync();
+
+            // Склади штампуємо так само, як автозаповнення: MatchPlayer.TeamId —
+            // команда гравця саме в цьому матчі.
+            await context.MatchPlayers.AddRangeAsync(matches.SelectMany(m => players.Select(p => new MatchPlayer
+            {
+                MatchId = m.Id,
+                PlayerId = p.Id,
+                TeamId = p.TeamId!.Value,
+                IsStarter = true
+            })));
+
+            await context.Duels.AddRangeAsync(
+                new Duel
+                {
+                    ChallengerPlayerId = players[0].Id,
+                    OpponentPlayerId = players[4].Id,
+                    Game = Games.Chess,
+                    TimeControl = TimeControls.Rapid,
+                    WhitePlayerId = players[0].Id,
+                    ScheduledAt = DateTime.UtcNow.AddDays(1),
+                    Status = DuelStatuses.Accepted,
+                    Format = "BO1",
+                    Message = "Реванш капітанів",
+                    CreatedAt = DateTime.UtcNow,
+                    RespondedAt = DateTime.UtcNow
+                },
+                new Duel
+                {
+                    ChallengerPlayerId = players[3].Id,
+                    OpponentPlayerId = players[7].Id,
+                    Game = Games.Chess,
+                    TimeControl = TimeControls.Classical,
+                    WhitePlayerId = null,
+                    ScheduledAt = DateTime.UtcNow.AddDays(4),
+                    Status = DuelStatuses.Accepted,
+                    Format = "BO1",
+                    CreatedAt = DateTime.UtcNow,
+                    RespondedAt = DateTime.UtcNow
+                });
+
+            await context.SaveChangesAsync();
         }
 
         private static async Task EnsureScheduledMatchesAsync(EsportsDbContext context)

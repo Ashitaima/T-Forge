@@ -19,10 +19,12 @@ namespace TForge.Controllers
     public class DuelsController : ApiControllerBase
     {
         private readonly IDuelService _duelService;
+        private readonly IChessPredictionService _predictions;
 
-        public DuelsController(IDuelService duelService)
+        public DuelsController(IDuelService duelService, IChessPredictionService predictions)
         {
             _duelService = duelService;
+            _predictions = predictions;
         }
 
         /// <summary>Читання публічне — як і решта підсумків у проєкті.</summary>
@@ -37,6 +39,16 @@ namespace TForge.Controllers
         {
             return Ok(await _duelService.GetByIdAsync(id)
                 ?? throw new EntityNotFoundException("Duel", id));
+        }
+
+        /// <summary>
+        /// Прогноз шахової дуелі двома моделями та базовою лінією Ело. Читання,
+        /// тож публічне. Не шахи чи немає рейтингу — Available = false з причиною.
+        /// </summary>
+        [HttpGet("{id}/prediction")]
+        public async Task<ActionResult<DuelPredictionDto>> GetPrediction(int id)
+        {
+            return Ok(await _predictions.PredictDuelAsync(id));
         }
 
         [HttpGet("record/{playerId}")]

@@ -37,6 +37,13 @@ namespace TForge.Common
             "Top", "Jungle", "Mid", "ADC", "Support"
         };
 
+        // Командний шаховий матч — це чотири дошки. Номер дошки і є роллю:
+        // за ним прогноз ставить гравців одне проти одного (Common/ChessBoards.cs).
+        public static readonly string[] Chess =
+        {
+            "Board1", "Board2", "Board3", "Board4", "Reserve"
+        };
+
         /// <summary>Позиції для дисципліни; порожній масив, якщо дисципліна невідома.</summary>
         public static string[] For(string? game) => game switch
         {
@@ -44,6 +51,7 @@ namespace TForge.Common
             Games.CS2 => CS2,
             Games.Dota2 => Dota2,
             Games.LeagueOfLegends => LeagueOfLegends,
+            Games.Chess => Chess,
             _ => Array.Empty<string>()
         };
 

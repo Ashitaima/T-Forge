@@ -12,7 +12,13 @@ namespace TForge.Common
         public const string Dota2 = "Dota2";
         public const string LeagueOfLegends = "LeagueOfLegends";
 
-        public static readonly string[] All = { CS2, Valorant, Dota2, LeagueOfLegends };
+        /// <summary>
+        /// Шахи — дисципліна без драфту (DraftSequences.HasDraft). Командний
+        /// матч — чотири дошки, індивідуальні партії — дуелі.
+        /// </summary>
+        public const string Chess = "Chess";
+
+        public static readonly string[] All = { CS2, Valorant, Dota2, LeagueOfLegends, Chess };
 
         public static bool IsValid(string? game) => game != null && All.Contains(game);
     }

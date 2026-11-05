@@ -10,6 +10,8 @@ import { EmptyState, PageHeader, Skeleton, StatusPill } from "../../components/u
 import { RatingDelta } from "../../components/ui/Rating";
 import { Avatar, teamInitials } from "../../components/ui/Avatar";
 import DraftPanel from "./draft/DraftPanel";
+import { gameHasDraft } from "../../constants/draft";
+import { MatchPrediction } from "../../components/predictions/PredictionPanel";
 import type { MatchDto, MatchPlayerDto, MatchRatingDeltaDto } from "../../types";
 
 const MatchDetail = () => {
@@ -497,7 +499,15 @@ const MatchDetail = () => {
             </div>
           </section>
 
-          {match.homeTeam && (
+          {match.game === "Chess" && match.homeTeam && match.awayTeam && (
+            <MatchPrediction
+              matchId={match.id}
+              homeName={match.homeTeam.name}
+              awayName={match.awayTeam.name}
+            />
+          )}
+
+          {match.homeTeam && gameHasDraft(match.game) && (
             <DraftPanel
               matchId={match.id}
               homeTeam={{ id: match.homeTeam.id, name: match.homeTeam.name }}

@@ -26,6 +26,17 @@ namespace TForge.Validators
             RuleFor(x => x.Rank)
                 .Must((dto, rank) => GameRanks.IsValidFor(dto.Game, rank))
                 .WithMessage("Цей ранг не належить обраній дисципліні");
+
+            // Точний рейтинг — лише шаховий: у решти ігор ранг є сходинкою, а
+            // не числом, і число там нічого б не означало.
+            RuleFor(x => x.Rating)
+                .InclusiveBetween(ChessRatings.Min, ChessRatings.Max)
+                .WithMessage($"Рейтинг має бути від {ChessRatings.Min} до {ChessRatings.Max}")
+                .When(x => x.Game == Games.Chess && x.Rating.HasValue);
+
+            RuleFor(x => x.Rating)
+                .Null().WithMessage("Точний рейтинг вказують лише для шахів")
+                .When(x => x.Game != Games.Chess);
         }
     }
 }

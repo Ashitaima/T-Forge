@@ -2,6 +2,10 @@ import { gameHasMaps, mapImageUrl, mapLabel } from "./gameMaps";
 import { sideLabel } from "./gameSides";
 import { heroName, heroPortraitUrl } from "./gameHeroes";
 
+/** Дзеркало DraftSequences.HasDraft: у шахів вето немає. */
+const DRAFT_GAMES = new Set(["CS2", "Valorant", "Dota2", "LeagueOfLegends"]);
+export const gameHasDraft = (game: string) => DRAFT_GAMES.has(game);
+
 /** Дзеркало Common/DraftStatuses.cs. */
 export const DRAFT_STATUS = {
   pending: "Pending",

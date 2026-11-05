@@ -41,6 +41,10 @@ namespace TForge.Models
         /// </summary>
         public bool IsInviteOnly { get; set; } = false;
 
+        /// <summary>Контроль часу шахового турніру; null — рапід (TimeControls.Default).</summary>
+        [StringLength(20)]
+        public string? TimeControl { get; set; }
+
         [Required]
         [StringLength(20)]
         public string Status { get; set; } = TournamentStatus.Registration; // див. Common/StatusConstants.cs

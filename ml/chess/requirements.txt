@@ -1,0 +1,11 @@
+pandas>=2.2
+numpy>=1.26
+# Pinned so the metrics reported in the notebook are reproducible (the exported models were trained with 1.7.2).
+scikit-learn==1.7.2
+skl2onnx>=1.17
+onnx>=1.16
+onnxruntime>=1.18
+matplotlib>=3.8
+jupyter>=1.0
+nbconvert>=7.0
+pytest>=8.0

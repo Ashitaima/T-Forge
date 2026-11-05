@@ -50,6 +50,9 @@
         public string Game { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public string Rank { get; set; } = string.Empty;
+
+        /// <summary>Точний шаховий рейтинг; null для інших ігор або якщо не вказано.</summary>
+        public int? Rating { get; set; }
         public bool IsLookingForTeam { get; set; }
     }
 
@@ -62,6 +65,9 @@
         public string Game { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public string Rank { get; set; } = string.Empty;
+
+        /// <summary>Точний шаховий рейтинг; null для інших ігор або якщо не вказано.</summary>
+        public int? Rating { get; set; }
         public bool IsLookingForTeam { get; set; }
     }
 

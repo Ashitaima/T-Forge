@@ -14,7 +14,8 @@ export const GAME_POSITIONS: Record<Game, readonly string[]> = {
   Valorant: ["Duelist", "Initiator", "Sentinel", "Controller"],
   CS2: ["Rifler", "Entry", "Lurker", "AWPer", "IGL"],
   Dota2: ["Carry", "Midlaner", "Offlaner", "SoftSupport", "HardSupport"],
-  LeagueOfLegends: ["Top", "Jungle", "Mid", "ADC", "Support"]
+  LeagueOfLegends: ["Top", "Jungle", "Mid", "ADC", "Support"],
+  Chess: ["Board1", "Board2", "Board3", "Board4", "Reserve"]
 };
 
 /**
@@ -40,7 +41,12 @@ export const POSITION_LABELS: Record<string, string> = {
   Jungle: "Jungle",
   Mid: "Mid",
   ADC: "ADC (Bot)",
-  Support: "Support"
+  Support: "Support",
+  Board1: "Дошка 1",
+  Board2: "Дошка 2",
+  Board3: "Дошка 3",
+  Board4: "Дошка 4",
+  Reserve: "Запасний"
 };
 
 export const positionsFor = (game: string): readonly string[] =>

@@ -38,6 +38,8 @@ export type TournamentDto = {
   isActive: boolean;
   /** Закритий турнір: склад учасників визначає організатор. */
   isInviteOnly: boolean;
+  /** Контроль часу шахового турніру; null — рапід. */
+  timeControl: string | null;
   createdAt: string;
   organizer?: UserDto | null;
 };
@@ -51,6 +53,7 @@ export type CreateTournamentDto = {
   maxTeams: number;
   prizePool: number;
   isInviteOnly: boolean;
+  timeControl?: string | null;
   /** Заповнює сервер за токеном; вручну вказує лише адміністратор. */
   organizerId?: number | null;
   // Статус новоствореного турніру завжди «Реєстрація» — його проставляє сервер.
@@ -64,6 +67,7 @@ export type UpdateTournamentDto = {
   maxTeams: number;
   prizePool: number;
   isInviteOnly: boolean;
+  timeControl?: string | null;
   status: string;
 };
 
@@ -143,6 +147,8 @@ export type PlayerGameProfileDto = {
   game: string;
   position: string;
   rank: string;
+  /** Точний шаховий рейтинг; null для інших ігор або якщо не вказано. */
+  rating: number | null;
   isLookingForTeam: boolean;
 };
 
@@ -602,6 +608,10 @@ export type DuelDto = {
   status: string;
   format: string;
   message: string;
+  /** Контроль часу шахової дуелі; null для інших ігор. */
+  timeControl: string | null;
+  /** Player.Id того, хто грає білими; null — колір ще не визначено. */
+  whitePlayerId: number | null;
   challengerScore: number;
   opponentScore: number;
   /** Player.Id переможця; null у завершеній дуелі — нічия. */
@@ -625,6 +635,8 @@ export type CreateDuelDto = {
   scheduledAt: string;
   format?: string;
   message?: string;
+  /** Обовʼязковий для шахів. */
+  timeControl?: string | null;
 };
 
 export type CompleteDuelDto = {
@@ -684,4 +696,48 @@ export type TeamOpeningDto = {
 export type SwipeResultDto = {
   matched: boolean;
   membershipRequestId: number | null;
+};
+
+/** Імовірності однієї моделі; first — викликач дуелі або господар матчу. */
+export type ModelOutcomeDto = { model: string; firstWin: number; draw: number; secondWin: number };
+export type ModelMetricsDto = { model: string; logLoss: number; brier: number; accuracy: number };
+export type PredictionModelInfoDto = {
+  trainedAt: string;
+  dataset: string;
+  rowsTrain: number;
+  metrics: ModelMetricsDto[];
+};
+
+/** available = false — не помилка, а «прогнозу немає» з причиною. */
+export type DuelPredictionDto = {
+  available: boolean;
+  reason: string | null;
+  timeControl: string | null;
+  /** Моделі майже не бачили партій із цим контролем часу. */
+  littleData: boolean;
+  whitePlayerId: number | null;
+  challengerRating: number | null;
+  opponentRating: number | null;
+  outcomes: ModelOutcomeDto[];
+  modelInfo: PredictionModelInfoDto | null;
+};
+
+export type BoardPredictionDto = {
+  board: number;
+  homeNickname: string;
+  awayNickname: string;
+  homeRating: number;
+  awayRating: number;
+  homeIsWhite: boolean;
+  outcomes: ModelOutcomeDto[];
+};
+
+export type MatchPredictionDto = {
+  available: boolean;
+  reason: string | null;
+  timeControl: string | null;
+  littleData: boolean;
+  boards: BoardPredictionDto[];
+  totals: { model: string; home: number; away: number }[];
+  modelInfo: PredictionModelInfoDto | null;
 };

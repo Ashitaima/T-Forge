@@ -35,6 +35,11 @@ namespace TForge.Validators
 
             RuleFor(x => x.Message)
                 .MaximumLength(300).WithMessage("Повідомлення не може перевищувати 300 символів");
+
+            // Контроль часу — ознака прогнозу й частина домовленості про партію.
+            RuleFor(x => x.TimeControl)
+                .Must(TimeControls.IsValid).WithMessage("Оберіть контроль часу")
+                .When(x => x.Game == Games.Chess);
         }
     }
 }

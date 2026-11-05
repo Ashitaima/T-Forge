@@ -9,7 +9,8 @@ export const SIDE_NAMES: Record<string, Record<string, string>> = {
   CS2: { CT: "CT", T: "T" },
   Valorant: { Attack: "Атака", Defense: "Захист" },
   Dota2: { Radiant: "Radiant", Dire: "Dire" },
-  LeagueOfLegends: { Blue: "Синя сторона", Red: "Червона сторона" }
+  LeagueOfLegends: { Blue: "Синя сторона", Red: "Червона сторона" },
+  Chess: { White: "Білі", Black: "Чорні" }
 };
 
 export const sideLabel = (game: string, value: string) => SIDE_NAMES[game]?.[value] ?? value;

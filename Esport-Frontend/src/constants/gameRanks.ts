@@ -42,6 +42,10 @@ export const GAME_RANKS: Record<Game, readonly string[]> = {
   CS2: [
     "Premier0", "Premier5000", "Premier10000", "Premier15000",
     "Premier20000", "Premier25000", "Premier30000"
+  ],
+  Chess: [
+    "Chess0", "Chess1000", "Chess1200", "Chess1400", "Chess1600",
+    "Chess1800", "Chess2000", "Chess2200", "Chess2400"
   ]
 };
 
@@ -59,6 +63,19 @@ const CS2_LABELS: Record<string, string> = {
   Premier30000: "30 000+"
 };
 
+/** Шахові смуги — теж нижня межа рейтингу, як і Premier. */
+const CHESS_LABELS: Record<string, string> = {
+  Chess0: "до 1000",
+  Chess1000: "1000–1199",
+  Chess1200: "1200–1399",
+  Chess1400: "1400–1599",
+  Chess1600: "1600–1799",
+  Chess1800: "1800–1999",
+  Chess2000: "2000–2199",
+  Chess2200: "2200–2399",
+  Chess2400: "2400+"
+};
+
 /** «Ascendant2» → «Ascendant 2». Ранги не перекладають — їх так і вимовляють. */
 const spaceBeforeDigits = (value: string) => value.replace(/(\d+)$/, " $1");
 
@@ -69,5 +86,11 @@ export const rankLabel = (game: string, value: string): string => {
   if (!value) {
     return "Не вказано";
   }
-  return game === "CS2" ? CS2_LABELS[value] ?? value : spaceBeforeDigits(value);
+  if (game === "CS2") {
+    return CS2_LABELS[value] ?? value;
+  }
+  if (game === "Chess") {
+    return CHESS_LABELS[value] ?? value;
+  }
+  return spaceBeforeDigits(value);
 };

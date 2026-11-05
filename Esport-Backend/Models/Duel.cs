@@ -49,6 +49,17 @@ namespace TForge.Models
         [StringLength(10)]
         public string Format { get; set; } = "BO1";
 
+        /// <summary>Контроль часу шахової дуелі (Common/TimeControls.cs); null для інших ігор.</summary>
+        [StringLength(20)]
+        public string? TimeControl { get; set; }
+
+        /// <summary>
+        /// Хто грає білими (Player.Id). Жереб при прийнятті шахової дуелі; null
+        /// для інших ігор і для дуелей, прийнятих до появи поля — тоді прогноз
+        /// усереднює обидва варіанти. Простий id, як і WinnerPlayerId.
+        /// </summary>
+        public int? WhitePlayerId { get; set; }
+
         [StringLength(300)]
         public string Message { get; set; } = string.Empty;
 

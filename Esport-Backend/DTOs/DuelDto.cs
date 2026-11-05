@@ -14,6 +14,12 @@
         public string Status { get; set; } = string.Empty;
         public string Format { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
+
+        /// <summary>Контроль часу шахової дуелі; null для інших ігор.</summary>
+        public string? TimeControl { get; set; }
+
+        /// <summary>Player.Id того, хто грає білими; null — колір ще не визначено.</summary>
+        public int? WhitePlayerId { get; set; }
         public int ChallengerScore { get; set; }
         public int OpponentScore { get; set; }
 
@@ -54,6 +60,9 @@
         public DateTime ScheduledAt { get; set; }
         public string Format { get; set; } = "BO1";
         public string Message { get; set; } = string.Empty;
+
+        /// <summary>Обов'язковий для шахів (Common/TimeControls.cs), ігнорується для інших ігор.</summary>
+        public string? TimeControl { get; set; }
     }
 
     public class CompleteDuelDto

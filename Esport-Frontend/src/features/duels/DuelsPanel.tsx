@@ -8,6 +8,13 @@ import { EmptyState, Skeleton } from "../../components/ui/Primitives";
 import { DateTimePicker, todayKey } from "../../components/ui/DateTimePicker";
 import { Toggle } from "../../components/ui/Toggle";
 import { GAMES, GAME_LABELS, gameLabel } from "../../constants/games";
+import { DuelPrediction } from "../../components/predictions/PredictionPanel";
+import {
+  DEFAULT_TIME_CONTROL,
+  TIME_CONTROLS,
+  TIME_CONTROL_LABELS,
+  timeControlLabel
+} from "../../constants/timeControls";
 import {
   DUEL_STATUS,
   DUEL_STATUS_PILL,
@@ -100,7 +107,10 @@ const DuelRow = ({
           )}
         </div>
 
-        <span className="shrink-0 text-micro text-text-faint">{gameLabel(duel.game)}</span>
+        <span className="shrink-0 text-micro text-text-faint">
+          {gameLabel(duel.game)}
+          {duel.game === "Chess" && ` · ${timeControlLabel(duel.timeControl)}`}
+        </span>
         {duel.isOpen && duel.status === DUEL_STATUS.Pending && (
           <span className="pill shrink-0 pill-neutral">Відкритий</span>
         )}
@@ -170,6 +180,16 @@ const DuelRow = ({
         <p className="muted mt-2 pl-[6.75rem] text-micro">{duel.message}</p>
       )}
 
+      {duel.game === "Chess" && isDuelPlayable(duel.status) && duel.opponentPlayer && (
+        <div className="mt-3">
+          <DuelPrediction
+            duelId={duel.id}
+            firstName={duel.challengerPlayer?.nickname ?? "—"}
+            secondName={duel.opponentPlayer.nickname}
+          />
+        </div>
+      )}
+
       {scoring && (
         <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-line-soft pt-3">
           <label className="field">
@@ -227,6 +247,7 @@ export const DuelsPanel = () => {
   const [game, setGame] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [message, setMessage] = useState("");
+  const [timeControl, setTimeControl] = useState<string>(DEFAULT_TIME_CONTROL);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -283,7 +304,9 @@ export const DuelsPanel = () => {
         opponentPlayerId: isOpenChallenge ? null : Number(opponentPlayerId),
         game,
         scheduledAt,
-        message
+        message,
+        // Сервер вимагає контроль часу для шахів і ігнорує його для решти.
+        timeControl: game === "Chess" ? timeControl : null
       })
     );
 
@@ -359,6 +382,23 @@ export const DuelsPanel = () => {
               ))}
             </select>
           </label>
+
+          {game === "Chess" && (
+            <label className="field">
+              Контроль часу
+              <select
+                value={timeControl}
+                onChange={(event) => setTimeControl(event.target.value)}
+                className="input"
+              >
+                {TIME_CONTROLS.map((value) => (
+                  <option key={value} value={value}>
+                    {TIME_CONTROL_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <div className="field">
             Час

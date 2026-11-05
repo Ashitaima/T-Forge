@@ -26,6 +26,7 @@ public class GameRanksTests
     [InlineData(Games.Dota2, 36)]
     [InlineData(Games.LeagueOfLegends, 31)]
     [InlineData(Games.CS2, 7)]
+    [InlineData(Games.Chess, 9)]
     public void Ladder_HasTheExpectedSize(string game, int expected) =>
         Assert.Equal(expected, GameRanks.For(game).Length);
 
@@ -79,4 +80,16 @@ public class GameRanksTests
         // Невідомий ранг — не «будь-який»: інакше зіпсоване значення
         // мовчки відкрило б вакансію всім.
         Assert.Empty(GameRanks.AtOrAbove(Games.Valorant, "Bogus"));
+
+    [Fact]
+    public void Chess_BandsAreOrderedByLowerBound() =>
+        Assert.Equal(
+            new[] { 0, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400 },
+            GameRanks.Chess.Select(b => int.Parse(b["Chess".Length..])).ToArray());
+
+    [Fact]
+    public void Chess_AtOrAbove_1800_ReturnsTheTopFourBands() =>
+        Assert.Equal(
+            new[] { "Chess1800", "Chess2000", "Chess2200", "Chess2400" },
+            GameRanks.AtOrAbove(Games.Chess, "Chess1800"));
 }

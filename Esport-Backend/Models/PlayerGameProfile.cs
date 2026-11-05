@@ -39,6 +39,13 @@ namespace TForge.Models
         public string Rank { get; set; } = string.Empty;
 
         /// <summary>
+        /// Точний шаховий рейтинг (Lichess, chess.com чи FIDE) — лише для шахів.
+        /// Коли заданий, Rank виводиться з нього (ChessRatings.BandFor) і окремо
+        /// не редагується. Ознака моделі прогнозу.
+        /// </summary>
+        public int? Rating { get; set; }
+
+        /// <summary>
         /// Чи шукає гравець команду саме в цій дисципліні.
         ///
         /// Прапорець на дисципліну, а не на гравця: можна шукати склад у

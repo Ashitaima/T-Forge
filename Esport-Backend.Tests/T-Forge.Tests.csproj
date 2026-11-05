@@ -26,6 +26,12 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Тест паритету: ті самі ONNX-моделі, що й у застосунку, та входи/виходи з ml/chess/train.py. -->
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Esport-Backend\MlModels\**\*" LinkBase="MlModels" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Esport-Backend\T-Forge.csproj" />
   </ItemGroup>

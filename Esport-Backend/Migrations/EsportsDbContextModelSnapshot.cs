@@ -121,6 +121,13 @@ namespace TForge.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Pending");
 
+                    b.Property<string>("TimeControl")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("WhitePlayerId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("WinnerPlayerId")
                         .HasColumnType("integer");
 
@@ -626,6 +633,9 @@ namespace TForge.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<int?>("Rating")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PlayerId", "Game")
@@ -1037,6 +1047,10 @@ namespace TForge.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Registration");
+
+                    b.Property<string>("TimeControl")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

@@ -17,6 +17,9 @@ namespace TForge.DTOs
         /// <summary>Закритий турнір: склад учасників визначає організатор.</summary>
         public bool IsInviteOnly { get; set; }
 
+        /// <summary>Контроль часу шахового турніру; null — рапід.</summary>
+        public string? TimeControl { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public UserDto? Organizer { get; set; }
     }
@@ -34,6 +37,9 @@ namespace TForge.DTOs
         /// <summary>Закритий турнір: реєструватися самостійно капітани не можуть.</summary>
         public bool IsInviteOnly { get; set; }
 
+        /// <summary>Лише для шахів; для інших ігор сервер його скидає.</summary>
+        public string? TimeControl { get; set; }
+
         /// <summary>Заповнює сервер з токена. Задати вручну може лише адміністратор.</summary>
         public int? OrganizerId { get; set; }
 
@@ -50,6 +56,7 @@ namespace TForge.DTOs
         public int MaxTeams { get; set; }
         public decimal PrizePool { get; set; }
         public bool IsInviteOnly { get; set; }
+        public string? TimeControl { get; set; }
         public string Status { get; set; } = string.Empty;
     }
 

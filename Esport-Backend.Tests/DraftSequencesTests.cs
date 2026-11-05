@@ -223,9 +223,21 @@ public class DraftSequencesTests
     public void For_Unknown_IsEmpty(string? game, string? format) =>
         Assert.Empty(DraftSequences.For(game, format));
 
+    private static readonly string[] DraftGames =
+        { Games.CS2, Games.Valorant, Games.Dota2, Games.LeagueOfLegends };
+
     [Fact]
-    public void HasDraft_EveryKnownGame_IsTrue() =>
-        Assert.All(Games.All, game => Assert.True(DraftSequences.HasDraft(game)));
+    public void HasDraft_EveryDraftGame_IsTrue() =>
+        Assert.All(DraftGames, game => Assert.True(DraftSequences.HasDraft(game)));
+
+    [Fact]
+    public void HasDraft_Chess_IsFalse() =>
+        // Шахи — дисципліна без вето: ні карт, ні героїв. Колись HasDraft
+        // означав «гра валідна», і шаховий матч пропонував би драфт без послідовності.
+        Assert.False(DraftSequences.HasDraft(Games.Chess));
+
+    [Fact]
+    public void For_Chess_IsEmpty() => Assert.Empty(DraftSequences.For(Games.Chess, "BO1"));
 
     [Fact]
     public void HasDraft_Unknown_IsFalse() => Assert.False(DraftSequences.HasDraft("Overwatch"));
@@ -233,7 +245,7 @@ public class DraftSequencesTests
     [Fact]
     public void Every_ActionIsAKnownAction() =>
         Assert.All(
-            Games.All,
+            DraftGames,
             game => Assert.All(
                 DraftSequences.For(game, "BO1"),
                 step => Assert.True(DraftActions.IsValid(step.Action))));
