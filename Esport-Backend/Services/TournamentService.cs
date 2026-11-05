@@ -68,6 +68,7 @@ namespace TForge.Services
         {
             var tournament = _mapper.Map<Tournament>(createDto);
             tournament.OrganizerId = organizerId;
+            NormalizeTimeControl(tournament);
             await _unitOfWork.Tournaments.AddAsync(tournament);
             await _unitOfWork.SaveChangesAsync();
 
@@ -89,10 +90,20 @@ namespace TForge.Services
             }
 
             _mapper.Map(updateDto, tournament);
+            NormalizeTimeControl(tournament);
             _unitOfWork.Tournaments.Update(tournament);
             await _unitOfWork.SaveChangesAsync();
 
             return _mapper.Map<TournamentDto>(tournament);
+        }
+
+        /// <summary>Контроль часу має сенс лише для шахів; порожній рядок — те саме, що «не вказано».</summary>
+        private static void NormalizeTimeControl(Tournament tournament)
+        {
+            if (tournament.Game != Games.Chess || string.IsNullOrEmpty(tournament.TimeControl))
+            {
+                tournament.TimeControl = null;
+            }
         }
 
         public async Task<bool> DeleteAsync(int id)

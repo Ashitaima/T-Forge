@@ -49,8 +49,9 @@ unchanged.
 
 ```bash
 dotnet build T-Forge.sln                                # must be 0 warnings, 0 errors
-dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 653 test cases
+dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 821 test cases, incl. the ONNX parity test
 cd Esport-Frontend && npx tsc --noEmit && npx vite build
+cd ml/chess && .venv/Scripts/python -m pytest -q          # 14 cases; venv setup in ml/chess/README.md
 ```
 
 There is no browser automation available in this environment. Verify UI behaviour through the API with `curl`, and say so plainly rather than implying a visual check. When behaviour depends on generated SQL, read the SQL — `appsettings.Development.json` already logs `Microsoft.EntityFrameworkCore.Database.Command` at Information.
@@ -251,8 +252,63 @@ dotnet ef database drop -f
   falls back to its label exactly as a failed hero portrait does. `tools/fetch-map-images.ps1`
   fetches them from a source-URL table that ships empty on purpose — choosing where
   the artwork comes from is the repo owner's call, not something to hardcode.
+- **Chess is a discipline without a draft.** `DraftSequences.HasDraft` is an explicit
+  list of the four veto games, **not** `Games.IsValid` — appending Chess to `Games.All`
+  under the old definition would have offered every chess match a draft with no
+  sequence. Frontend mirror: `gameHasDraft` in `constants/draft.ts`, which also hides
+  `DraftPanel`. Tests that loop `Games.All` over draft catalogs must loop
+  `Games.All.Where(DraftSequences.HasDraft)` instead. Chess ranks are rating-band
+  lower bounds (`Chess1800` = 1800–1999), the same trick as CS2 Premier; positions
+  are `Board1`–`Board4` and `Reserve`.
+- **A chess rating is one number, and the band is derived from it.**
+  `PlayerGameProfile.Rating` (chess only, 100–3500) is the exact rating; when it is
+  set, `PlayerService.SaveGameProfileAsync` overwrites `Rank` with
+  `ChessRatings.BandFor(rating)`, so a profile can never claim «1850» and «до 1000»
+  at once. Prediction uses `ChessRatings.Effective` — the exact number, or the band
+  midpoint. `Duel.TimeControl` is required for chess duels (`Common/TimeControls.cs`);
+  `Duel.WhitePlayerId` is a coin flip stamped on acceptance; `Tournament.TimeControl`
+  is chess-only and `TournamentService` nulls it for other games.
+- **Prediction features exist twice and are pinned together.** `ml/chess/features.py`
+  ↔ `Common/ChessFeatures.cs` + `EloBaseline.cs` + `TimeControls.cs`. Feature order
+  `[rating_diff, rating_mean, tc_bullet, tc_blitz, tc_rapid, tc_classical]`, class
+  order `[white, draw, black]` — `ChessModelRunner` refuses a `model_info.json` that
+  says otherwise. `ChessModelParityTests` feeds the inputs from
+  `Esport-Backend.Tests/Fixtures/chess_parity.json` through the .NET side and requires
+  Python's ONNX probabilities within 1e-5. Retrain with `ml/chess/train.py`: it copies
+  the ONNX files to `Esport-Backend/MlModels/chess/` and the fixture into the tests
+  itself. Never change one side alone, and never loosen the tolerance — a drifted
+  feature gives confident wrong probabilities and no error.
+- **Missing models disable prediction, never startup.** `ChessModelRunner` is a
+  singleton that logs a warning and reports `IsAvailable = false`; the endpoints then
+  return `200 { available: false, reason }`, which the UI shows as «Прогноз
+  недоступний». Same for non-chess games and players without a rating — the server
+  never invents a number. Predictions are computed on read and not stored.
+- **The training data barely covers fast chess.** The Kaggle Lichess set has 0 bullet
+  and 4 blitz games, so `model_info.json` carries `train_games_by_time_control` and
+  `ChessModelInfo.HasLittleDataFor` flags anything under 100 games; the panel says so.
+  The fix is a bigger dataset (`train.py --data <lichess dump>`), not a code change.
+  `train.py` patches `onnx.helper.make_attribute` to cast bools to ints — skl2onnx
+  emits bools in `HistGradientBoosting`'s `nodes_missing_value_tracks_true`, which
+  onnx ≥ 1.18 rejects. scikit-learn is pinned to 1.7.2 so the reported metrics
+  reproduce.
+- **Team-match prediction pairs boards by profile position.** `Common/ChessBoards.cs`
+  orders each side by `Board1`–`Board4`, then by rating, with `Reserve` last; home plays
+  White on boards 1 and 3. Rosters come from `MatchPlayer.TeamId`, as everywhere else.
+  Colour unknown in a duel → both orientations are averaged (`SideOutcome.Average`).
 
 ## Current state
+
+**Chess and chess-result prediction landed on 2026-11-05** (branch
+`feature/chess-prediction`, uncommitted). Chess is a fifth discipline — team matches on
+four boards and individual duels — and chess duels and team matches show win/draw/loss
+probabilities from Logistic Regression and Gradient Boosting next to an Elo baseline.
+On the 3,093-game test split, log loss is 0.786 (LogReg), 0.789 (boosting), 0.813 (Elo):
+both models beat Elo, LogReg slightly ahead; no method ever predicts a draw as the
+likeliest outcome (4.3 % draws). The coursework analysis is `ml/chess/chess_prediction.ipynb`
+(generated by `build_notebook.py`). See
+`docs/superpowers/specs/2026-11-05-chess-discipline-and-prediction-design.md` and the plan
+beside it. Demo accounts `chess1`–`chess8` (password `DevPassw0rd`) are seeded with a chess
+tournament and two duels.
 
 Branch `feature/scope-phase1-accounts-roles` implements Phases 1 and 2 of the `Scope.md` work: registration restricted to Player/Organizer with an auto-created player profile, an Admin-only full-account endpoint, a `/profile` page, Admin-only developer mode, and the game catalog with match filtering. **Nothing is committed** — the repo owner commits manually.
 
@@ -297,7 +353,7 @@ Captains now also run their own friendly matches: start, score, complete and the
    tokens, so logout is a no-op and a stolen token is valid until it expires.
    Note that the old JWT key and DB password remain in git history.
 2. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-3. **Test coverage is 653 test cases over pure calculators, policies, constants and validators.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+3. **Test coverage is 821 test cases over pure calculators, policies, constants and validators, plus the ONNX parity test.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
 4. **The ledger `Down` migration is not reversible once a result has been corrected.**
    `AddRatingChangeRevisions` cannot restore the old two-column unique index when a
    match already carries more than one revision, and it fails loudly rather than

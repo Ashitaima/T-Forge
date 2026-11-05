@@ -1,0 +1,56 @@
+{
+  "trained_at": "2026-11-05T10:36:39+00:00",
+  "dataset": "games.csv",
+  "rows_train": 12368,
+  "rows_test": 3093,
+  "feature_order": [
+    "rating_diff",
+    "rating_mean",
+    "tc_bullet",
+    "tc_blitz",
+    "tc_rapid",
+    "tc_classical"
+  ],
+  "class_order": [
+    "white",
+    "draw",
+    "black"
+  ],
+  "elo_draw_rate": 0.04309508408796895,
+  "train_games_by_time_control": {
+    "Bullet": 0,
+    "Blitz": 4,
+    "Rapid": 10607,
+    "Classical": 1757
+  },
+  "best_params": {
+    "logreg": {
+      "logisticregression__C": 0.01
+    },
+    "gbt": {
+      "learning_rate": 0.03,
+      "max_depth": 2,
+      "max_iter": 50
+    }
+  },
+  "metrics": {
+    "logreg": {
+      "log_loss": 0.7864988655151489,
+      "brier": 0.48502096897156,
+      "accuracy": 0.6100872938894277,
+      "draw_recall": 0.0
+    },
+    "gbt": {
+      "log_loss": 0.7889167709519967,
+      "brier": 0.487085932550254,
+      "accuracy": 0.6055609440672486,
+      "draw_recall": 0.0
+    },
+    "elo": {
+      "log_loss": 0.8126603535612448,
+      "brier": 0.4851782595879259,
+      "accuracy": 0.6052376333656644,
+      "draw_recall": 0.0
+    }
+  }
+}

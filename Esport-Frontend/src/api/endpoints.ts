@@ -75,6 +75,8 @@ export const endpoints = {
   matchJoin: (id: number) => `/api/matches/${id}/join`,
   duels: "/api/duels",
   duelRecord: (playerId: number) => `/api/duels/record/${playerId}`,
+  duelPrediction: (id: number) => `/api/duels/${id}/prediction`,
+  matchPrediction: (id: number) => `/api/matches/${id}/prediction`,
   duelRespond: (id: number) => `/api/duels/${id}/respond`,
   duelCancel: (id: number) => `/api/duels/${id}/cancel`,
   duelStart: (id: number) => `/api/duels/${id}/start`,

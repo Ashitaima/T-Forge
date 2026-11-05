@@ -32,6 +32,10 @@ namespace TForge.Validators
             RuleFor(x => x.Status)
                 .NotEmpty().WithMessage("Статус турніру є обов'язковим")
                 .Must(BeValidStatus).WithMessage("Некоректний статус турніру");
+
+            RuleFor(x => x.TimeControl)
+                .Must(TimeControls.IsValid).WithMessage("Невідомий контроль часу")
+                .When(x => !string.IsNullOrEmpty(x.TimeControl));
         }
 
         private bool BeValidStatus(string status) => TournamentStatus.IsValid(status);

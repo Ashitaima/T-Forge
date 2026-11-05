@@ -70,4 +70,8 @@ public class GameMapsTests
     [Fact]
     public void Sides_EveryKnownGameHasSides() =>
         Assert.All(Games.All, game => Assert.NotEmpty(GameSides.ForGame(game)));
+
+    [Fact]
+    public void Chess_SidesAreWhiteThenBlack() =>
+        Assert.Equal(new[] { "White", "Black" }, GameSides.ForGame(Games.Chess));
 }

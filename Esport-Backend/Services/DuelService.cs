@@ -136,6 +136,7 @@ namespace TForge.Services
                 Game = createDto.Game,
                 ScheduledAt = createDto.ScheduledAt,
                 Format = createDto.Format,
+                TimeControl = createDto.Game == Games.Chess ? createDto.TimeControl : null,
                 Message = createDto.Message ?? string.Empty,
                 Status = DuelStatuses.Pending,
                 CreatedAt = DateTime.UtcNow
@@ -178,6 +179,15 @@ namespace TForge.Services
 
             duel.Status = accept ? DuelStatuses.Accepted : DuelStatuses.Declined;
             duel.RespondedAt = DateTime.UtcNow;
+
+            // Колір вирішує жереб у мить згоди, як і перший хід у драфті:
+            // записуємо результат, а не спосіб.
+            if (accept && duel.Game == Games.Chess && duel.WhitePlayerId == null)
+            {
+                duel.WhitePlayerId = Random.Shared.Next(2) == 0
+                    ? duel.ChallengerPlayerId
+                    : duel.OpponentPlayerId;
+            }
 
             await _unitOfWork.SaveChangesAsync();
             return await LoadDtoAsync(id);

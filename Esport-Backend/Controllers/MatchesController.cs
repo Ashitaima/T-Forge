@@ -15,15 +15,28 @@ namespace TForge.Controllers
         private readonly IMatchService _matchService;
         private readonly IMatchRosterService _rosterService;
         private readonly ILogger<MatchesController> _logger;
+        private readonly IChessPredictionService _predictions;
 
         public MatchesController(
             IMatchService matchService,
             IMatchRosterService rosterService,
-            ILogger<MatchesController> logger)
+            ILogger<MatchesController> logger,
+            IChessPredictionService predictions)
         {
             _matchService = matchService;
             _rosterService = rosterService;
             _logger = logger;
+            _predictions = predictions;
+        }
+
+        /// <summary>
+        /// Прогноз командного шахового матчу: по дошках і очікувані очки команд.
+        /// Публічний, як і решта читання.
+        /// </summary>
+        [HttpGet("{id}/prediction")]
+        public async Task<ActionResult<MatchPredictionDto>> GetPrediction(int id)
+        {
+            return Ok(await _predictions.PredictMatchAsync(id));
         }
 
         [HttpGet("paged")]

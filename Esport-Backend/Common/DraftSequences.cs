@@ -133,6 +133,12 @@ namespace TForge.Common
             _ => None
         };
 
-        public static bool HasDraft(string? game) => Games.IsValid(game);
+        /// <summary>
+        /// Чи має дисципліна драфт узагалі. Колись це було Games.IsValid — і
+        /// поки всі ігри мали вето, різниці не було. Шахи вето не мають: карти
+        /// чи героя там немає, тож драфт мусить бути явним переліком.
+        /// </summary>
+        public static bool HasDraft(string? game) =>
+            game is Games.CS2 or Games.Valorant or Games.Dota2 or Games.LeagueOfLegends;
     }
 }

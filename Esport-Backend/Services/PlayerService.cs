@@ -485,10 +485,16 @@ namespace TForge.Services
             var existing = await _unitOfWork.PlayerGameProfiles.GetQueryable()
                 .FirstOrDefaultAsync(p => p.PlayerId == playerId && p.Game == dto.Game);
 
+            // Для шахів смуга виводиться з точного рейтингу — дві правди в
+            // одному профілі розійшлися б при першому ж редагуванні.
+            var rating = dto.Game == Games.Chess ? dto.Rating : null;
+            var rank = rating is int exact ? ChessRatings.BandFor(exact) : dto.Rank;
+
             if (existing != null)
             {
                 existing.Position = dto.Position;
-                existing.Rank = dto.Rank;
+                existing.Rank = rank;
+                existing.Rating = rating;
                 existing.IsLookingForTeam = dto.IsLookingForTeam;
                 await _unitOfWork.SaveChangesAsync();
                 return _mapper.Map<PlayerGameProfileDto>(existing);
@@ -499,7 +505,8 @@ namespace TForge.Services
                 PlayerId = playerId,
                 Game = dto.Game,
                 Position = dto.Position,
-                Rank = dto.Rank,
+                Rank = rank,
+                Rating = rating,
                 IsLookingForTeam = dto.IsLookingForTeam
             };
 

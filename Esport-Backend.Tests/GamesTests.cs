@@ -38,4 +38,7 @@ public class GamesTests
     {
         Assert.All(Games.All, game => Assert.True(game.Length <= 50));
     }
+
+    [Fact]
+    public void Chess_IsAValidGame() => Assert.True(Games.IsValid(Games.Chess));
 }

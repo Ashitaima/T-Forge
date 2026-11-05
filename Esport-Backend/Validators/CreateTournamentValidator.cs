@@ -38,6 +38,11 @@ namespace TForge.Validators
             RuleFor(x => x.OrganizerId)
                 .GreaterThan(0).WithMessage("ID організатора повинен бути більше 0")
                 .When(x => x.OrganizerId.HasValue);
+
+            // Порожній контроль — рапід (TimeControls.Default); для не-шахів сервер його скидає.
+            RuleFor(x => x.TimeControl)
+                .Must(TimeControls.IsValid).WithMessage("Невідомий контроль часу")
+                .When(x => !string.IsNullOrEmpty(x.TimeControl));
         }
     }
 }

@@ -64,6 +64,18 @@ namespace TForge.Common
             "Premier20000", "Premier25000", "Premier30000"
         };
 
+        /// <summary>
+        /// Шахові смуги рейтингу за нижньою межею — той самий прийом, що й у CS2
+        /// Premier. Chess0 — це «до 1000». Точний рейтинг, якщо гравець його
+        /// вказав, лежить у PlayerGameProfile.Rating, а смугу з нього виводить
+        /// ChessRatings.BandFor — тож вони не можуть розійтися.
+        /// </summary>
+        public static readonly string[] Chess =
+        {
+            "Chess0", "Chess1000", "Chess1200", "Chess1400", "Chess1600",
+            "Chess1800", "Chess2000", "Chess2200", "Chess2400"
+        };
+
         /// <summary>Ранги дисципліни; порожній масив, якщо дисципліна невідома.</summary>
         public static string[] For(string? game) => game switch
         {
@@ -71,6 +83,7 @@ namespace TForge.Common
             Games.CS2 => CS2,
             Games.Dota2 => Dota2,
             Games.LeagueOfLegends => LeagueOfLegends,
+            Games.Chess => Chess,
             _ => Array.Empty<string>()
         };
 

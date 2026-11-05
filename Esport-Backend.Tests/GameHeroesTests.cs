@@ -73,6 +73,7 @@ public class GameHeroesTests
         // Кожна дисципліна драфтить рівно одне: або карти, або героїв. На цьому
         // тримається DraftEngine.CatalogFor, який обирає між ними саме так.
         Assert.All(
-            Games.All,
+            // Шахи драфту не мають зовсім — ні карт, ні героїв, і це навмисно.
+            Games.All.Where(DraftSequences.HasDraft),
             game => Assert.True(GameMaps.HasMaps(game) ^ GameHeroes.HasHeroes(game)));
 }

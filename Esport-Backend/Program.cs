@@ -79,6 +79,13 @@ builder.Services.AddScoped<IDuelService, DuelService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
+            // Моделі прогнозу шахів завантажуються раз; відсутні файли вимикають
+            // прогноз (з попередженням у лог), але не зупиняють застосунок.
+            builder.Services.AddSingleton<IChessModelRunner>(sp => new ChessModelRunner(
+                Path.Combine(AppContext.BaseDirectory, "MlModels", "chess"),
+                sp.GetRequiredService<ILogger<ChessModelRunner>>()));
+            builder.Services.AddScoped<IChessPredictionService, ChessPredictionService>();
+
             builder.Services.AddAutoMapper(typeof(MappingProfile));
 
             builder.Services.AddFluentValidationAutoValidation();

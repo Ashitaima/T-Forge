@@ -54,4 +54,12 @@ public class GamePositionsTests
         Assert.Contains("Support", GamePositions.For(Games.LeagueOfLegends));
         Assert.DoesNotContain("Support", GamePositions.For(Games.Dota2));
     }
+
+    [Fact]
+    public void Chess_HasFourBoardsAndAReserve() =>
+        Assert.Equal(new[] { "Board1", "Board2", "Board3", "Board4", "Reserve" }, GamePositions.For(Games.Chess));
+
+    [Fact]
+    public void Chess_RejectsAnotherGamesPosition() =>
+        Assert.False(GamePositions.IsValidFor(Games.Chess, "AWPer"));
 }

@@ -14,6 +14,10 @@ namespace TForge.Common
         public static readonly string[] Dota2 = { "Radiant", "Dire" };
         public static readonly string[] LeagueOfLegends = { "Blue", "Red" };
 
+        // У шахах драфту немає, але колір — та сама «сторона»: його фіксує
+        // Duel.WhitePlayerId, а в командному матчі — номер дошки.
+        public static readonly string[] Chess = { "White", "Black" };
+
         private static readonly string[] None = Array.Empty<string>();
 
         public static string[] ForGame(string? game) => game switch
@@ -22,6 +26,7 @@ namespace TForge.Common
             Games.Valorant => Valorant,
             Games.Dota2 => Dota2,
             Games.LeagueOfLegends => LeagueOfLegends,
+            Games.Chess => Chess,
             _ => None
         };
 

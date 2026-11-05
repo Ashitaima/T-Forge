@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSubmitError } from "../../hooks/useSubmitError";
 import { tournamentsApi } from "../../api/tournamentsApi";
 import { GAMES, GAME_LABELS } from "../../constants/games";
+import { DEFAULT_TIME_CONTROL, TIME_CONTROLS, TIME_CONTROL_LABELS } from "../../constants/timeControls";
 import { DateTimePicker, todayKey } from "../../components/ui/DateTimePicker";
 import type { CreateTournamentDto, UpdateTournamentDto } from "../../types";
 
@@ -21,6 +22,8 @@ const schema = z.object({
   maxTeams: z.coerce.number().min(2, "Мінімум 2 команди"),
   prizePool: z.coerce.number().min(0, "Призовий фонд має бути додатним"),
   isInviteOnly: z.boolean(),
+  // Лише для шахів; порожньо — рапід (TimeControls.Default на сервері).
+  timeControl: z.string().optional(),
   // Статус є лише в редагуванні: новий турнір завжди починається з реєстрації,
   // і цей статус проставляє сервер.
   status: z.string().optional()
@@ -38,16 +41,19 @@ const TournamentForm = () => {
     handleSubmit,
     setValue,
     setError,
+    watch,
     formState: { errors, isSubmitting }
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       isInviteOnly: false,
+      timeControl: DEFAULT_TIME_CONTROL,
       status: "Registration"
     }
   });
 
   const submitError = useSubmitError<FormValues>(setError);
+  const selectedGame = watch("game");
 
   useEffect(() => {
     if (!id) {
@@ -68,6 +74,7 @@ const TournamentForm = () => {
         setValue("maxTeams", data.maxTeams);
         setValue("prizePool", Number(data.prizePool));
         setValue("isInviteOnly", data.isInviteOnly);
+        setValue("timeControl", data.timeControl ?? DEFAULT_TIME_CONTROL);
         setValue("status", data.status);
       } finally {
         setIsLoading(false);
@@ -88,6 +95,7 @@ const TournamentForm = () => {
         maxTeams: values.maxTeams,
         prizePool: values.prizePool,
         isInviteOnly: values.isInviteOnly,
+        timeControl: values.game === "Chess" ? values.timeControl ?? DEFAULT_TIME_CONTROL : null,
         status: values.status ?? "Registration"
       };
       await tournamentsApi.update(Number(id), payload);
@@ -100,7 +108,8 @@ const TournamentForm = () => {
         endDate: values.endDate,
         maxTeams: values.maxTeams,
         prizePool: values.prizePool,
-        isInviteOnly: values.isInviteOnly
+        isInviteOnly: values.isInviteOnly,
+        timeControl: values.game === "Chess" ? values.timeControl ?? DEFAULT_TIME_CONTROL : null
       };
       await tournamentsApi.create(payload);
     }
@@ -160,6 +169,19 @@ const TournamentForm = () => {
             ) : (
               <p className="field-hint">Після створення турніру дисципліну змінити не можна.</p>
             )}
+          </label>
+        )}
+        {selectedGame === "Chess" && (
+          <label className="field">
+            Контроль часу
+            <select {...register("timeControl")} className="input">
+              {TIME_CONTROLS.map((value) => (
+                <option key={value} value={value}>
+                  {TIME_CONTROL_LABELS[value]}
+                </option>
+              ))}
+            </select>
+            <p className="field-hint">Ознака для прогнозу результатів партій.</p>
           </label>
         )}
         <div className="grid gap-4 md:grid-cols-2">
