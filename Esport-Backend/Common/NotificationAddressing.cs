@@ -16,6 +16,12 @@ namespace TForge.Common
             public const string Membership = "Membership";
             public const string Challenge = "Challenge";
             public const string Tournament = "Tournament";
+
+            /// <summary>
+            /// Дуель: ініціатор — той, хто викликав, відповідач — суперник.
+            /// Відкрита дуель (без суперника) не адресована нікому, доки її не приймуть.
+            /// </summary>
+            public const string Duel = "Duel";
         }
 
         /// <summary>Кому показати рядок і чи можна на нього відповісти прямо зараз.</summary>
@@ -82,6 +88,9 @@ namespace TForge.Common
                 (Sources.Tournament, _, false) =>
                     NotificationKinds.TournamentApplicationAnswered,
 
+                (Sources.Duel, _, true) => NotificationKinds.DuelReceived,
+                (Sources.Duel, _, false) => NotificationKinds.DuelAnswered,
+
                 (_, _, true) => NotificationKinds.ChallengeReceived,
                 (_, _, false) => NotificationKinds.ChallengeAnswered
             };
@@ -90,6 +99,7 @@ namespace TForge.Common
         {
             Sources.Challenge => status == MatchChallengeStatus.Pending,
             Sources.Tournament => status == TournamentInvitationStatus.Pending,
+            Sources.Duel => status == DuelStatuses.Pending,
             _ => status == MembershipRequestStatus.Pending
         };
 
@@ -100,6 +110,11 @@ namespace TForge.Common
             Sources.Tournament =>
                 status == TournamentInvitationStatus.Accepted
                 || status == TournamentInvitationStatus.Declined,
+            // Прийнята дуель далі починається й завершується — відповідь
+            // «прийняв» лишається правдою, тож сповіщення не зникає.
+            Sources.Duel =>
+                status is DuelStatuses.Accepted or DuelStatuses.Declined
+                    or DuelStatuses.InProgress or DuelStatuses.Completed,
             _ =>
                 status == MembershipRequestStatus.Accepted
                 || status == MembershipRequestStatus.Declined
