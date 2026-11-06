@@ -1,4 +1,4 @@
-import { Swords, Trophy, UsersRound } from "lucide-react";
+import { Sword, Swords, Trophy, UsersRound } from "lucide-react";
 import type { NotificationKind } from "../types";
 
 /**
@@ -7,6 +7,9 @@ import type { NotificationKind } from "../types";
  * тримати їх тут означало б збирати той самий рядок удруге.
  */
 export const notificationIcon = (kind: NotificationKind) => {
+  if (kind.startsWith("Duel")) {
+    return Sword;
+  }
   if (kind.startsWith("Challenge")) {
     return Swords;
   }

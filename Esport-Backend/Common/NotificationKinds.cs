@@ -20,6 +20,8 @@ namespace TForge.Common
         public const string TournamentInviteAnswered = "TournamentInviteAnswered";
         public const string TournamentApplicationReceived = "TournamentApplicationReceived";
         public const string TournamentApplicationAnswered = "TournamentApplicationAnswered";
+        public const string DuelReceived = "DuelReceived";
+        public const string DuelAnswered = "DuelAnswered";
 
         public static readonly string[] All =
         {
@@ -27,7 +29,8 @@ namespace TForge.Common
             MembershipApplicationReceived, MembershipApplicationAnswered,
             ChallengeReceived, ChallengeAnswered,
             TournamentInviteReceived, TournamentInviteAnswered,
-            TournamentApplicationReceived, TournamentApplicationAnswered
+            TournamentApplicationReceived, TournamentApplicationAnswered,
+            DuelReceived, DuelAnswered
         };
 
         public static bool IsValid(string? kind) => kind != null && All.Contains(kind);

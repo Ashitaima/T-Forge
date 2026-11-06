@@ -228,8 +228,71 @@ namespace TForge.Services
                 });
             }
 
+            // --- Дуелі 1 на 1 ---
+            var duels = await _unitOfWork.Duels.GetQueryable()
+                .Where(d => d.ChallengerPlayer.UserId == userId
+                            || (d.OpponentPlayer != null && d.OpponentPlayer.UserId == userId))
+                .Select(d => new
+                {
+                    d.Status,
+                    d.Game,
+                    d.CreatedAt,
+                    d.RespondedAt,
+                    d.Message,
+                    ChallengerUserId = d.ChallengerPlayer.UserId,
+                    ChallengerNickname = d.ChallengerPlayer.Nickname,
+                    OpponentUserId = (int?)d.OpponentPlayer!.UserId,
+                    OpponentNickname = d.OpponentPlayer!.Nickname
+                })
+                .ToListAsync();
+
+            foreach (var row in duels)
+            {
+                // Відкрита дуель ще нікому не адресована — як і відкритий
+                // командний виклик. Прийнявши її, суперник стає названим.
+                if (row.OpponentUserId is not int opponentUserId)
+                {
+                    continue;
+                }
+
+                var audience = NotificationAddressing.For(
+                    NotificationAddressing.Sources.Duel,
+                    null, row.Status, row.ChallengerUserId, opponentUserId);
+
+                if (audience == null || audience.UserId != userId)
+                {
+                    continue;
+                }
+
+                var kind = NotificationAddressing.Kind(
+                    NotificationAddressing.Sources.Duel, null, audience.IsActionable);
+                var at = row.RespondedAt ?? row.CreatedAt;
+                var answer = row.Status == DuelStatuses.Declined ? "відхилив(ла)" : "прийняв(ла)";
+
+                result.Add(new NotificationDto
+                {
+                    Kind = kind,
+                    Title = audience.IsActionable
+                        ? $"{row.ChallengerNickname} викликає вас на дуель · {GameName(row.Game)}"
+                        : $"{row.OpponentNickname} {answer} ваш виклик на дуель",
+                    Body = string.IsNullOrWhiteSpace(row.Message) ? null : row.Message,
+                    Link = "/matches?mode=duel",
+                    CreatedAt = at,
+                    IsUnread = IsUnread(at, seenAt),
+                    IsActionable = audience.IsActionable
+                });
+            }
+
             return result;
         }
+
+        /// <summary>Назва дисципліни для заголовка — ті самі підписи, що на фронтенді.</summary>
+        private static string GameName(string game) => game switch
+        {
+            Games.Dota2 => "Dota 2",
+            Games.LeagueOfLegends => "League of Legends",
+            _ => game
+        };
 
         /// <summary>Нічого не бачив — отже, все нове.</summary>
         private static bool IsUnread(DateTime at, DateTime? seenAt) => seenAt == null || at > seenAt;

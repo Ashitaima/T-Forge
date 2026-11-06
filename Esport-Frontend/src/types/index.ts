@@ -578,7 +578,9 @@ export type NotificationKind =
   | "TournamentInviteReceived"
   | "TournamentInviteAnswered"
   | "TournamentApplicationReceived"
-  | "TournamentApplicationAnswered";
+  | "TournamentApplicationAnswered"
+  | "DuelReceived"
+  | "DuelAnswered";
 
 /**
  * Сповіщення не мають своєї таблиці — сервер виводить їх із запитів,

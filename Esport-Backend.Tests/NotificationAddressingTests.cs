@@ -96,20 +96,66 @@ public class NotificationAddressingTests
             NotificationAddressing.Kind(NotificationAddressing.Sources.Tournament, TournamentInvitationDirection.Invite, true),
             NotificationAddressing.Kind(NotificationAddressing.Sources.Tournament, TournamentInvitationDirection.Invite, false),
             NotificationAddressing.Kind(NotificationAddressing.Sources.Tournament, TournamentInvitationDirection.Application, true),
-            NotificationAddressing.Kind(NotificationAddressing.Sources.Tournament, TournamentInvitationDirection.Application, false)
+            NotificationAddressing.Kind(NotificationAddressing.Sources.Tournament, TournamentInvitationDirection.Application, false),
+            NotificationAddressing.Kind(NotificationAddressing.Sources.Duel, null, true),
+            NotificationAddressing.Kind(NotificationAddressing.Sources.Duel, null, false)
         };
 
-        Assert.Equal(10, kinds.Distinct().Count());
+        Assert.Equal(12, kinds.Distinct().Count());
         Assert.All(kinds, kind => Assert.True(NotificationKinds.IsValid(kind)));
     }
 
     [Fact]
     public void Kinds_AreDistinctAndSelfValidating()
     {
-        Assert.Equal(10, NotificationKinds.All.Length);
+        Assert.Equal(12, NotificationKinds.All.Length);
         Assert.Equal(NotificationKinds.All.Length, NotificationKinds.All.Distinct().Count());
         Assert.All(NotificationKinds.All, kind => Assert.True(NotificationKinds.IsValid(kind)));
         Assert.False(NotificationKinds.IsValid("Whatever"));
         Assert.False(NotificationKinds.IsValid(null));
     }
+
+    // ---- Дуелі ----
+
+    [Fact]
+    public void Duel_Pending_AwaitsTheOpponent()
+    {
+        var audience = NotificationAddressing.For(
+            NotificationAddressing.Sources.Duel, null, DuelStatuses.Pending, Initiator, Responder);
+
+        Assert.NotNull(audience);
+        Assert.Equal(Responder, audience!.UserId);
+        Assert.True(audience.IsActionable);
+        Assert.Equal(NotificationKinds.DuelReceived,
+            NotificationAddressing.Kind(NotificationAddressing.Sources.Duel, null, true));
+    }
+
+    [Theory]
+    [InlineData(DuelStatuses.Accepted)]
+    [InlineData(DuelStatuses.Declined)]
+    // Дуель після згоди живе далі — почалась і завершилась. Повідомлення про
+    // відповідь не повинно зникати лише тому, що гра пішла своїм ходом.
+    [InlineData(DuelStatuses.InProgress)]
+    [InlineData(DuelStatuses.Completed)]
+    public void Duel_Answered_InformsTheChallenger(string status)
+    {
+        var audience = NotificationAddressing.For(
+            NotificationAddressing.Sources.Duel, null, status, Initiator, Responder);
+
+        Assert.NotNull(audience);
+        Assert.Equal(Initiator, audience!.UserId);
+        Assert.False(audience.IsActionable);
+        Assert.Equal(NotificationKinds.DuelAnswered,
+            NotificationAddressing.Kind(NotificationAddressing.Sources.Duel, null, false));
+    }
+
+    [Fact]
+    public void Duel_Cancelled_AddressesNobody() =>
+        Assert.Null(NotificationAddressing.For(
+            NotificationAddressing.Sources.Duel, null, DuelStatuses.Cancelled, Initiator, Responder));
+
+    [Fact]
+    public void Duel_Pending_IsNotShownToAStranger() =>
+        Assert.NotEqual(Stranger, NotificationAddressing.For(
+            NotificationAddressing.Sources.Duel, null, DuelStatuses.Pending, Initiator, Responder)!.UserId);
 }

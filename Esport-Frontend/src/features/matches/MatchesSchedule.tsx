@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BarChart3, PlusCircle, Radio, Trash2 } from "lucide-react";
 import { matchesApi } from "../../api/matchesApi";
 import { subscribeToMatch } from "../../api/matchHub";
@@ -168,7 +168,11 @@ const MatchesSchedule = () => {
   // Друга вісь сторінки: командний матч чи дуель один на один. Обидва — гра
   // поза турніром, але це різні сутності з різними показниками, тож і списки
   // різні (docs/superpowers/specs/2026-08-19-duel-1v1-design.md).
-  const [mode, setMode] = useState<"team" | "duel">("team");
+  // ?mode=duel відкриває вкладку дуелей одразу — туди веде сповіщення про виклик.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode: "team" | "duel" = searchParams.get("mode") === "duel" ? "duel" : "team";
+  const setMode = (next: "team" | "duel") =>
+    setSearchParams(next === "duel" ? { mode: "duel" } : {}, { replace: true });
 
   useEffect(() => {
     let isActive = true;

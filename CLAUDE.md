@@ -49,7 +49,7 @@ unchanged.
 
 ```bash
 dotnet build T-Forge.sln                                # must be 0 warnings, 0 errors
-dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 821 test cases, incl. the ONNX parity test
+dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 828 test cases, incl. the ONNX parity test
 cd Esport-Frontend && npx tsc --noEmit && npx vite build
 cd ml/chess && .venv/Scripts/python -m pytest -q          # 14 cases; venv setup in ml/chess/README.md
 ```
@@ -148,7 +148,7 @@ dotnet ef database drop -f
   are caught in `MatchChallengeService`, not by the index. An open row also
   addresses nobody in `NotificationService` until it is accepted.
 - **Notifications have no table.** `Services/NotificationService.cs` projects
-  `TeamMembershipRequest`, `MatchChallenge` and `TournamentInvitation` rows into
+  `TeamMembershipRequest`, `MatchChallenge`, `TournamentInvitation` and `Duel` rows into
   one DTO, and `Common/NotificationAddressing.cs` — pure, like the other policies —
   decides who each row is for: while it is pending it awaits the responder, once
   answered it informs the initiator, and a cancelled row addresses nobody.
@@ -157,8 +157,11 @@ dotnet ef database drop -f
   is the only thing that writes it. `GetUnreadCountAsync` deliberately reuses the
   same collection instead of a leaner SQL `COUNT`: the addressing rule is C# and
   EF cannot translate it, so counting in SQL would mean a second copy of the one
-  rule that must not drift. The ceiling is real — only those three flows can
-  produce a notification, so anything else needs an events table.
+  rule that must not drift. The ceiling is real — only those four flows can
+  produce a notification, so anything else needs an events table. Duels differ in
+  one rule: `InProgress` and `Completed` still count as answered, so the
+  «прийняв(ла)» notice survives the game being played. Duel links go to
+  `/matches?mode=duel`, which `MatchesSchedule` reads to open the duel tab.
 
 - **Rating arithmetic lives in `Common/EloCalculator.cs`**, alongside the record calculators — pure, no EF. `Services/RatingService.cs` only reads and writes rows. Rating is per `(subject, game)`; only tournament matches with a winner count, so a friendly never moves it. The `TeamRatingChanges`/`PlayerRatingChanges` ledger is what makes double-counting structurally impossible: the service checks for an existing row before rating, and the unique `(TeamId, MatchId)` index catches anything that slips past. Rating hooks into `MatchRosterService.ApplyMatchResultAsync` *after* the roster is materialised — players are paid from `MatchPlayer.TeamId`, so those rows must exist first.
 - **Country is an ISO 3166-1 alpha-2 code, not a name.** `Common/Countries.cs` holds the codes; the Ukrainian labels and the flag live in `Esport-Frontend/src/constants/countries.ts`, same split as `Games`. `PlayerRules.PlayerCountry` whitelists them — free text can't produce a flag. `DatabaseInitializer.NormalizeLegacyCountriesAsync` translates known old names once and leaves unknown ones alone rather than wiping them. Flags are emoji: Windows lacks the glyphs and renders the two letters instead, which is why the code or name always sits next to the flag.
@@ -353,7 +356,7 @@ Captains now also run their own friendly matches: start, score, complete and the
    tokens, so logout is a no-op and a stolen token is valid until it expires.
    Note that the old JWT key and DB password remain in git history.
 2. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-3. **Test coverage is 821 test cases over pure calculators, policies, constants and validators, plus the ONNX parity test.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+3. **Test coverage is 828 test cases over pure calculators, policies, constants and validators, plus the ONNX parity test.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
 4. **The ledger `Down` migration is not reversible once a result has been corrected.**
    `AddRatingChangeRevisions` cannot restore the old two-column unique index when a
    match already carries more than one revision, and it fails loudly rather than
