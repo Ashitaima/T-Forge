@@ -24,6 +24,8 @@ namespace TForge.Data.Interfaces
         IGenericRepository<OrganizerRequest> OrganizerRequests { get; }
         IGenericRepository<TeamOpening> TeamOpenings { get; }
         IGenericRepository<LftPass> LftPasses { get; }
+        IGenericRepository<ChessDataset> ChessDatasets { get; }
+        IGenericRepository<ChessTrainingRun> ChessTrainingRuns { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

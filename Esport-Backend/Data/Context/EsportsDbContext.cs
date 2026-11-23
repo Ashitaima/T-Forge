@@ -30,6 +30,8 @@ namespace TForge.Data.Context
         public DbSet<DraftStep> DraftSteps { get; set; }
         public DbSet<TeamOpening> TeamOpenings { get; set; }
         public DbSet<LftPass> LftPasses { get; set; }
+        public DbSet<ChessDataset> ChessDatasets { get; set; }
+        public DbSet<ChessTrainingRun> ChessTrainingRuns { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,6 +52,73 @@ namespace TForge.Data.Context
             ConfigureOrganizerRequestModel(modelBuilder);
             ConfigureDraftModel(modelBuilder);
             ConfigureLftMatchmakingModel(modelBuilder);
+            ConfigureChessDatasetModel(modelBuilder);
+            ConfigureChessTrainingRunModel(modelBuilder);
+        }
+
+        /// <summary>
+        /// Завантажений датасет: у базі лише шлях, байти на диску під MlData.
+        /// </summary>
+        private void ConfigureChessDatasetModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ChessDataset>(entity =>
+            {
+                entity.ToTable("chess_datasets");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.OriginalFileName).IsRequired().HasMaxLength(260);
+                entity.Property(e => e.StoredPath).IsRequired().HasMaxLength(400);
+                entity.Property(e => e.Profile).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.GamesByTimeControlJson).IsRequired();
+                entity.Property(e => e.UploadedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                // Автора зберігаємо, але видалення користувача не має зносити
+                // датасет: метрики навчених на ньому моделей посилаються саме
+                // на нього.
+                entity.HasOne(e => e.UploadedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.UploadedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        /// <summary>
+        /// Запуск навчання й, якщо він удався, версія моделі. Активна рівно
+        /// одна; нуль активних — вбудований baseline.
+        /// </summary>
+        private void ConfigureChessTrainingRunModel(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ChessTrainingRun>(entity =>
+            {
+                entity.ToTable("chess_training_runs");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20)
+                    .HasDefaultValue(TrainingRunStatuses.Queued);
+                entity.Property(e => e.ModelPath).HasMaxLength(400);
+                entity.Property(e => e.ErrorMessage).HasMaxLength(500);
+                entity.Property(e => e.QueuedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                // Активна версія рівно одна. Фільтрований унікальний індекс
+                // робить другу структурно неможливою, а не просто охороняє її
+                // в сервісі; нуль активних — це baseline, і він тут не рядок.
+                entity.HasIndex(e => e.IsActive)
+                    .HasFilter("\"IsActive\"")
+                    .IsUnique();
+
+                entity.HasIndex(e => e.Status);
+
+                entity.HasOne(e => e.Dataset)
+                    .WithMany(d => d.Runs)
+                    .HasForeignKey(e => e.DatasetId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
 
         /// <summary>
