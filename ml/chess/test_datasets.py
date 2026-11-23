@@ -141,3 +141,55 @@ def test_summarize_counts_by_time_control():
     assert summary["by_time_control"]["Bullet"] == 0
     assert summary["is_time_ordered"] is False
     assert summary["issues"] == []
+
+
+# ---- Контракт --validate ----
+
+from pathlib import Path
+
+from train import load, load_dataset, validate
+
+
+def test_validate_reports_issue_for_missing_column(tmp_path: Path):
+    path = tmp_path / "bad.csv"
+    frame(MINIMAL_ROW).drop(columns=["winner"]).to_csv(path, index=False)
+    verdict = validate(path)
+    assert verdict["issues"]
+    assert "winner" in verdict["issues"][0]
+    assert verdict["rows"] == 0
+
+
+def test_validate_reports_issue_for_empty_file(tmp_path: Path):
+    path = tmp_path / "empty.csv"
+    path.write_text("", encoding="utf-8")
+    assert validate(path)["issues"]
+
+
+def test_validate_accepts_minimal_file(tmp_path: Path):
+    path = tmp_path / "good.csv"
+    frame(MINIMAL_ROW).to_csv(path, index=False)
+    verdict = validate(path)
+    assert verdict["issues"] == []
+    assert verdict["profile"] == MINIMAL
+    assert verdict["rows"] == MIN_ROWS
+    assert verdict["is_time_ordered"] is False
+
+
+def test_load_still_returns_a_dataframe(tmp_path: Path):
+    """build_notebook.py робить `df = train.load(...)` і далі `split(df)`.
+
+    Якщо load почне віддавати кортеж, генератор chess_prediction.ipynb — тобто
+    самого тексту курсової — тихо зламається. Кортеж має окрему назву.
+    """
+    path = tmp_path / "good.csv"
+    frame(MINIMAL_ROW).to_csv(path, index=False)
+    assert isinstance(load(path), pd.DataFrame)
+
+
+def test_load_dataset_returns_frame_profile_and_ordering(tmp_path: Path):
+    path = tmp_path / "good.csv"
+    frame(MINIMAL_ROW).to_csv(path, index=False)
+    rows, profile, is_time_ordered = load_dataset(path)
+    assert isinstance(rows, pd.DataFrame)
+    assert profile == MINIMAL
+    assert is_time_ordered is False
