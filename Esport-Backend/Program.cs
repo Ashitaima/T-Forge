@@ -95,6 +95,7 @@ builder.Services.AddScoped<IDuelService, DuelService>();
                 Path.Combine(AppContext.BaseDirectory, "MlModels", "chess"),
                 sp.GetRequiredService<ILogger<ChessModelRunner>>()));
             builder.Services.AddScoped<IChessPredictionService, ChessPredictionService>();
+            builder.Services.AddScoped<IChessTrainingService, ChessTrainingService>();
 
             // Навчання запускає Python із ml/chess/.venv. Шляхи — від кореня
             // вмісту, бо ml/ лежить поруч із Esport-Backend, а не в каталозі
