@@ -130,6 +130,43 @@ def test_normalize_rejects_too_few_rows():
         normalize(frame(MINIMAL_ROW, n=10))
 
 
+# ---- Фільтри якості йдуть за колонками, а не за профілем ----
+
+def test_normalize_minimal_with_rated_drops_unrated():
+    """Та сама вибірка Lichess ходить по Kaggle у редакції без id і created_at,
+    тож профіль у неї Minimal — але rated і turns у ній є. Прив'язка фільтрів
+    до назви профілю тихо пускала нерейтингові партії в навчання.
+    """
+    good = frame(MINIMAL_ROW, rated="TRUE")
+    bad = frame(MINIMAL_ROW, n=50, rated="FALSE")
+    rows, profile, _ = normalize(pd.concat([good, bad]))
+
+    assert profile == MINIMAL
+    assert len(rows) == MIN_ROWS
+
+
+def test_normalize_minimal_with_turns_drops_one_move_games():
+    good = frame(MINIMAL_ROW, turns=20)
+    bad = frame(MINIMAL_ROW, n=50, turns=1)
+    rows, _, _ = normalize(pd.concat([good, bad]))
+
+    assert len(rows) == MIN_ROWS
+
+
+def test_normalize_minimal_without_rated_or_turns_keeps_everything():
+    rows, _, _ = normalize(frame(MINIMAL_ROW, n=250))
+
+    assert len(rows) == 250
+
+
+def test_normalize_minimal_with_id_dedupes():
+    duplicated = pd.concat([frame(MINIMAL_ROW), frame(MINIMAL_ROW)])
+    duplicated["id"] = list(range(MIN_ROWS)) * 2
+    rows, _, _ = normalize(duplicated)
+
+    assert len(rows) == MIN_ROWS
+
+
 # ---- Підсумок ----
 
 def test_summarize_counts_by_time_control():

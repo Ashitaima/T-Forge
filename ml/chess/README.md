@@ -67,15 +67,28 @@ backend never parses one itself — it runs `train.py --validate` and reads the
 verdict, so the schema has a single definition.
 
 - **Lichess** — all of `id`, `rated`, `turns`, `created_at`, `winner`,
-  `increment_code`, `white_rating`, `black_rating`. Deduped on `id`, rated games
-  only, `turns >= 2`, time control derived from `increment_code`, ordered by
-  `created_at`.
+  `increment_code`, `white_rating`, `black_rating`. Time control derived from
+  `increment_code`, ordered by `created_at`.
 - **Minimal** — `white_rating`, `black_rating`, `winner`, and one of
   `time_control` (a `Common/TimeControls.cs` value) or `increment_code`.
   Optional `played_at` for chronological ordering; without it the train/test
   split is positional and `model_info.json` records `is_time_ordered: false`.
 
 `winner` is `white` / `draw` / `black`, case-insensitive. Minimum 200 usable rows.
+
+**The quality filters follow the columns, not the profile.** Whenever `id`,
+`rated` or `turns` is present the rows are deduped, restricted to rated games and
+to `turns >= 2` — in either profile. This matters because the same Lichess Kaggle
+sample is published in a second release (`chess_games.csv`) whose columns are
+renamed (`id` → `game_id`, `increment_code` → `time_increment`) and whose
+`created_at` is dropped: it resolves to **Minimal** while still carrying `rated`
+and `turns`, and tying the filters to the profile name silently trained on
+unrated and one-move games. Timeouts are still kept on purpose — losing on time
+is a real result.
+
+If you have that second release, rename `time_increment` → `increment_code`
+before uploading; `game_id` is a row number there, not a game id, so deduping on
+it would do nothing anyway.
 
 `load(path)` still returns just the DataFrame, because `build_notebook.py` calls
 it that way; `load_dataset(path)` returns `(rows, profile, is_time_ordered)`.

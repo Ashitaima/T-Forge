@@ -308,7 +308,17 @@ dotnet ef database drop -f
   the verdict's messages are Ukrainian, and on Windows the default codepage makes
   printing them raise `UnicodeEncodeError` — which turned every rejection into a fake
   toolchain failure. A C# copy of the schema rules would be a third mirrored contract
-  with nothing holding it together.
+  with nothing holding it together. A rejection also lists the columns the file *does*
+  have: "немає increment_code" over a file showing `time_increment` reads as a broken
+  check rather than a correct one.
+- **A dataset's quality filters follow its columns, not its profile name.** Dedup on
+  `id`, rated-only and `turns >= 2` apply whenever those columns exist, in either
+  profile. The Lichess Kaggle sample has a second release (`chess_games.csv`) with
+  renamed columns (`id` → `game_id`, `increment_code` → `time_increment`) and no
+  `created_at`, so it resolves to `Minimal` while still carrying `rated` and `turns` —
+  and keying the filters off the profile name silently trained on unrated and one-move
+  games (20058 rows instead of 16149). Timeouts stay in on purpose: losing on time is a
+  real result.
 - **App-driven training must never touch the committed baseline.**
   `Esport-Backend/MlModels/chess/` is the coursework's reported model and
   `Esport-Backend.Tests/Fixtures/chess_parity.json` is pinned to those exact `.onnx`
