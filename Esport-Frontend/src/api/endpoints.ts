@@ -82,5 +82,12 @@ export const endpoints = {
   duelStart: (id: number) => `/api/duels/${id}/start`,
   duelComplete: (id: number) => `/api/duels/${id}/complete`,
   matchDraft: (matchId: number) => `/api/matches/${matchId}/draft`,
-  drafts: "/api/drafts"
+  drafts: "/api/drafts",
+  mlStatus: "/api/ml/chess/status",
+  mlDatasets: "/api/ml/chess/datasets",
+  mlDataset: (id: number) => `/api/ml/chess/datasets/${id}`,
+  mlRuns: "/api/ml/chess/runs",
+  mlRun: (id: number) => `/api/ml/chess/runs/${id}`,
+  mlRunActivate: (id: number) => `/api/ml/chess/runs/${id}/activate`,
+  mlBaselineActivate: "/api/ml/chess/baseline/activate"
 };

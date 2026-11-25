@@ -705,9 +705,62 @@ export type ModelOutcomeDto = { model: string; firstWin: number; draw: number; s
 export type ModelMetricsDto = { model: string; logLoss: number; brier: number; accuracy: number };
 export type PredictionModelInfoDto = {
   trainedAt: string;
+  /** Назва файлу з model_info.json. */
   dataset: string;
+  /** Мітка датасету від адміністратора — або назва файлу вбудованої вибірки. */
+  datasetName: string;
+  /** True — відповідає вбудована модель. */
+  isBaseline: boolean;
   rowsTrain: number;
   metrics: ModelMetricsDto[];
+};
+
+/** Дзеркало Common/TrainingRunStatuses.cs. */
+export type TrainingRunStatus = "Queued" | "Running" | "Succeeded" | "Failed";
+
+export type ChessDatasetDto = {
+  id: number;
+  name: string;
+  originalFileName: string;
+  /** Дзеркало Common/ChessDatasetProfiles.cs. */
+  profile: "Minimal" | "Lichess";
+  rowCount: number;
+  sizeBytes: number;
+  /** Контроль часу → кількість партій. Порожні категорії теж присутні. */
+  gamesByTimeControl: Record<string, number>;
+  /** False — спліт буде позиційним: у файлі не було колонки впорядкування. */
+  isTimeOrdered: boolean;
+  uploadedAt: string;
+  uploadedByUsername: string;
+  /** Поки більше нуля — датасет не видалити. */
+  runCount: number;
+};
+
+export type TrainingRunDto = {
+  id: number;
+  datasetId: number;
+  datasetName: string;
+  status: TrainingRunStatus;
+  isActive: boolean;
+  queuedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  rowsTrain: number | null;
+  rowsTest: number | null;
+  metrics: ModelMetricsDto[];
+  /** Приходить лише з GET одного запуску, не зі списку. */
+  log: string | null;
+  errorMessage: string | null;
+  createdByUsername: string;
+};
+
+/** available = false — не помилка, а «навчати нічим» із причиною. */
+export type ChessTrainingStatusDto = {
+  available: boolean;
+  reason: string | null;
+  /** Null — активна вбудована модель. */
+  activeRun: TrainingRunDto | null;
+  baselineDataset: string;
 };
 
 /** available = false — не помилка, а «прогнозу немає» з причиною. */
