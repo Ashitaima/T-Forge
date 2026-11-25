@@ -36,22 +36,54 @@ namespace TForge.Services
             { "rating_diff", "rating_mean", "tc_bullet", "tc_blitz", "tc_rapid", "tc_classical" };
         private static readonly string[] ExpectedClasses = { "white", "draw", "black" };
 
-        // Ключі метрик у model_info.json → назви моделей у DTO.
-        private static readonly Dictionary<string, string> MetricKeys = new()
-        {
-            ["logreg"] = PredictionModels.LogisticRegression,
-            ["gbt"] = PredictionModels.GradientBoosting,
-            ["elo"] = PredictionModels.Elo
-        };
+        /// <summary>
+        /// Усе завантажене — одним незмінним знімком. Predict бере посилання
+        /// один раз у локальну змінну, тож перемикання посеред прогнозу не
+        /// може розірвати стан.
+        /// </summary>
+        private sealed record Loaded(
+            InferenceSession Logreg, InferenceSession Gbt, ChessModelInfo Info, int? RunId);
 
-        private readonly InferenceSession? _logreg;
-        private readonly InferenceSession? _gbt;
+        private volatile Loaded? _loaded;
 
-        public bool IsAvailable => _logreg != null && _gbt != null && Info != null;
-        public ChessModelInfo? Info { get; }
+        private readonly ILogger<ChessModelRunner> _logger;
+
+        public bool IsAvailable => _loaded != null;
+        public ChessModelInfo? Info => _loaded?.Info;
+        public int? ActiveRunId => _loaded?.RunId;
+        public string BaselineDirectory { get; }
+        public string BaselineDataset { get; }
 
         public ChessModelRunner(string modelDirectory, ILogger<ChessModelRunner> logger)
         {
+            _logger = logger;
+            BaselineDirectory = modelDirectory;
+            Load(modelDirectory, runId: null);
+
+            // Знімаємо назву набору вбудованої моделі один раз, поки Info — це
+            // саме вона. Пізніші перемикання її не змінюють: інакше підпис
+            // «вбудована» показував би датасет активної користувацької версії.
+            BaselineDataset = Info?.Dataset ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Новий знімок збирається повністю і лише потім присвоюється. Якщо
+        /// файли не читаються, лишається попередній — зламана версія не має
+        /// права лишити застосунок зовсім без моделі. Те саме правило, що
+        /// захищає ImageUploadService: старе йде тільки після того, як нове
+        /// стало на місце.
+        ///
+        /// Старі сесії при цьому не диспоузяться: прогноз, що вже в польоті,
+        /// тримає посилання, а дешевого способу дізнатися, що він закінчився,
+        /// немає. Ціна — десятки кілобайтів графа на перемикання, і для рідкої
+        /// дії адміністратора це дешевше за ObjectDisposedException у
+        /// відповіді користувачеві.
+        /// </summary>
+        public bool Load(string modelDirectory, int? runId)
+        {
+            InferenceSession? logreg = null;
+            InferenceSession? gbt = null;
+
             try
             {
                 var file = JsonSerializer.Deserialize<ChessModelInfoFile>(
@@ -59,50 +91,66 @@ namespace TForge.Services
                     new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower })
                     ?? throw new InvalidDataException("model_info.json is empty");
 
-                if (!file.FeatureOrder.SequenceEqual(ExpectedFeatures) || !file.ClassOrder.SequenceEqual(ExpectedClasses))
+                if (!file.FeatureOrder.SequenceEqual(ExpectedFeatures)
+                    || !file.ClassOrder.SequenceEqual(ExpectedClasses))
                 {
-                    throw new InvalidDataException("model_info.json feature/class order does not match ChessFeatures");
+                    throw new InvalidDataException(
+                        "model_info.json feature/class order does not match ChessFeatures");
                 }
 
-                _logreg = new InferenceSession(Path.Combine(modelDirectory, "logreg.onnx"));
-                _gbt = new InferenceSession(Path.Combine(modelDirectory, "gbt.onnx"));
+                logreg = new InferenceSession(Path.Combine(modelDirectory, "logreg.onnx"));
+                gbt = new InferenceSession(Path.Combine(modelDirectory, "gbt.onnx"));
 
-                Info = new ChessModelInfo(
+                var info = new ChessModelInfo(
                     file.TrainedAt,
                     file.Dataset,
                     file.RowsTrain,
                     file.EloDrawRate,
                     file.TrainGamesByTimeControl,
                     file.Metrics
-                        .Where(kv => MetricKeys.ContainsKey(kv.Key))
-                        .ToDictionary(kv => MetricKeys[kv.Key], kv => kv.Value));
+                        .Where(kv => PredictionModels.FileKeys.ContainsKey(kv.Key))
+                        .ToDictionary(kv => PredictionModels.FileKeys[kv.Key], kv => kv.Value));
+
+                _loaded = new Loaded(logreg, gbt, info, runId);
+                _logger.LogInformation(
+                    "Активна модель прогнозу: {Directory} (запуск {RunId})", modelDirectory, runId);
+                return true;
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException
                                            or OnnxRuntimeException or UnauthorizedAccessException)
             {
-                logger.LogWarning(ex,
-                    "Chess prediction models not loaded from {Directory}; predictions are disabled", modelDirectory);
-                _logreg?.Dispose();
-                _logreg = null;
-                _gbt = null;
-                Info = null;
+                logreg?.Dispose();
+                gbt?.Dispose();
+
+                if (_loaded == null)
+                {
+                    _logger.LogWarning(ex,
+                        "Моделі прогнозу не завантажено з {Directory}; прогноз вимкнено", modelDirectory);
+                }
+                else
+                {
+                    _logger.LogError(ex,
+                        "Не вдалося перемкнути модель на {Directory}; лишається попередня версія",
+                        modelDirectory);
+                }
+
+                return false;
             }
         }
 
         public IReadOnlyDictionary<string, ChessOutcome> Predict(int white, int black, string timeControl)
         {
-            if (!IsAvailable)
-            {
-                throw new InvalidOperationException("Chess prediction models are not loaded");
-            }
+            // Один раз у локальну: далі перемикання не впливає на цей виклик.
+            var loaded = _loaded
+                ?? throw new InvalidOperationException("Chess prediction models are not loaded");
 
             var features = ChessFeatures.Vector(white, black, timeControl);
 
             return new Dictionary<string, ChessOutcome>
             {
-                [PredictionModels.LogisticRegression] = Run(_logreg!, features),
-                [PredictionModels.GradientBoosting] = Run(_gbt!, features),
-                [PredictionModels.Elo] = EloBaseline.Predict(white, black, Info!.EloDrawRate)
+                [PredictionModels.LogisticRegression] = Run(loaded.Logreg, features),
+                [PredictionModels.GradientBoosting] = Run(loaded.Gbt, features),
+                [PredictionModels.Elo] = EloBaseline.Predict(white, black, loaded.Info.EloDrawRate)
             };
         }
 
@@ -117,8 +165,10 @@ namespace TForge.Services
 
         public void Dispose()
         {
-            _logreg?.Dispose();
-            _gbt?.Dispose();
+            var loaded = _loaded;
+            _loaded = null;
+            loaded?.Logreg.Dispose();
+            loaded?.Gbt.Dispose();
         }
     }
 }

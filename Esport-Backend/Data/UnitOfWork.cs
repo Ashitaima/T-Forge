@@ -36,6 +36,8 @@ namespace TForge.Data
         private IGenericRepository<LftPass>? _lftPasses;
         private IGenericRepository<MatchDraft>? _matchDrafts;
         private IGenericRepository<DraftStep>? _draftSteps;
+        private IGenericRepository<ChessDataset>? _chessDatasets;
+        private IGenericRepository<ChessTrainingRun>? _chessTrainingRuns;
 
         public IUserRepository Users =>
             _users ??= new UserRepository(_context);
@@ -90,6 +92,12 @@ namespace TForge.Data
 
         public IGenericRepository<LftPass> LftPasses =>
             _lftPasses ??= new GenericRepository<LftPass>(_context);
+
+        public IGenericRepository<ChessDataset> ChessDatasets =>
+            _chessDatasets ??= new GenericRepository<ChessDataset>(_context);
+
+        public IGenericRepository<ChessTrainingRun> ChessTrainingRuns =>
+            _chessTrainingRuns ??= new GenericRepository<ChessTrainingRun>(_context);
 
         public IGenericRepository<MatchDraft> MatchDrafts =>
             _matchDrafts ??= new GenericRepository<MatchDraft>(_context);

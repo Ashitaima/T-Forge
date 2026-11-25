@@ -20,7 +20,19 @@ namespace TForge.DTOs
     public class PredictionModelInfoDto
     {
         public string TrainedAt { get; set; } = string.Empty;
+
+        /// <summary>Назва файлу з model_info.json — як її записав train.py.</summary>
         public string Dataset { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Людська назва датасету: мітка, яку дав адміністратор, або назва
+        /// файлу вбудованої вибірки. Саме це показує панель прогнозу.
+        /// </summary>
+        public string DatasetName { get; set; } = string.Empty;
+
+        /// <summary>True — відповідає вбудована модель, а не навчена в застосунку.</summary>
+        public bool IsBaseline { get; set; }
+
         public int RowsTrain { get; set; }
         public List<ModelMetricsDto> Metrics { get; set; } = new();
     }

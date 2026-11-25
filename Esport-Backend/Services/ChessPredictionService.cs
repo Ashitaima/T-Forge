@@ -78,7 +78,7 @@ namespace TForge.Services
 
             dto.Available = true;
             dto.LittleData = _runner.Info!.HasLittleDataFor(timeControl);
-            dto.ModelInfo = InfoDto();
+            dto.ModelInfo = await InfoDtoAsync();
             return dto;
         }
 
@@ -150,22 +150,41 @@ namespace TForge.Services
                 .ToList();
             dto.Available = true;
             dto.LittleData = _runner.Info!.HasLittleDataFor(timeControl);
-            dto.ModelInfo = InfoDto();
+            dto.ModelInfo = await InfoDtoAsync();
             return dto;
         }
 
         private static ModelOutcomeDto ToDto(string model, SideOutcome s) =>
             new() { Model = model, FirstWin = s.FirstWin, Draw = s.Draw, SecondWin = s.SecondWin };
 
-        private PredictionModelInfoDto? InfoDto()
+        /// <summary>
+        /// Про активну модель. Назву датасету доводиться читати з бази, бо
+        /// model_info.json знає лише ім'я файлу — а адміністратор дав набору
+        /// власну мітку, і саме її має бачити користувач.
+        /// </summary>
+        private async Task<PredictionModelInfoDto?> InfoDtoAsync()
         {
             var info = _runner.Info;
             if (info == null) return null;
+
+            var runId = _runner.ActiveRunId;
+            var datasetName = _runner.BaselineDataset;
+
+            if (runId != null)
+            {
+                datasetName = await _unitOfWork.ChessTrainingRuns.GetQueryable()
+                    .AsNoTracking()
+                    .Where(r => r.Id == runId.Value)
+                    .Select(r => r.Dataset.Name)
+                    .FirstOrDefaultAsync() ?? info.Dataset;
+            }
 
             return new PredictionModelInfoDto
             {
                 TrainedAt = info.TrainedAt,
                 Dataset = info.Dataset,
+                DatasetName = datasetName,
+                IsBaseline = runId == null,
                 RowsTrain = info.RowsTrain,
                 Metrics = PredictionModels.All
                     .Where(info.Metrics.ContainsKey)

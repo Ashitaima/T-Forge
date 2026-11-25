@@ -49,9 +49,9 @@ unchanged.
 
 ```bash
 dotnet build T-Forge.sln                                # must be 0 warnings, 0 errors
-dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 828 test cases, incl. the ONNX parity test
+dotnet test Esport-Backend.Tests/T-Forge.Tests.csproj    # 893 test cases, incl. the ONNX parity test
 cd Esport-Frontend && npx tsc --noEmit && npx vite build
-cd ml/chess && .venv/Scripts/python -m pytest -q          # 14 cases; venv setup in ml/chess/README.md
+cd ml/chess && .venv/Scripts/python -m pytest -q          # 41 cases; venv setup in ml/chess/README.md
 ```
 
 There is no browser automation available in this environment. Verify UI behaviour through the API with `curl`, and say so plainly rather than implying a visual check. When behaviour depends on generated SQL, read the SQL — `appsettings.Development.json` already logs `Microsoft.EntityFrameworkCore.Database.Command` at Information.
@@ -298,6 +298,50 @@ dotnet ef database drop -f
   orders each side by `Board1`–`Board4`, then by rating, with `Reserve` last; home plays
   White on boards 1 and 3. Rosters come from `MatchPlayer.TeamId`, as everywhere else.
   Colour unknown in a duel → both orientations are averaged (`SideOutcome.Average`).
+- **A training dataset's schema has one definition, and it is Python's.**
+  `ml/chess/datasets.py` decides what a training CSV may look like (profiles `Lichess`
+  and `Minimal`); the backend never parses one. `POST /api/ml/chess/datasets` runs
+  `train.py --validate`, which prints a JSON verdict and **exits 0 even when it rejects
+  the file** — a non-zero exit or unparseable stdout means the toolchain is broken, not
+  that the CSV is bad, and `ChessTrainerProcess` keeps those two apart so a missing venv
+  never reads as «виправте файл». That child process needs `PYTHONIOENCODING=utf-8`:
+  the verdict's messages are Ukrainian, and on Windows the default codepage makes
+  printing them raise `UnicodeEncodeError` — which turned every rejection into a fake
+  toolchain failure. A C# copy of the schema rules would be a third mirrored contract
+  with nothing holding it together.
+- **App-driven training must never touch the committed baseline.**
+  `Esport-Backend/MlModels/chess/` is the coursework's reported model and
+  `Esport-Backend.Tests/Fixtures/chess_parity.json` is pinned to those exact `.onnx`
+  files. `ChessTrainerProcess` always passes `--no-install`, which is the single
+  mechanism that makes overwriting them impossible; trained versions go to
+  `Esport-Backend/MlData/models/<runId>/` instead, and uploaded datasets to
+  `MlData/datasets/<id>/data.csv`. That root is deliberately **not** under `wwwroot` —
+  `UseStaticFiles` would serve every dataset and weight file to anonymous readers.
+  `train.py`'s `load(path)` still returns just the DataFrame because
+  `build_notebook.py` calls it that way to generate the coursework notebook;
+  `load_dataset(path)` is the one that returns `(rows, profile, is_time_ordered)`.
+- **One version is active, and zero active means the baseline.**
+  `ChessTrainingRun.IsActive` has a filtered unique index (`WHERE "IsActive"`), so two
+  active versions are structurally impossible, and a clean checkout is already in the
+  correct state — the migration switches nothing on. `ChessModelRunner` holds its loaded
+  state as one immutable snapshot behind a `volatile` reference: `Predict` copies the
+  reference once so a swap cannot tear it, and `Load` assigns only after the new sessions
+  open, so a broken version leaves the previous one serving. Old sessions are deliberately
+  **not** disposed — an in-flight prediction still holds them, and tens of kilobytes beats
+  an `ObjectDisposedException` in a user's response. Activation re-checks the
+  feature/class order, so a drifted model is refused before it serves a number.
+  `BaselineDataset` is captured once in the constructor and never read from `Info`:
+  `Info` describes whichever version is active, so after activating a user version the
+  «вбудована» label named that version's file instead of `games.csv`.
+- **Training is one run at a time, and a `Running` row at startup is orphaned.**
+  `ChessTrainingRunnerService` polls like `DraftTimeoutService` and uses two scopes per
+  run — one to claim it, one to record the result — because a `DbContext` must not stay
+  open for the minutes the process takes. `ChessModelActivationService` marks every
+  `Running` row `Failed` at startup (its process died with the host) and then applies the
+  active version; it is registered **before** the queue so the repair lands before the
+  first tick. Both read `IChessTrainerProcess` eagerly at host start, which is also the
+  only reason the "training unavailable" warning is observable — `AddSingleton` with a
+  factory is lazy, so before those services existed its absence proved nothing.
 
 ## Current state
 
@@ -312,6 +356,19 @@ likeliest outcome (4.3 % draws). The coursework analysis is `ml/chess/chess_pred
 `docs/superpowers/specs/2026-11-05-chess-discipline-and-prediction-design.md` and the plan
 beside it. Demo accounts `chess1`–`chess8` (password `DevPassw0rd`) are seeded with a chess
 tournament and two duels.
+
+**Custom datasets and in-app training landed on 2026-11-25** (branch
+`feature/custom-training-datasets`). An Admin uploads a CSV at `/ml`, trains a model on
+it, compares its metrics against the built-in baseline and activates a version without
+restarting. Training still runs `ml/chess/train.py` as a process — the pipeline and its
+grid are unchanged, which is why the coursework numbers reproduce exactly (a full run
+through the app returned log loss 0.786 / 0.789 / 0.813 on `train=12368 test=3093`,
+identical to the committed `model_info.json`). Spec:
+`docs/superpowers/specs/2026-11-23-chess-custom-datasets-training-design.md`; plan beside
+it. Note that `ml/chess/.venv` had to be rebuilt on 2026-11-25: every compiled package in
+it was a Python 3.14 wheel while the interpreter had been downgraded to 3.13 by a
+`venv --upgrade`, so nothing imported. Rebuilding from `requirements.txt` kept
+`scikit-learn==1.7.2` and the metrics did not move.
 
 Branch `feature/scope-phase1-accounts-roles` implements Phases 1 and 2 of the `Scope.md` work: registration restricted to Player/Organizer with an auto-created player profile, an Admin-only full-account endpoint, a `/profile` page, Admin-only developer mode, and the game catalog with match filtering. **Nothing is committed** — the repo owner commits manually.
 
@@ -356,7 +413,7 @@ Captains now also run their own friendly matches: start, score, complete and the
    tokens, so logout is a no-op and a stolen token is valid until it expires.
    Note that the old JWT key and DB password remain in git history.
 2. **Pagination has never been exercised in a browser.** Worth one manual pass on a list with 20+ rows.
-3. **Test coverage is 828 test cases over pure calculators, policies, constants and validators, plus the ONNX parity test.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
+3. **Test coverage is 893 test cases over pure calculators, policies, constants and validators, plus the ONNX parity test and the model-swap tests.** No integration or frontend tests — services that touch EF are verified by hand against a scratch database. No fractional-KDA case pins the 2-decimal rounding.
 4. **The ledger `Down` migration is not reversible once a result has been corrected.**
    `AddRatingChangeRevisions` cannot restore the old two-column unique index when a
    match already carries more than one revision, and it fails loudly rather than

@@ -119,6 +119,14 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute roles={["Admin"]} />,
         children: [
           {
+            // Навчання моделі запускає процес на сервері — це право лише
+            // адміністратора, як і api/ml/chess.
+            path: "ml",
+            lazy: async () => ({
+              Component: (await import("../features/ml/ChessModelsPage")).default
+            })
+          },
+          {
             // Створення профілю гравця = створення облікового запису, тож лише адмін.
             path: "players/new",
             lazy: async () => ({

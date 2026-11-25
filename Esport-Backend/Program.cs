@@ -33,6 +33,12 @@ namespace TForge
             Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "avatars"));
             builder.Environment.WebRootPath = webRoot;
 
+            // Датасети й навчені версії моделей лежать поза wwwroot: статика
+            // віддає все, що під нею, а ці файли не для анонімного читача.
+            var mlDataRoot = Path.Combine(builder.Environment.ContentRootPath, "MlData");
+            Directory.CreateDirectory(Path.Combine(mlDataRoot, "datasets"));
+            Directory.CreateDirectory(Path.Combine(mlDataRoot, "models"));
+
             // Рядок підключення й ключ підпису живуть у user-secrets (розробка)
             // або у змінних середовища — у репозиторії лишаються тільки порожні
             // місця під них. Порожнє значення означає незроблене налаштування,
@@ -64,6 +70,10 @@ builder.Services.AddScoped<IDuelService, DuelService>();
             // Серверний годинник драфту: без нього хід згорає лише тоді, коли
             // на драфт хтось дивиться.
             builder.Services.AddHostedService<DraftTimeoutService>();
+            // Спершу ремонт і активна версія, потім черга: інакше перший такт
+            // черги побачив би покинутий Running і не взяв роботу.
+            builder.Services.AddHostedService<ChessModelActivationService>();
+            builder.Services.AddHostedService<ChessTrainingRunnerService>();
             builder.Services.AddScoped<IMembershipRequestService, MembershipRequestService>();
             builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
             builder.Services.AddScoped<ITournamentInvitationService, TournamentInvitationService>();
@@ -85,6 +95,22 @@ builder.Services.AddScoped<IDuelService, DuelService>();
                 Path.Combine(AppContext.BaseDirectory, "MlModels", "chess"),
                 sp.GetRequiredService<ILogger<ChessModelRunner>>()));
             builder.Services.AddScoped<IChessPredictionService, ChessPredictionService>();
+            builder.Services.AddScoped<IChessTrainingService, ChessTrainingService>();
+
+            // Навчання запускає Python із ml/chess/.venv. Шляхи — від кореня
+            // вмісту, бо ml/ лежить поруч із Esport-Backend, а не в каталозі
+            // збірки (туди csproj копіює лише MlModels).
+            var mlRoot = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "ml", "chess"));
+            var defaultPython = Path.Combine(mlRoot,
+                OperatingSystem.IsWindows() ? ".venv\\Scripts\\python.exe" : ".venv/bin/python");
+            var configuredPython = builder.Configuration["ChessTraining:PythonPath"];
+            var configuredScript = builder.Configuration["ChessTraining:ScriptPath"];
+
+            builder.Services.AddSingleton<IChessTrainerProcess>(sp => new ChessTrainerProcess(
+                string.IsNullOrWhiteSpace(configuredPython) ? defaultPython : configuredPython,
+                string.IsNullOrWhiteSpace(configuredScript) ? Path.Combine(mlRoot, "train.py") : configuredScript,
+                TimeSpan.FromMinutes(builder.Configuration.GetValue("ChessTraining:TimeoutMinutes", 20)),
+                sp.GetRequiredService<ILogger<ChessTrainerProcess>>()));
 
             builder.Services.AddAutoMapper(typeof(MappingProfile));
 

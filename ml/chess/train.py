@@ -9,6 +9,7 @@ re-implementing the pipeline.
 import argparse
 import json
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,8 +26,9 @@ from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from datasets import normalize, summarize
 from features import (CLASS_ORDER, FEATURE_ORDER, TIME_CONTROLS, elo_baseline,
-                      feature_vector, outcome_class, parse_increment_code)
+                      feature_vector)
 
 def _ints_not_bools(make_attribute):
     """skl2onnx writes HistGradientBoosting's `nodes_missing_value_tracks_true`
@@ -49,17 +51,36 @@ OUT = HERE / "out"
 DEFAULT_DATA = HERE / "data" / "raw" / "games.csv"
 
 
+def load_dataset(path: Path) -> tuple[pd.DataFrame, str, bool]:
+    """Рядки, профіль і чи впорядковано за часом. Правила — у datasets.py."""
+    return normalize(pd.read_csv(path))
+
+
 def load(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
-    df = df.drop_duplicates(subset="id")
-    df = df[df["rated"].astype(str).str.lower() == "true"]
-    df = df[df["turns"] >= 2]
-    # Timeouts are kept on purpose: losing on time is a real result.
-    df = df.copy()
-    df["time_control"] = df["increment_code"].map(parse_increment_code)
-    df["y"] = df["winner"].map(outcome_class)
-    df["created_at"] = pd.to_numeric(df["created_at"])
-    return df.sort_values(["created_at", "id"], kind="stable").reset_index(drop=True)
+    """Лише рядки.
+
+    Підпис лишається таким, яким був, бо build_notebook.py робить
+    `df = train.load(train.DEFAULT_DATA)` і генерує з нього
+    chess_prediction.ipynb — текст курсової. Профіль і впорядкованість
+    віддає load_dataset.
+    """
+    return load_dataset(path)[0]
+
+
+def validate(path: Path) -> dict:
+    """Вердикт для --validate: або підсумок, або непорожній issues.
+
+    Будь-яка проблема саме з файлом (немає колонки, порожній, не парситься)
+    лишається нульовим кодом виходу й непорожнім issues. Ненульовий код чи
+    нерозбірливий stdout означає зламаний інструментарій — і бекенд розрізняє
+    ці два випадки саме так.
+    """
+    empty = {"profile": None, "rows": 0, "by_time_control": {}, "is_time_ordered": False}
+    try:
+        rows, profile, is_time_ordered = load_dataset(path)
+    except (ValueError, OSError, pd.errors.ParserError, pd.errors.EmptyDataError) as problem:
+        return {**empty, "issues": [str(problem) or problem.__class__.__name__]}
+    return summarize(rows, profile, is_time_ordered)
 
 
 def matrix(df: pd.DataFrame) -> np.ndarray:
@@ -127,12 +148,41 @@ FIXTURE_PAIRS = [(1500, 1500), (1800, 1400), (1200, 2000), (2400, 2350), (900, 9
                  (1300, 1250), (2200, 1800)]
 
 
+def _utf8_stdout() -> None:
+    """Повідомлення у вердикті українські, а stdout дочірнього процесу на
+    Windows отримує кодування системної сторінки (cp1252) — друк кирилиці
+    падав з UnicodeEncodeError, і бекенд бачив ненульовий код виходу замість
+    вердикту, тобто «зламаний інструментарій» замість «поганий файл».
+
+    Бекенд додатково передає PYTHONIOENCODING=utf-8; це — та сама гарантія для
+    запуску руками з cmd.exe.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def main() -> None:
+    _utf8_stdout()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default=str(DEFAULT_DATA))
+    parser.add_argument("--validate", action="store_true",
+                        help="Перевірити файл і вивести JSON-вердикт; нічого не навчати")
+    parser.add_argument("--out", default=str(OUT),
+                        help="Куди писати артефакти (типово ml/chess/out)")
+    parser.add_argument("--no-install",
+                        dest="install", action="store_false", default=True,
+                        help="Не копіювати результат у MlModels/chess і Fixtures — саме це "
+                             "застосунок передає завжди, щоб не зачепити вбудовану модель")
     args = parser.parse_args()
 
-    df = load(Path(args.data))
+    if args.validate:
+        print(json.dumps(validate(Path(args.data)), ensure_ascii=False))
+        return
+
+    out = Path(args.out)
+    df, profile, is_time_ordered = load_dataset(Path(args.data))
     train, test = split(df)
     x_train, y_train = matrix(train), train["y"].to_numpy()
     x_test, y_test = matrix(test), test["y"].to_numpy()
@@ -149,15 +199,19 @@ def main() -> None:
         "elo": evaluate(y_test, elo_probs(test, draw_rate)),
     }
 
-    for directory in (OUT, MODELS_DIR, FIXTURES_DIR):
-        directory.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
 
-    to_onnx(logreg, OUT / "logreg.onnx")
-    to_onnx(gbt, OUT / "gbt.onnx")
+    to_onnx(logreg, out / "logreg.onnx")
+    to_onnx(gbt, out / "gbt.onnx")
 
     info = {
         "trained_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "dataset": Path(args.data).name,
+        "profile": profile,
+        # False — у файлі не було колонки впорядкування, тож спліт позиційний, а
+        # не хронологічний. Метрики від цього не стають хибними, але й
+        # «передбаченням майбутнього» вже не є, і UI це показує.
+        "is_time_ordered": is_time_ordered,
         "rows_train": int(len(train)),
         "rows_test": int(len(test)),
         "feature_order": FEATURE_ORDER,
@@ -169,25 +223,30 @@ def main() -> None:
         "best_params": {"logreg": logreg_search.best_params_, "gbt": gbt_search.best_params_},
         "metrics": metrics,
     }
-    (OUT / "model_info.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
-    (OUT / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    (out / "model_info.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
+    (out / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
     # Parity fixtures: every time control, a spread of ratings, both extremes.
     # Probabilities come from the ONNX files, not predict_proba — the .NET side
     # runs the ONNX graph, so that is what it must agree with.
     rows = [(w, b, tc) for tc in TIME_CONTROLS for w, b in FIXTURE_PAIRS]
     x_fix = np.array([feature_vector(w, b, tc) for w, b, tc in rows], dtype=np.float32)
-    p_log = onnx_probs(OUT / "logreg.onnx", x_fix)
-    p_gbt = onnx_probs(OUT / "gbt.onnx", x_fix)
+    p_log = onnx_probs(out / "logreg.onnx", x_fix)
+    p_gbt = onnx_probs(out / "gbt.onnx", x_fix)
     fixtures = [{"white": w, "black": b, "time_control": tc,
                  "logreg": [float(v) for v in p_log[i]], "gbt": [float(v) for v in p_gbt[i]],
                  "elo": list(elo_baseline(w, b, draw_rate))}
                 for i, (w, b, tc) in enumerate(rows)]
-    (OUT / "parity_fixtures.json").write_text(json.dumps(fixtures, indent=2), encoding="utf-8")
+    (out / "parity_fixtures.json").write_text(json.dumps(fixtures, indent=2), encoding="utf-8")
 
-    for name in ("logreg.onnx", "gbt.onnx", "model_info.json"):
-        shutil.copy(OUT / name, MODELS_DIR / name)
-    shutil.copy(OUT / "parity_fixtures.json", FIXTURES_DIR / "chess_parity.json")
+    # Застосунок завжди передає --no-install: саме це робить структурно
+    # неможливим перезапис вбудованої моделі й parity-фікстури навчанням з UI.
+    if args.install:
+        for directory in (MODELS_DIR, FIXTURES_DIR):
+            directory.mkdir(parents=True, exist_ok=True)
+        for name in ("logreg.onnx", "gbt.onnx", "model_info.json"):
+            shutil.copy(out / name, MODELS_DIR / name)
+        shutil.copy(out / "parity_fixtures.json", FIXTURES_DIR / "chess_parity.json")
 
     print(f"train={len(train)} test={len(test)} draw_rate={draw_rate:.4f}")
     print("best params:", json.dumps(info["best_params"]))

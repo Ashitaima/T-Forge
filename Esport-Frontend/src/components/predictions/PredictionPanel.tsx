@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { predictionsApi } from "../../api/predictionsApi";
+import { modelLabel } from "../../constants/predictionModels";
 import { timeControlLabel } from "../../constants/timeControls";
 import type {
   DuelPredictionDto,
@@ -14,15 +15,9 @@ import type {
  *
  * Шанс першої сторони — зеленим (win), другої — червоним (danger), нічия —
  * нейтральна. Ember не використовується: прогноз — інформація, а не дія.
- * Ключі — Esport-Backend/Common/PredictionModels.cs.
+ * Підписи моделей — constants/predictionModels.ts (їх читає ще й таблиця
+ * запусків навчання).
  */
-const MODEL_LABELS: Record<string, string> = {
-  LogisticRegression: "Логістична регресія",
-  GradientBoosting: "Градієнтний бустинг",
-  Elo: "Ело (базова лінія)"
-};
-
-const modelLabel = (model: string) => MODEL_LABELS[model] ?? model;
 const pct = (value: number) => `${Math.round(value * 100)}%`;
 
 /** Підпис усередині сегмента — лише якщо він достатньо широкий, щоб текст не вилазив. */
@@ -57,7 +52,9 @@ const ModelNote = ({ info, littleData }: { info: PredictionModelInfoDto | null; 
     )}
     {info && (
       <p className="muted">
-        Навчено на {info.rowsTrain.toLocaleString("uk-UA")} партіях ({info.dataset}). Log loss на тесті:{" "}
+        Модель: {info.datasetName}
+        {info.isBaseline && " (вбудована)"} · навчено на{" "}
+        {info.rowsTrain.toLocaleString("uk-UA")} партіях. Log loss на тесті:{" "}
         {info.metrics.map((m) => `${modelLabel(m.model)} ${m.logLoss.toFixed(3)}`).join(" · ")}
       </p>
     )}
