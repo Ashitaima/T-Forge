@@ -70,6 +70,10 @@ builder.Services.AddScoped<IDuelService, DuelService>();
             // Серверний годинник драфту: без нього хід згорає лише тоді, коли
             // на драфт хтось дивиться.
             builder.Services.AddHostedService<DraftTimeoutService>();
+            // Спершу ремонт і активна версія, потім черга: інакше перший такт
+            // черги побачив би покинутий Running і не взяв роботу.
+            builder.Services.AddHostedService<ChessModelActivationService>();
+            builder.Services.AddHostedService<ChessTrainingRunnerService>();
             builder.Services.AddScoped<IMembershipRequestService, MembershipRequestService>();
             builder.Services.AddScoped<IMatchChallengeService, MatchChallengeService>();
             builder.Services.AddScoped<ITournamentInvitationService, TournamentInvitationService>();
