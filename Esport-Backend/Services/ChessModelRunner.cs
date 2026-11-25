@@ -52,12 +52,18 @@ namespace TForge.Services
         public ChessModelInfo? Info => _loaded?.Info;
         public int? ActiveRunId => _loaded?.RunId;
         public string BaselineDirectory { get; }
+        public string BaselineDataset { get; }
 
         public ChessModelRunner(string modelDirectory, ILogger<ChessModelRunner> logger)
         {
             _logger = logger;
             BaselineDirectory = modelDirectory;
             Load(modelDirectory, runId: null);
+
+            // Знімаємо назву набору вбудованої моделі один раз, поки Info — це
+            // саме вона. Пізніші перемикання її не змінюють: інакше підпис
+            // «вбудована» показував би датасет активної користувацької версії.
+            BaselineDataset = Info?.Dataset ?? string.Empty;
         }
 
         /// <summary>

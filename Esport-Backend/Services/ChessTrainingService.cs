@@ -70,8 +70,10 @@ namespace TForge.Services
                 Available = _trainer.IsAvailable,
                 Reason = _trainer.UnavailableReason,
                 ActiveRun = activeRunId == null ? null : await GetRunAsync(activeRunId.Value),
-                // Назва набору вбудованої моделі — з її ж model_info.json.
-                BaselineDataset = _runner.Info?.Dataset ?? string.Empty
+                // Саме BaselineDataset, а не Info.Dataset: Info описує активну
+                // модель, тож після активації користувацької версії тут був би
+                // її датасет замість вбудованого.
+                BaselineDataset = _runner.BaselineDataset
             };
         }
 

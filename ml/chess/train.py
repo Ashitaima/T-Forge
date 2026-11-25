@@ -9,6 +9,7 @@ re-implementing the pipeline.
 import argparse
 import json
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -147,7 +148,23 @@ FIXTURE_PAIRS = [(1500, 1500), (1800, 1400), (1200, 2000), (2400, 2350), (900, 9
                  (1300, 1250), (2200, 1800)]
 
 
+def _utf8_stdout() -> None:
+    """Повідомлення у вердикті українські, а stdout дочірнього процесу на
+    Windows отримує кодування системної сторінки (cp1252) — друк кирилиці
+    падав з UnicodeEncodeError, і бекенд бачив ненульовий код виходу замість
+    вердикту, тобто «зламаний інструментарій» замість «поганий файл».
+
+    Бекенд додатково передає PYTHONIOENCODING=utf-8; це — та сама гарантія для
+    запуску руками з cmd.exe.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def main() -> None:
+    _utf8_stdout()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default=str(DEFAULT_DATA))
     parser.add_argument("--validate", action="store_true",

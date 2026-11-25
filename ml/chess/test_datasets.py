@@ -193,3 +193,41 @@ def test_load_dataset_returns_frame_profile_and_ordering(tmp_path: Path):
     assert isinstance(rows, pd.DataFrame)
     assert profile == MINIMAL
     assert is_time_ordered is False
+
+
+# ---- CLI як його бачить бекенд (підпроцес, а не import) ----
+
+import json
+import subprocess
+import sys
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "train.py", *args],
+                          cwd=str(Path(__file__).parent),
+                          capture_output=True, text=True, encoding="utf-8")
+
+
+def test_cli_validate_prints_ukrainian_issue_without_crashing(tmp_path: Path):
+    """Повідомлення про проблему українське, а stdout дочірнього процесу на
+    Windows отримує cp1252 — друк кирилиці падав з UnicodeEncodeError, і
+    бекенд бачив код 1 замість вердикту. Саме це тут і перевіряється.
+    """
+    path = tmp_path / "no-winner.csv"
+    frame(MINIMAL_ROW).drop(columns=["winner"]).to_csv(path, index=False)
+
+    result = run_cli("--validate", "--data", str(path))
+
+    assert result.returncode == 0, result.stderr
+    verdict = json.loads(result.stdout)
+    assert "winner" in verdict["issues"][0]
+
+
+def test_cli_validate_exits_zero_on_a_good_file(tmp_path: Path):
+    path = tmp_path / "good.csv"
+    frame(MINIMAL_ROW).to_csv(path, index=False)
+
+    result = run_cli("--validate", "--data", str(path))
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["issues"] == []

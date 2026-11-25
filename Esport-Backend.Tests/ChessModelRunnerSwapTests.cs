@@ -107,4 +107,39 @@ public class ChessModelRunnerSwapTests
     {
         Assert.Equal(Baseline, Runner().BaselineDirectory);
     }
+
+    [Fact]
+    public void BaselineDataset_IsTheBuiltInSet()
+    {
+        Assert.Equal("games.csv", Runner().BaselineDataset);
+    }
+
+    [Fact]
+    public void BaselineDataset_SurvivesSwitchingToAnotherVersion()
+    {
+        // Спершу це читалося з Info, і після активації користувацької версії
+        // підпис «вбудована» показував її датасет (data.csv) замість games.csv.
+        var runner = Runner();
+        var directory = Path.Combine(Path.GetTempPath(), $"tforge-other-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            foreach (var name in new[] { "logreg.onnx", "gbt.onnx" })
+            {
+                File.Copy(Path.Combine(Baseline, name), Path.Combine(directory, name));
+            }
+
+            var info = File.ReadAllText(Path.Combine(Baseline, "model_info.json"))
+                .Replace("\"games.csv\"", "\"data.csv\"");
+            File.WriteAllText(Path.Combine(directory, "model_info.json"), info);
+
+            Assert.True(runner.Load(directory, runId: 5));
+            Assert.Equal("data.csv", runner.Info!.Dataset);
+            Assert.Equal("games.csv", runner.BaselineDataset);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }

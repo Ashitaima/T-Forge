@@ -132,6 +132,13 @@ namespace TForge.Services
                 StandardErrorEncoding = Encoding.UTF8
             };
 
+            // Читати UTF-8 мало — дочірній Python має ним ще й писати. Без
+            // цього він бере системну сторінку (на Windows cp1252), і друк
+            // українського повідомлення про проблему падає з
+            // UnicodeEncodeError: вердикт «поганий файл» перетворювався на
+            // ненульовий код виходу, тобто на «зламаний інструментарій».
+            info.Environment["PYTHONIOENCODING"] = "utf-8";
+
             foreach (var argument in arguments)
             {
                 info.ArgumentList.Add(argument);
