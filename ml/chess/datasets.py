@@ -84,9 +84,16 @@ def normalize(df: pd.DataFrame) -> tuple[pd.DataFrame, str, bool]:
 
     df = df.copy()
 
-    if profile == LICHESS:
+    # Фільтри якості йдуть за наявністю колонок, а не за назвою профілю. Та
+    # сама вибірка Lichess ходить по Kaggle у редакції без id і created_at —
+    # профіль у неї Minimal, але rated і turns у ній є, і привʼязка фільтрів до
+    # профілю тихо пускала нерейтингові та однохідні партії в навчання.
+    # Timeouts лишаємо навмисно: програш за часом — справжній результат.
+    if "id" in df.columns:
         df = df.drop_duplicates(subset="id")
+    if "rated" in df.columns:
         df = df[df["rated"].astype(str).str.lower() == "true"]
+    if "turns" in df.columns:
         df = df[pd.to_numeric(df["turns"], errors="coerce").fillna(0) >= 2]
 
     df["time_control"] = _time_control(df)
