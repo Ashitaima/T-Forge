@@ -46,6 +46,12 @@ def missing_columns(columns: Iterable[str]) -> list[str]:
     return missing
 
 
+def _shortlist(columns: Iterable[str], limit: int = 12) -> list[str]:
+    """Назви колонок для повідомлення про помилку, обрізані до читабельного."""
+    names = [str(column) for column in columns]
+    return names if len(names) <= limit else names[:limit] + [f"… (+{len(names) - limit})"]
+
+
 def _time_control(df: pd.DataFrame) -> pd.Series:
     if "time_control" in df.columns:
         return df["time_control"].astype(str).str.strip()
@@ -67,7 +73,14 @@ def normalize(df: pd.DataFrame) -> tuple[pd.DataFrame, str, bool]:
 
     missing = missing_columns(df.columns)
     if missing:
-        raise ValueError(f"відсутні колонки: {', '.join(missing)}")
+        # Перелічуємо й те, що у файлі ЄСТЬ: та сама вибірка Lichess ходить по
+        # Kaggle у двох редакціях, де колонки звуться по-різному
+        # (increment_code ↔ time_increment, id ↔ game_id). Повідомлення «немає
+        # increment_code» над файлом, у якому видно time_increment, виглядає
+        # як помилка перевірки, хоч перевірка має рацію.
+        raise ValueError(
+            f"відсутні колонки: {', '.join(missing)}. "
+            f"У файлі є: {', '.join(_shortlist(df.columns))}")
 
     df = df.copy()
 
