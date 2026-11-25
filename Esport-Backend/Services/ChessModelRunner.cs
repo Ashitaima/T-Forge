@@ -36,14 +36,6 @@ namespace TForge.Services
             { "rating_diff", "rating_mean", "tc_bullet", "tc_blitz", "tc_rapid", "tc_classical" };
         private static readonly string[] ExpectedClasses = { "white", "draw", "black" };
 
-        // Ключі метрик у model_info.json → назви моделей у DTO.
-        private static readonly Dictionary<string, string> MetricKeys = new()
-        {
-            ["logreg"] = PredictionModels.LogisticRegression,
-            ["gbt"] = PredictionModels.GradientBoosting,
-            ["elo"] = PredictionModels.Elo
-        };
-
         /// <summary>
         /// Усе завантажене — одним незмінним знімком. Predict бере посилання
         /// один раз у локальну змінну, тож перемикання посеред прогнозу не
@@ -110,8 +102,8 @@ namespace TForge.Services
                     file.EloDrawRate,
                     file.TrainGamesByTimeControl,
                     file.Metrics
-                        .Where(kv => MetricKeys.ContainsKey(kv.Key))
-                        .ToDictionary(kv => MetricKeys[kv.Key], kv => kv.Value));
+                        .Where(kv => PredictionModels.FileKeys.ContainsKey(kv.Key))
+                        .ToDictionary(kv => PredictionModels.FileKeys[kv.Key], kv => kv.Value));
 
                 _loaded = new Loaded(logreg, gbt, info, runId);
                 _logger.LogInformation(
