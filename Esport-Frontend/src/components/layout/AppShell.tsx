@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Anvil, BadgeCheck, CalendarClock, Heart, LayoutGrid, Shield, Swords, UserRound, UsersRound } from "lucide-react";
+import { Anvil, BadgeCheck, Brain, CalendarClock, Heart, LayoutGrid, Shield, Swords, UserRound, UsersRound } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import { useEffectiveRole, useIsPreviewing } from "../../hooks/useEffectiveRole";
 import { teamsApi } from "../../api/teamsApi";
@@ -19,7 +19,8 @@ const navItems = [
   // лише увійшовши, окремо від адмінських пунктів нижче.
   { to: "/lft", label: "Пошук складу", icon: Heart, authOnly: true },
   { to: "/users", label: "Користувачі", icon: Shield, adminOnly: true },
-  { to: "/organizer-requests", label: "Заявки на роль", icon: BadgeCheck, adminOnly: true }
+  { to: "/organizer-requests", label: "Заявки на роль", icon: BadgeCheck, adminOnly: true },
+  { to: "/ml", label: "Моделі прогнозу", icon: Brain, adminOnly: true }
 ];
 
 export const AppShell = () => {
