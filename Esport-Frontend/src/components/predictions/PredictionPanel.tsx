@@ -52,7 +52,9 @@ const ModelNote = ({ info, littleData }: { info: PredictionModelInfoDto | null; 
     )}
     {info && (
       <p className="muted">
-        Навчено на {info.rowsTrain.toLocaleString("uk-UA")} партіях ({info.dataset}). Log loss на тесті:{" "}
+        Модель: {info.datasetName}
+        {info.isBaseline && " (вбудована)"} · навчено на{" "}
+        {info.rowsTrain.toLocaleString("uk-UA")} партіях. Log loss на тесті:{" "}
         {info.metrics.map((m) => `${modelLabel(m.model)} ${m.logLoss.toFixed(3)}`).join(" · ")}
       </p>
     )}
